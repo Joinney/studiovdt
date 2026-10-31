@@ -248,15 +248,43 @@ def _patch_vieneu_fetch():
         logger.warning(f"Could not patch vieneu fetch: {e}")
 
 
+def is_low_memory_environment() -> bool:
+    """
+    Checks if running on Streamlit Cloud or container with limited memory (< 2.5 GB RAM).
+    Streamlit Community Cloud has a strict 1GB RAM limit; v3turbo uses >1.2GB and triggers OOM.
+    v3nano uses <300MB and runs with 100% stability.
+    """
+    import os
+    if Path("/mount/src").exists() or os.environ.get("STREAMLIT_SHARING_HOST"):
+        return True
+    try:
+        import psutil
+        if psutil.virtual_memory().total < 2.5 * (1024**3):
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def enhance_vocal(sound: AudioSegment) -> AudioSegment:
     """
     Studio-grade vocal mastering matching official vieneu.io quality:
     1. High-pass filter at 80Hz (cuts low-frequency boominess and boxy rumble).
-    2. Dynamic broadcast loudness normalization to -14.0 dBFS (brings out vocal brightness,
-       clarity, breath details, and crisp high frequencies).
+    2. Treble/Air Presence boost (3kHz - 12kHz) for crisp, bright vocal tones.
+    3. Dynamic broadcast loudness normalization to -14.0 dBFS (matching vieneu.io).
     """
     try:
+        # Cut muddy sub-bass
         clean_sound = sound.high_pass_filter(80)
+
+        # Treble presence boost for bright, crisp studio voice
+        try:
+            treble = clean_sound.high_pass_filter(3000).apply_gain(2.0)
+            clean_sound = clean_sound.overlay(treble)
+        except Exception:
+            pass
+
+        # Target broadcast loudness level (-14 dBFS like vieneu.io sample)
         target_dbfs = -14.0
         current_dbfs = clean_sound.dBFS
         if current_dbfs > -60.0:
@@ -271,18 +299,29 @@ def enhance_vocal(sound: AudioSegment) -> AudioSegment:
         return sound
 
 
-def get_vieneu_engine():
+def get_vieneu_engine(preferred_mode: Optional[str] = None):
     global _VIENEU_ENGINE
     if _VIENEU_ENGINE is None:
         from vieneu import Vieneu
+
+        # Protect Streamlit Cloud (1GB RAM limit) from OOM kill
+        if preferred_mode:
+            target_mode = preferred_mode
+        elif is_low_memory_environment():
+            logger.info("⚡ Low-memory/Cloud environment detected (1GB RAM limit). Using v3nano to prevent OOM...")
+            target_mode = "v3nano"
+        else:
+            target_mode = "v3turbo"
+
         try:
-            logger.info("Initializing VieNeu-TTS Engine (Turbo 48kHz Studio Quality)...")
-            _patch_vieneu_fetch()
-            _VIENEU_ENGINE = Vieneu(mode="v3turbo")
+            logger.info(f"Initializing VieNeu-TTS Engine ({target_mode})...")
+            if target_mode == "v3turbo":
+                _patch_vieneu_fetch()
+            _VIENEU_ENGINE = Vieneu(mode=target_mode)
             _load_all_voices_into_engine(_VIENEU_ENGINE)
-            logger.info("✅ VieNeu-TTS Turbo 48kHz initialized successfully!")
+            logger.info(f"✅ VieNeu-TTS {target_mode} initialized successfully!")
         except Exception as e:
-            logger.warning(f"Could not initialize Turbo 48kHz ({e}). Falling back to v3nano 24kHz...")
+            logger.warning(f"Could not initialize {target_mode} ({e}). Falling back to v3nano 24kHz...")
             try:
                 _VIENEU_ENGINE = Vieneu(mode="v3nano")
                 _load_all_voices_into_engine(_VIENEU_ENGINE)
