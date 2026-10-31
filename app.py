@@ -6,6 +6,7 @@ import asyncio
 import base64
 from datetime import datetime
 from pathlib import Path
+import urllib.parse
 import streamlit as st
 import edge_tts
 
@@ -177,31 +178,126 @@ def apply_sample_preset():
         st.session_state["tts_main_text"] = sample_options[chosen]
 
 
+# Dynamic Script Injection for Cursor/Caret Insertion Engine
+caret_js_code = """
+(function() {
+    window.__vdtLastPos = null;
+
+    function getTa() {
+        var el = document.activeElement;
+        if (el && el.tagName === 'TEXTAREA') return el;
+        return document.querySelector('div[data-testid="stTextArea"] textarea') || document.querySelector('textarea');
+    }
+
+    function savePos() {
+        var ta = getTa();
+        if (ta && typeof ta.selectionStart === 'number') {
+            window.__vdtLastPos = {
+                start: ta.selectionStart,
+                end: ta.selectionEnd
+            };
+        }
+    }
+
+    ['focus', 'click', 'keyup', 'mouseup', 'select', 'input', 'touchend'].forEach(function(evt) {
+        document.addEventListener(evt, function(e) {
+            if (e.target && e.target.tagName === 'TEXTAREA') {
+                savePos();
+            }
+        }, true);
+    });
+
+    document.addEventListener('selectionchange', function() {
+        var el = document.activeElement;
+        if (el && el.tagName === 'TEXTAREA') {
+            savePos();
+        }
+    });
+
+    window.insertCaretTag = function(tag) {
+        var ta = getTa();
+        if (!ta) return;
+
+        ta.focus();
+
+        var start = (window.__vdtLastPos && typeof window.__vdtLastPos.start === 'number') 
+            ? window.__vdtLastPos.start 
+            : (typeof ta.selectionStart === 'number' ? ta.selectionStart : (ta.value ? ta.value.length : 0));
+        var end = (window.__vdtLastPos && typeof window.__vdtLastPos.end === 'number') 
+            ? window.__vdtLastPos.end 
+            : (typeof ta.selectionEnd === 'number' ? ta.selectionEnd : start);
+
+        var val = ta.value || '';
+        if (start > val.length) start = val.length;
+        if (end > val.length) end = start;
+
+        ta.setSelectionRange(start, end);
+
+        var prefix = (start > 0 && val.charAt(start - 1) !== ' ' && val.charAt(start - 1) !== '\\n') ? ' ' : '';
+        var suffix = (end < val.length && val.charAt(end) !== ' ' && val.charAt(end) !== '\\n') ? ' ' : ' ';
+        var insertStr = prefix + tag + suffix;
+
+        var inserted = false;
+        try {
+            inserted = document.execCommand('insertText', false, insertStr);
+        } catch (e) {
+            inserted = false;
+        }
+
+        if (!inserted) {
+            var newVal = val.substring(0, start) + insertStr + val.substring(end);
+            var setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value');
+            if (setter && setter.set) {
+                setter.set.call(ta, newVal);
+            } else {
+                ta.value = newVal;
+            }
+            ta.dispatchEvent(new Event('input', { bubbles: true }));
+            ta.dispatchEvent(new Event('change', { bubbles: true }));
+            var nextPos = start + insertStr.length;
+            ta.setSelectionRange(nextPos, nextPos);
+            window.__vdtLastPos = { start: nextPos, end: nextPos };
+        } else {
+            window.__vdtLastPos = { start: ta.selectionStart, end: ta.selectionEnd };
+        }
+    };
+
+    window.insertCaretDropdown = function() {
+        var sel = document.getElementById('caretSelectTag');
+        if (sel && sel.value) {
+            window.insertCaretTag(sel.value);
+        }
+    };
+})();
+"""
+
+encoded_caret_js = urllib.parse.quote(caret_js_code)
+
 # Mobile-Optimized Caret Toolbar HTML
-mobile_toolbar_html = """
+mobile_toolbar_html = f"""
 <div style="margin-bottom: 6px;">
     <style>
-        .m-bar {
+        .m-bar {{
             background: #1e2028;
             border: 1px solid #363a47;
             border-radius: 8px;
             padding: 8px 10px;
             margin-bottom: 6px;
-        }
-        .m-title {
+        }}
+        .m-title {{
             font-size: 12.5px;
             font-weight: 700;
             color: #ff9800;
             margin-bottom: 6px;
             display: block;
-        }
-        .m-buttons-wrap {
+        }}
+        .m-buttons-wrap {{
             display: flex;
             flex-wrap: wrap;
             gap: 5px;
             margin-bottom: 6px;
-        }
-        .m-chip {
+        }}
+        .m-chip {{
             background: #2b2e3b;
             color: #ffffff;
             border: 1px solid #484d5f;
@@ -212,19 +308,19 @@ mobile_toolbar_html = """
             transition: all 0.15s ease;
             user-select: none;
             touch-action: manipulation;
-        }
-        .m-chip:active, .m-chip:hover {
+        }}
+        .m-chip:active, .m-chip:hover {{
             background: #ff4b4b;
             border-color: #ff4b4b;
             color: #ffffff;
-        }
-        .m-dropdown-row {
+        }}
+        .m-dropdown-row {{
             display: flex;
             gap: 6px;
             align-items: center;
             width: 100%;
-        }
-        .m-dropdown {
+        }}
+        .m-dropdown {{
             background: #2b2e3b;
             color: #ffffff;
             border: 1px solid #484d5f;
@@ -235,8 +331,8 @@ mobile_toolbar_html = """
             outline: none;
             cursor: pointer;
             height: 34px;
-        }
-        .m-insert-btn {
+        }}
+        .m-insert-btn {{
             background: #ff4b4b;
             color: #ffffff;
             border: none;
@@ -248,24 +344,24 @@ mobile_toolbar_html = """
             cursor: pointer;
             white-space: nowrap;
             touch-action: manipulation;
-        }
-        .m-insert-btn:active {
+        }}
+        .m-insert-btn:active {{
             background: #d83535;
-        }
+        }}
 
-        @media (max-width: 480px) {
-            .m-chip {
+        @media (max-width: 480px) {{
+            .m-chip {{
                 padding: 6px 8px;
                 font-size: 11.5px;
-            }
-            .m-dropdown-row {
+            }}
+            .m-dropdown-row {{
                 flex-direction: column;
                 align-items: stretch;
-            }
-            .m-insert-btn {
+            }}
+            .m-insert-btn {{
                 width: 100%;
-            }
-        }
+            }}
+        }}
     </style>
 
     <div class="m-bar">
@@ -347,74 +443,8 @@ mobile_toolbar_html = """
         </div>
     </div>
 
-    <script>
-        (function() {
-            let savedStart = null;
-            let savedEnd = null;
-
-            function getTa() {
-                return document.querySelector('div[data-testid="stTextArea"] textarea') || document.querySelector('textarea');
-            }
-
-            function track() {
-                const ta = getTa();
-                if (ta && ta.selectionStart !== undefined) {
-                    savedStart = ta.selectionStart;
-                    savedEnd = ta.selectionEnd;
-                }
-            }
-
-            ['keyup', 'keydown', 'mouseup', 'mousedown', 'input', 'select', 'focus'].forEach(function(ev) {
-                document.addEventListener(ev, function(e) {
-                    const ta = getTa();
-                    if (e.target === ta) {
-                        track();
-                    }
-                }, true);
-            });
-
-            window.insertCaretTag = function(tag) {
-                const ta = getTa();
-                if (!ta) return;
-
-                let start = (ta.selectionStart !== undefined && ta.selectionStart !== null) ? ta.selectionStart : savedStart;
-                let end = (ta.selectionEnd !== undefined && ta.selectionEnd !== null) ? ta.selectionEnd : savedEnd;
-
-                if (start === null || start === undefined) start = ta.value.length;
-                if (end === null || end === undefined) end = start;
-
-                const val = ta.value || '';
-                const prefix = (start > 0 && val[start - 1] !== ' ' && val[start - 1] !== '\\n') ? ' ' : '';
-                const suffix = (end < val.length && val[end] !== ' ' && val[end] !== '\\n') ? ' ' : ' ';
-                const insertStr = prefix + tag + suffix;
-
-                const newVal = val.substring(0, start) + insertStr + val.substring(end);
-
-                const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
-                if (nativeSetter) {
-                    nativeSetter.call(ta, newVal);
-                } else {
-                    ta.value = newVal;
-                }
-
-                ta.dispatchEvent(new Event('input', { bubbles: true }));
-                ta.dispatchEvent(new Event('change', { bubbles: true }));
-
-                const nextPos = start + insertStr.length;
-                savedStart = nextPos;
-                savedEnd = nextPos;
-                ta.focus();
-                ta.setSelectionRange(nextPos, nextPos);
-            };
-
-            window.insertCaretDropdown = function() {
-                const sel = document.getElementById('caretSelectTag');
-                if (sel && sel.value) {
-                    window.insertCaretTag(sel.value);
-                }
-            };
-        })();
-    </script>
+    <!-- Active dynamic injection triggering execution in React DOM -->
+    <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" style="display:none;" onload="if(!window.insertCaretTag){{var s=document.createElement('script');s.id='caret-script';s.text=decodeURIComponent('{encoded_caret_js}');document.head.appendChild(s);}}" onerror="this.onload()" />
 </div>
 """
 
@@ -426,8 +456,8 @@ with tab_tts:
         with st.container(border=True):
             st.markdown("#### 📝 Bước 1: Nhập văn bản")
 
-            # Mobile-friendly Caret Toolbar (with JavaScript execution enabled)
-            st.html(mobile_toolbar_html, unsafe_allow_javascript=True)
+            # Mobile-friendly Caret Toolbar
+            st.html(mobile_toolbar_html)
 
             # Text Area
             st.text_area(
@@ -437,6 +467,34 @@ with tab_tts:
                 placeholder="Nhập hoặc dán văn bản vào đây. Nhấp chuột vào bất kỳ vị trí nào rồi bấm nút cảm xúc...",
                 label_visibility="collapsed",
             )
+
+            # Fallback 1-click emotion insert
+            c_tag1, c_tag2 = st.columns([0.72, 0.28])
+            with c_tag1:
+                st.selectbox(
+                    "Thêm nhanh thẻ cảm xúc:",
+                    options=[
+                        "[cười] - Cười vui vẻ",
+                        "[sighs] - Thở dài ngao ngán",
+                        "[clears throat] - Hắng giọng",
+                        "[laughing] - Cười to ha ha",
+                        "[crying] - Khóc hu hu",
+                        "[shocked] - Sốc, kinh ngạc",
+                        "[thinking] - Hmmm suy nghĩ",
+                        "[panicked] - Chết rồi!",
+                        "[angry] - Tức giận",
+                        "[nghỉ 0.5s] - Tạm dừng 0.5s",
+                        "[nghỉ 1s] - Tạm dừng 1s",
+                    ],
+                    key="quick_tag_choice",
+                    label_visibility="collapsed",
+                )
+            with c_tag2:
+                if st.button("➕ Thêm thẻ", key="btn_quick_add_tag", help="Thêm thẻ cảm xúc đã chọn vào văn bản"):
+                    clean_code = st.session_state["quick_tag_choice"].split(" - ")[0]
+                    cur = st.session_state.get("tts_main_text", "")
+                    st.session_state["tts_main_text"] = cur + f" {clean_code}"
+                    st.rerun()
 
             c_preset, c_upload = st.columns([1.1, 0.9])
             with c_preset:
