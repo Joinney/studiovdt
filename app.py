@@ -1,5 +1,5 @@
 """
-AI Studio: Video Dubbing & Multi-Voice Text-to-Speech (Edge-TTS + VieNeu-TTS with Instant Emotion Tags)
+AI Studio: Video Dubbing & Multi-Voice Text-to-Speech (Edge-TTS + VieNeu-TTS with Rich Emotion & Drama Tags)
 Run with: streamlit run app.py
 """
 import asyncio
@@ -19,11 +19,11 @@ st.set_page_config(
 )
 
 st.title("🎙️ AI Audio & Video Studio")
-st.caption("Lồng tiếng video tự động & Chuyển đổi văn bản thành giọng nói (Hỗ trợ giọng Adam Tốp Tốp & Thẻ cảm xúc tức thì)")
+st.caption("Lồng tiếng video tự động & Chuyển đổi văn bản thành giọng nói (Hỗ trợ kho cảm xúc phong phú & Giọng Adam Tốp Tốp)")
 
 tab_dubbing, tab_tts = st.tabs([
     "🎬 Lồng tiếng Video (Video Dubbing)",
-    "🎙️ Văn bản sang Âm thanh (Text to Speech - Đa giọng đọc & Cảm xúc)",
+    "🎙️ Văn bản sang Âm thanh (Text to Speech - Đa giọng đọc & Kho Cảm Xúc)",
 ])
 
 
@@ -160,7 +160,7 @@ with tab_dubbing:
 
 
 # ==============================================================================
-# TAB 2: TEXT-TO-SPEECH (TTS STUDIO WITH INSTANT EMOTIONS & SPEED CONTROL)
+# TAB 2: TEXT-TO-SPEECH (TTS STUDIO WITH EXTENDED EMOTION & DRAMA CUES)
 # ==============================================================================
 async def generate_single_tts_edge(text: str, voice: str, rate: str, volume: str, pitch: str, output_path: Path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -185,7 +185,7 @@ if "tts_content_box" not in st.session_state:
 
 
 def insert_emotion_callback(tag: str):
-    """Callback to instantly append emotion tag to the textarea state before rerender."""
+    """Callback to instantly append emotion tag to the textarea state."""
     current_text = st.session_state.get("tts_content_box", "")
     st.session_state["tts_content_box"] = current_text.rstrip() + f" {tag} "
 
@@ -198,11 +198,16 @@ def apply_sample_callback():
 
 sample_texts = {
     "🔥 Giọng Adam Tốp Tốp (Review phim/Meme)": (
-        "Chào các bạn đã đến với kênh Tốp Tốp của tôi! [hắng giọng] "
-        "Hôm nay chúng ta cùng xem một câu chuyện cực kỳ gay cấn [cười]. "
-        "Cái kết làm ai cũng ngỡ ngàng [thở dài]."
+        "Khoan đã... [hắng giọng] các bạn có biết chuyện gì vừa xảy ra không? "
+        "Tên sát thủ tưởng như đã trốn thoát [cười], nhưng [nghỉ 0.5s] hắn không hề biết rằng [sửng sốt] "
+        "toàn bộ căn phòng đã bị bao vây [thở dài]."
     ),
-    "Tiếng Việt (Kể chuyện/Tâm sự)": (
+    "📖 Kể chuyện trinh thám / gay cấn": (
+        "Đêm hôm đó, tiếng bước chân tiến lại gần cánh cửa phòng [nghỉ 1s]. "
+        "Tôi nín thở... [ngập ngừng] và khi cánh cửa mở toang [nhấn mạnh] "
+        "chẳng có ai ở đó cả [thở dài]."
+    ),
+    "Tiếng Việt (Tâm sự / Kể chuyện nhẹ nhàng)": (
         "Đêm đó trời mưa rả rích ngoài hiên. [thở dài] "
         "Anh ấy nhìn tôi rồi mỉm cười nói: 'Đừng lo, mọi chuyện rồi sẽ qua thôi' [cười]."
     ),
@@ -213,47 +218,41 @@ sample_texts = {
 
 
 with tab_tts:
-    st.subheader("🎙️ Chuyển đổi Văn bản thành Giọng nói AI (Đa giọng đọc & Cảm xúc)")
-    st.caption("Hỗ trợ giọng Adam Tốp Tốp, Hoài My, Nam Minh và các thẻ biểu cảm [cười], [thở dài], [hắng giọng] áp dụng tức thì.")
+    st.subheader("🎙️ Chuyển đổi Văn bản thành Giọng nói AI (Đa giọng đọc & Kho Cảm Xúc)")
+    st.caption("Kho cảm xúc phong phú: tiếng cười, thở dài, hắng giọng, ngắt nhịp kịch tính, ngập ngừng, sửng sốt...")
 
     col_tts_left, col_tts_right = st.columns([1.2, 0.8])
 
     with col_tts_left:
-        st.markdown("##### 📝 1. Nhập văn bản cần đọc:")
+        st.markdown("##### 📝 1. Nhập văn bản & Thêm cảm xúc:")
 
-        # Instant Emotion Tag Buttons using on_click callbacks
-        st.markdown("**Bấm để chèn cảm xúc tức thì vào văn bản:**")
-        col_emo_lbl, col_b1, col_b2, col_b3, _ = st.columns([1.1, 1.3, 1.4, 1.6, 2])
+        # Row 1: Vocal Emotion Cues
+        st.markdown("**🎭 Âm thanh cảm xúc (Giọng nói tự nhiên):**")
+        c_lbl1, c_b1, c_b2, c_b3, c_b4 = st.columns([1.1, 1.4, 1.4, 1.6, 1.6])
+        with c_lbl1:
+            st.markdown("<p style='padding-top: 6px; font-weight: bold;'>Biểu cảm:</p>", unsafe_allow_html=True)
+        with c_b1:
+            st.button("😄 [cười]", on_click=insert_emotion_callback, args=("[cười]",), help="Tiếng cười khúc khích tự nhiên")
+        with c_b2:
+            st.button("😮‍💨 [thở dài]", on_click=insert_emotion_callback, args=("[thở dài]",), help="Tiếng thở dài trầm ngâm")
+        with c_b3:
+            st.button("🗣️ [hắng giọng]", on_click=insert_emotion_callback, args=("[hắng giọng]",), help="Tiếng e hèm lấy giọng")
+        with c_b4:
+            st.button("🤔 [ngập ngừng]", on_click=insert_emotion_callback, args=("[ngập ngừng]",), help="Ngập ngừng 'à... ừm...'")
 
-        with col_emo_lbl:
-            st.markdown("<p style='padding-top: 6px; font-weight: bold;'>Cảm xúc:</p>", unsafe_allow_html=True)
-
-        with col_b1:
-            st.button(
-                "😄 [cười]",
-                key="btn_tag_cuoi",
-                on_click=insert_emotion_callback,
-                args=("[cười]",),
-                help="Bấm để chèn tiếng cười tự nhiên",
-            )
-
-        with col_b2:
-            st.button(
-                "😮‍💨 [thở dài]",
-                key="btn_tag_tho",
-                on_click=insert_emotion_callback,
-                args=("[thở dài]",),
-                help="Bấm để chèn tiếng thở dài",
-            )
-
-        with col_b3:
-            st.button(
-                "🗣️ [hắng giọng]",
-                key="btn_tag_hang",
-                on_click=insert_emotion_callback,
-                args=("[hắng giọng]",),
-                help="Bấm để chèn tiếng e hèm lấy giọng",
-            )
+        # Row 2: Dramatic Timing & Acting Cues
+        st.markdown("**⏱️ Nhịp điệu kịch tính & Diễn xuất (Review phim / Kể chuyện):**")
+        c_lbl2, c_d1, c_d2, c_d3, c_d4 = st.columns([1.1, 1.4, 1.4, 1.6, 1.6])
+        with c_lbl2:
+            st.markdown("<p style='padding-top: 6px; font-weight: bold;'>Nhịp điệu:</p>", unsafe_allow_html=True)
+        with c_d1:
+            st.button("⏸️ [nghỉ 0.5s]", on_click=insert_emotion_callback, args=("[nghỉ 0.5s]",), help="Ngắt nhịp 0.5 giây tạo tò mò")
+        with c_d2:
+            st.button("⏳ [nghỉ 1s]", on_click=insert_emotion_callback, args=("[nghỉ 1s]",), help="Khoảng lặng 1 giây hồi hộp gay cấn")
+        with c_d3:
+            st.button("😱 [sửng sốt]", on_click=insert_emotion_callback, args=("[sửng sốt]",), help="Sửng sốt, giật mình 'hả?! ...'")
+        with c_d4:
+            st.button("⚡ [nhấn mạnh]", on_click=insert_emotion_callback, args=("[nhấn mạnh]",), help="Nhấn mạnh dứt khoát vào câu nói")
 
         col_sample, _ = st.columns([2, 1])
         with col_sample:
@@ -376,7 +375,7 @@ with tab_tts:
                 for voice_id, label in zip(selected_voices, selected_labels):
                     try:
                         if voice_id.startswith("vieneu:"):
-                            # VieNeu-TTS Engine (Supports [cười], [thở dài], [hắng giọng] + speed multiplier)
+                            # VieNeu-TTS Engine (Supports rich emotion tags + speed multiplier)
                             clean_v = voice_id.replace("vieneu:", "")
                             out_filename = f"tts_vieneu_{clean_v}_{timestamp}.mp3"
                             out_path = tts_output_dir / out_filename
@@ -389,7 +388,11 @@ with tab_tts:
                         else:
                             # Edge-TTS Engine (strips emotion tags cleanly)
                             clean_text_for_edge = text_to_speak
-                            for emo_tag in ["[cười]", "[thở dài]", "[hắng giọng]", "[chuckle]", "[sigh]", "[clear throat]"]:
+                            for emo_tag in [
+                                "[cười]", "[thở dài]", "[hắng giọng]", "[ngập ngừng]",
+                                "[nghỉ 0.5s]", "[nghỉ 1s]", "[sửng sốt]", "[nhấn mạnh]",
+                                "[chuckle]", "[sigh]", "[clear throat]"
+                            ]:
                                 clean_text_for_edge = clean_text_for_edge.replace(emo_tag, "")
 
                             out_filename = f"tts_edge_{voice_id}_{timestamp}.mp3"
