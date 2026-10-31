@@ -1,5 +1,5 @@
 """
-AI Studio: Video Dubbing & Multi-Voice Text-to-Speech (Edge-TTS + VieNeu-TTS with Emotion Tags)
+AI Studio: Video Dubbing & Multi-Voice Text-to-Speech (Edge-TTS + VieNeu-TTS with Instant Emotion Tags)
 Run with: streamlit run app.py
 """
 import asyncio
@@ -19,7 +19,7 @@ st.set_page_config(
 )
 
 st.title("🎙️ AI Audio & Video Studio")
-st.caption("Lồng tiếng video tự động & Chuyển đổi văn bản thành giọng nói (Hỗ trợ giọng Adam Tốp Tốp & Thẻ cảm xúc [cười], [thở dài], [hắng giọng])")
+st.caption("Lồng tiếng video tự động & Chuyển đổi văn bản thành giọng nói (Hỗ trợ giọng Adam Tốp Tốp & Thẻ cảm xúc tức thì)")
 
 tab_dubbing, tab_tts = st.tabs([
     "🎬 Lồng tiếng Video (Video Dubbing)",
@@ -160,7 +160,7 @@ with tab_dubbing:
 
 
 # ==============================================================================
-# TAB 2: TEXT-TO-SPEECH (TTS STUDIO WITH EMOTIONS)
+# TAB 2: TEXT-TO-SPEECH (TTS STUDIO WITH INSTANT EMOTIONS & SPEED CONTROL)
 # ==============================================================================
 async def generate_single_tts_edge(text: str, voice: str, rate: str, volume: str, pitch: str, output_path: Path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -175,99 +175,110 @@ async def generate_single_tts_edge(text: str, voice: str, rate: str, volume: str
     return output_path
 
 
+# Session state initialization for instant reaction
+if "tts_content_box" not in st.session_state:
+    st.session_state["tts_content_box"] = (
+        "Chào các bạn đã quay trở lại với kênh Tốp Tốp của tôi! [hắng giọng] "
+        "Hôm nay chúng ta sẽ cùng review một bộ phim cực kỳ kịch tính [cười]. "
+        "Cái kết làm ai cũng ngỡ ngàng [thở dài]. Đừng quên bấm theo dõi nhé!"
+    )
+
+
+def insert_emotion_callback(tag: str):
+    """Callback to instantly append emotion tag to the textarea state before rerender."""
+    current_text = st.session_state.get("tts_content_box", "")
+    st.session_state["tts_content_box"] = current_text.rstrip() + f" {tag} "
+
+
+def apply_sample_callback():
+    sample_key = st.session_state.get("sample_selector")
+    if sample_key and sample_key in sample_texts:
+        st.session_state["tts_content_box"] = sample_texts[sample_key]
+
+
+sample_texts = {
+    "🔥 Giọng Adam Tốp Tốp (Review phim/Meme)": (
+        "Chào các bạn đã đến với kênh Tốp Tốp của tôi! [hắng giọng] "
+        "Hôm nay chúng ta cùng xem một câu chuyện cực kỳ gay cấn [cười]. "
+        "Cái kết làm ai cũng ngỡ ngàng [thở dài]."
+    ),
+    "Tiếng Việt (Kể chuyện/Tâm sự)": (
+        "Đêm đó trời mưa rả rích ngoài hiên. [thở dài] "
+        "Anh ấy nhìn tôi rồi mỉm cười nói: 'Đừng lo, mọi chuyện rồi sẽ qua thôi' [cười]."
+    ),
+    "English (Business)": (
+        "Welcome to our AI Audio Studio! You can convert any text into lifelike speech with multiple natural voices."
+    ),
+}
+
+
 with tab_tts:
     st.subheader("🎙️ Chuyển đổi Văn bản thành Giọng nói AI (Đa giọng đọc & Cảm xúc)")
-    st.caption("Hỗ trợ giọng Adam Tốp Tốp, Hoài My, Nam Minh và các thẻ biểu cảm [cười], [thở dài], [hắng giọng].")
-
-    # Initialize session state for text input if not present
-    if "tts_editor_text" not in st.session_state:
-        st.session_state["tts_editor_text"] = (
-            "Chào các bạn đã quay trở lại với kênh Tốp Tốp của tôi! [hắng giọng] "
-            "Hôm nay chúng ta sẽ cùng review một bộ phim cực kỳ kịch tính [cười]. "
-            "Các bạn sẵn sàng chưa nào? [thở dài] Đừng quên bấm theo dõi nhé!"
-        )
+    st.caption("Hỗ trợ giọng Adam Tốp Tốp, Hoài My, Nam Minh và các thẻ biểu cảm [cười], [thở dài], [hắng giọng] áp dụng tức thì.")
 
     col_tts_left, col_tts_right = st.columns([1.2, 0.8])
 
     with col_tts_left:
         st.markdown("##### 📝 1. Nhập văn bản cần đọc:")
 
-        # Quick emotion buttons (Exactly as requested)
-        st.markdown(
-            """
-            <style>
-            div[data-testid="stHorizontalBlock"] button[kind="secondary"] {
-                padding: 0.25rem 0.75rem;
-                border-radius: 8px;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        col_emo_lbl, col_btn_cuoi, col_btn_tho, col_btn_hang, _ = st.columns([1.1, 1.2, 1.4, 1.6, 2])
+        # Instant Emotion Tag Buttons using on_click callbacks
+        st.markdown("**Bấm để chèn cảm xúc tức thì vào văn bản:**")
+        col_emo_lbl, col_b1, col_b2, col_b3, _ = st.columns([1.1, 1.3, 1.4, 1.6, 2])
 
         with col_emo_lbl:
-            st.markdown("<p style='padding-top: 8px; font-weight: bold;'>Cảm xúc:</p>", unsafe_allow_html=True)
+            st.markdown("<p style='padding-top: 6px; font-weight: bold;'>Cảm xúc:</p>", unsafe_allow_html=True)
 
-        with col_btn_cuoi:
-            if st.button("😄 Cười", key="btn_emo_cuoi", help="Chèn thẻ [cười] - tạo tiếng cười tự nhiên"):
-                st.session_state["tts_editor_text"] = st.session_state["tts_editor_text"].rstrip() + " [cười] "
-                st.rerun()
+        with col_b1:
+            st.button(
+                "😄 [cười]",
+                key="btn_tag_cuoi",
+                on_click=insert_emotion_callback,
+                args=("[cười]",),
+                help="Bấm để chèn tiếng cười tự nhiên",
+            )
 
-        with col_btn_tho:
-            if st.button("😮‍💨 Thở dài", key="btn_emo_tho", help="Chèn thẻ [thở dài] - tạo tiếng thở dài trầm ngâm"):
-                st.session_state["tts_editor_text"] = st.session_state["tts_editor_text"].rstrip() + " [thở dài] "
-                st.rerun()
+        with col_b2:
+            st.button(
+                "😮‍💨 [thở dài]",
+                key="btn_tag_tho",
+                on_click=insert_emotion_callback,
+                args=("[thở dài]",),
+                help="Bấm để chèn tiếng thở dài",
+            )
 
-        with col_btn_hang:
-            if st.button("🗣️ Hắng giọng", key="btn_emo_hang", help="Chèn thẻ [hắng giọng] - tạo tiếng e hèm lấy giọng"):
-                st.session_state["tts_editor_text"] = st.session_state["tts_editor_text"].rstrip() + " [hắng giọng] "
-                st.rerun()
-
-        sample_texts = {
-            "🔥 Giọng Adam Tốp Tốp (Review phim/Meme)": (
-                "Chào các bạn đã đến với kênh Tốp Tốp của tôi! [hắng giọng] "
-                "Hôm nay chúng ta cùng xem một câu chuyện cực kỳ gay cấn [cười]. "
-                "Cái kết làm ai cũng ngỡ ngàng [thở dài]."
-            ),
-            "Tiếng Việt (Kể chuyện/Tâm sự)": (
-                "Đêm đó trời mưa rả rích ngoài hiên. [thở dài] "
-                "Anh ấy nhìn tôi rồi mỉm cười nói: 'Đừng lo, mọi chuyện rồi sẽ qua thôi' [cười]."
-            ),
-            "English (Business)": (
-                "Welcome to our AI Audio Studio! You can convert any text into lifelike speech with multiple natural voices."
-            ),
-        }
+        with col_b3:
+            st.button(
+                "🗣️ [hắng giọng]",
+                key="btn_tag_hang",
+                on_click=insert_emotion_callback,
+                args=("[hắng giọng]",),
+                help="Bấm để chèn tiếng e hèm lấy giọng",
+            )
 
         col_sample, _ = st.columns([2, 1])
         with col_sample:
-            chosen_sample = st.selectbox(
+            st.selectbox(
                 "Chèn nhanh văn bản mẫu:",
                 options=["(Tùy chọn mẫu)"] + list(sample_texts.keys()),
                 index=0,
+                key="sample_selector",
+                on_change=apply_sample_callback,
             )
-            if chosen_sample != "(Tùy chọn mẫu)":
-                if st.session_state.get("last_sample") != chosen_sample:
-                    st.session_state["tts_editor_text"] = sample_texts[chosen_sample]
-                    st.session_state["last_sample"] = chosen_sample
-                    st.rerun()
 
-        tts_input_text = st.text_area(
-            "Nội dung văn bản (có thể bấm các nút Cảm xúc ở trên để chèn trực tiếp):",
-            value=st.session_state["tts_editor_text"],
+        # The Text Area directly binded with session state
+        st.text_area(
+            "Nội dung văn bản:",
+            key="tts_content_box",
             height=160,
-            key="tts_text_area",
             placeholder="Nhập đoạn văn bản bạn muốn chuyển đổi...",
         )
-        # Keep session state in sync when user edits directly
-        st.session_state["tts_editor_text"] = tts_input_text
 
         uploaded_txt = st.file_uploader("Hoặc tải lên file văn bản (.txt):", type=["txt"], key="tts_txt_uploader")
         if uploaded_txt:
-            uploaded_content = uploaded_txt.read().decode("utf-8")
-            st.session_state["tts_editor_text"] = uploaded_content
-            st.rerun()
+            uploaded_str = uploaded_txt.read().decode("utf-8")
+            if uploaded_str != st.session_state["tts_content_box"]:
+                st.session_state["tts_content_box"] = uploaded_str
+                st.rerun()
 
     with col_tts_right:
         st.markdown("##### ⚙️ 2. Tùy chỉnh giọng & âm thanh:")
@@ -292,7 +303,7 @@ with tab_tts:
             selected_voice_label = st.selectbox(
                 "Chọn giọng đọc AI:",
                 options=list(available_voices.keys()),
-                index=0,
+                index=0,  # Adam bựa
             )
             selected_voices = [available_voices[selected_voice_label]]
             selected_labels = [selected_voice_label]
@@ -305,16 +316,42 @@ with tab_tts:
             selected_voices = [available_voices[lbl] for lbl in multi_selected_labels]
             selected_labels = multi_selected_labels
 
-        col_param1, col_param2, col_param3 = st.columns(3)
+        st.markdown("**⚡ Tinh chỉnh tốc độ nói (Tempo):**")
+        col_speed_preset1, col_speed_preset2, col_speed_preset3 = st.columns(3)
+        with col_speed_preset1:
+            if st.button("Bình thường (1.0x)", use_container_width=True):
+                st.session_state["slider_speed_val"] = 0
+                st.rerun()
+        with col_speed_preset2:
+            if st.button("🔥 Review Tốp Tốp (1.15x)", use_container_width=True, help="Tốc độ dồn dập chuẩn review phim"):
+                st.session_state["slider_speed_val"] = 15
+                st.rerun()
+        with col_speed_preset3:
+            if st.button("🚀 Nhanh (1.25x)", use_container_width=True):
+                st.session_state["slider_speed_val"] = 25
+                st.rerun()
+
+        default_speed = st.session_state.get("slider_speed_val", 15)
+
+        col_param1, col_param2 = st.columns(2)
         with col_param1:
-            tts_rate_val = st.slider("Tốc độ (Speed):", min_value=-50, max_value=100, value=0, step=5, format="%d%%")
+            tts_rate_val = st.slider(
+                "Tốc độ đọc (Speed / Rate):",
+                min_value=-50,
+                max_value=100,
+                value=default_speed,
+                step=5,
+                format="%d%%",
+                key="slider_speed_widget",
+            )
+            st.session_state["slider_speed_val"] = tts_rate_val
+
         with col_param2:
-            tts_pitch_val = st.slider("Cao độ (Pitch):", min_value=-50, max_value=50, value=0, step=5, format="%dHz")
-        with col_param3:
             tts_vol_val = st.slider("Âm lượng (Volume):", min_value=-50, max_value=50, value=0, step=5, format="%d%%")
 
+        # Compute speed multiplier
+        speed_factor = 1.0 + (tts_rate_val / 100.0)
         rate_str = f"{'+' if tts_rate_val >= 0 else ''}{tts_rate_val}%"
-        pitch_str = f"{'+' if tts_pitch_val >= 0 else ''}{tts_pitch_val}Hz"
         vol_str = f"{'+' if tts_vol_val >= 0 else ''}{tts_vol_val}%"
 
         btn_generate_tts = st.button("🔊 Tạo Giọng Đọc AI Ngay", type="primary", use_container_width=True)
@@ -324,7 +361,7 @@ with tab_tts:
     st.markdown("##### 🎧 3. Kết quả âm thanh:")
 
     if btn_generate_tts:
-        text_to_speak = st.session_state["tts_editor_text"].strip()
+        text_to_speak = st.session_state["tts_content_box"].strip()
         if not text_to_speak:
             st.warning("⚠️ Vui lòng nhập văn bản trước khi tạo âm thanh!")
         elif not selected_voices:
@@ -339,17 +376,18 @@ with tab_tts:
                 for voice_id, label in zip(selected_voices, selected_labels):
                     try:
                         if voice_id.startswith("vieneu:"):
-                            # VieNeu-TTS Engine (Supports [cười], [thở dài], [hắng giọng])
+                            # VieNeu-TTS Engine (Supports [cười], [thở dài], [hắng giọng] + speed multiplier)
                             clean_v = voice_id.replace("vieneu:", "")
                             out_filename = f"tts_vieneu_{clean_v}_{timestamp}.mp3"
                             out_path = tts_output_dir / out_filename
                             generate_vieneu_speech(
                                 text=text_to_speak,
                                 voice=clean_v,
+                                speed=speed_factor,
                                 output_path=out_path,
                             )
                         else:
-                            # Edge-TTS Engine (strips emotion tags cleanly so they are not read literally)
+                            # Edge-TTS Engine (strips emotion tags cleanly)
                             clean_text_for_edge = text_to_speak
                             for emo_tag in ["[cười]", "[thở dài]", "[hắng giọng]", "[chuckle]", "[sigh]", "[clear throat]"]:
                                 clean_text_for_edge = clean_text_for_edge.replace(emo_tag, "")
@@ -362,7 +400,7 @@ with tab_tts:
                                     voice=voice_id,
                                     rate=rate_str,
                                     volume=vol_str,
-                                    pitch=pitch_str,
+                                    pitch="+0Hz",
                                     output_path=out_path,
                                 )
                             )
@@ -375,7 +413,7 @@ with tab_tts:
 
                 if len(results) == 1:
                     lbl, vid, file_p = results[0]
-                    st.markdown(f"**Giọng đọc:** `{lbl}`")
+                    st.markdown(f"**Giọng đọc:** `{lbl}` | **Tốc độ:** `{speed_factor:.2f}x`")
                     st.audio(str(file_p), format="audio/mp3")
                     with open(file_p, "rb") as f:
                         st.download_button(
@@ -388,7 +426,7 @@ with tab_tts:
                     cols_grid = st.columns(min(len(results), 2))
                     for idx, (lbl, vid, file_p) in enumerate(results):
                         with cols_grid[idx % 2]:
-                            st.info(f"🎙️ **{lbl}**")
+                            st.info(f"🎙️ **{lbl}** ({speed_factor:.2f}x)")
                             st.audio(str(file_p), format="audio/mp3")
                             with open(file_p, "rb") as f:
                                 st.download_button(

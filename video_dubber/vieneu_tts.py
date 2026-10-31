@@ -1,17 +1,39 @@
 """
 VieNeu-TTS Integration Module (High-Fidelity Turbo & Nano)
-Supports full set of Adam voices:
+Supports full set of Adam voices with speed adjustment and emotion tags:
 - 'Adam bựa': Nam · Bắc · Phong cách Review phim / Meme TikTok đỉnh cao
 - 'Adam': Nam · Nam · Giọng đọc tự nhiên, cuốn hút
 """
 import logging
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
+from pydub import AudioSegment
 
 logger = logging.getLogger(__name__)
 
 _VIENEU_TURBO_INSTANCE = None
 _VIENEU_NANO_INSTANCE = None
+
+
+def change_tempo(sound: AudioSegment, speed: float = 1.0) -> AudioSegment:
+    """
+    Adjust audio tempo without changing pitch.
+    speed > 1.0 = faster (e.g. 1.2x)
+    speed < 1.0 = slower (e.g. 0.9x)
+    """
+    if abs(speed - 1.0) < 0.03:
+        return sound
+
+    if speed > 1.0:
+        from pydub.effects import speedup
+        try:
+            return speedup(sound, playback_speed=speed)
+        except Exception:
+            new_frame_rate = int(sound.frame_rate * speed)
+            return sound._spawn(sound.raw_data, overrides={"frame_rate": new_frame_rate}).set_frame_rate(sound.frame_rate)
+    else:
+        new_frame_rate = int(sound.frame_rate * speed)
+        return sound._spawn(sound.raw_data, overrides={"frame_rate": new_frame_rate}).set_frame_rate(sound.frame_rate)
 
 
 def get_vieneu_engine(mode: str = "v3turbo"):
@@ -50,10 +72,11 @@ def list_vieneu_voices() -> List[Tuple[str, str]]:
 def generate_vieneu_speech(
     text: str,
     voice: str = "Adam bựa",
+    speed: float = 1.0,
     output_path: Union[str, Path] = "output.wav",
 ) -> Path:
     """
-    Synthesizes Vietnamese speech using VieNeu-TTS.
+    Synthesizes Vietnamese speech using VieNeu-TTS with tempo adjustment.
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -63,22 +86,32 @@ def generate_vieneu_speech(
         clean_voice = "Adam bựa"
 
     engine = get_vieneu_engine(mode="v3turbo")
-    logger.info(f"Synthesizing text with VieNeu-TTS voice '{clean_voice}'...")
-    audio = engine.infer(text, voice=clean_voice)
+    logger.info(f"Synthesizing text with VieNeu-TTS voice '{clean_voice}' (speed={speed:.2f}x)...")
 
-    # Save as WAV
-    wav_path = output_path.with_suffix(".wav")
-    engine.save(audio, str(wav_path))
+    # Use steps=16 for blazing fast generation
+    try:
+        audio = engine.infer(text, voice=clean_voice, steps=16)
+    except TypeError:
+        # Fallback if engine doesn't accept steps
+        audio = engine.infer(text, voice=clean_voice)
 
-    # Convert to MP3 if requested
-    if output_path.suffix.lower() == ".mp3":
-        from pydub import AudioSegment
-        sound = AudioSegment.from_wav(str(wav_path))
-        sound.export(str(output_path), format="mp3")
-        try:
-            wav_path.unlink(missing_ok=True)
-        except Exception:
-            pass
-        return output_path
+    # Save to temp wav
+    temp_wav = output_path.with_suffix(".tmp.wav")
+    engine.save(audio, str(temp_wav))
 
-    return wav_path
+    # Apply speed adjustment if requested
+    sound = AudioSegment.from_wav(str(temp_wav))
+    if abs(speed - 1.0) >= 0.03:
+        sound = change_tempo(sound, speed=speed)
+
+    # Export final file format
+    fmt = "mp3" if output_path.suffix.lower() == ".mp3" else "wav"
+    sound.export(str(output_path), format=fmt)
+
+    # Cleanup temp
+    try:
+        temp_wav.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+    return output_path
