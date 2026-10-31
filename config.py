@@ -45,6 +45,18 @@ VOICES_CATALOG: Dict[str, Dict[str, str]] = {
         "Đức Trí (VieNeu - Nam Nam đọc truyện trinh thám, lôi cuốn)": "vieneu:Đức Trí",
         "Kim Thanh (VieNeu - Nữ Nam tươi sáng, hoạt bát)": "vieneu:Kim Thanh",
 
+        # 🌟 Giọng Tuyển Chọn Mới từ V-TTS (Zero-Shot & Multi-Speaker)
+        "Hoàng Nam (V-TTS - Nam Bắc truyền cảm, đọc truyện & phóng sự)": "vieneu:Hoàng Nam",
+        "Ngọc Ánh (V-TTS - Nữ Bắc thanh lịch, tin tức & thuyết minh)": "vieneu:Ngọc Ánh",
+        "Quang Huy (V-TTS - Nam Nam trầm ấm, hào sảng)": "vieneu:Quang Huy",
+        "Thanh Tâm (V-TTS - Nữ Nam dịu dàng, podcast ngọt ngào)": "vieneu:Thanh Tâm",
+        "Thu Hà (V-TTS - Nữ Bắc tự nhiên, quảng cáo & lồng tiếng)": "vieneu:Thu Hà",
+        "NF - Nữ Bắc (V-TTS - Nữ miền Bắc nguyên bản)": "vieneu:NF",
+        "SF - Nữ Nam (V-TTS - Nữ miền Nam nguyên bản)": "vieneu:SF",
+        "NM1 - Nam Bắc 1 (V-TTS - Nam miền Bắc chính luận)": "vieneu:NM1",
+        "SM - Nam Nam (V-TTS - Nam miền Nam hào sảng)": "vieneu:SM",
+        "NM2 - Nam Bắc 2 (V-TTS - Nam miền Bắc trẻ trung)": "vieneu:NM2",
+
         # ⚡ Giọng Microsoft Edge-TTS (Tốc độ cao)
         "vi-VN-HoaiMyNeural (Edge - Nữ truyền cảm, tin tức)": "vi-VN-HoaiMyNeural",
         "vi-VN-NamMinhNeural (Edge - Nam trầm ấm, chuyên nghiệp)": "vi-VN-NamMinhNeural",
