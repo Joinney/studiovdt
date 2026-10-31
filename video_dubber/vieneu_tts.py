@@ -210,18 +210,75 @@ def _load_all_voices_into_engine(engine):
         logger.warning(f"Error while registering all voices: {e}")
 
 
+def _fix_hf_onnx_symlinks():
+    """
+    On Linux / Cloud environments, Hugging Face Hub uses symlinks that cause ONNX Runtime
+    to throw 'External data path escapes model directory'.
+    Replacing symlinks with actual copies resolves this completely.
+    """
+    try:
+        import os
+        import shutil
+        hf_cache = Path(os.path.expanduser("~/.cache/huggingface/hub"))
+        if not hf_cache.exists():
+            return
+        for pattern in ("*.onnx", "*.onnx_data"):
+            for f in hf_cache.rglob(pattern):
+                if f.is_symlink():
+                    try:
+                        target = f.resolve()
+                        if target.exists():
+                            f.unlink()
+                            shutil.copy2(target, f)
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
+
+def enhance_vocal(sound: AudioSegment) -> AudioSegment:
+    """
+    Studio-grade vocal mastering matching official vieneu.io quality:
+    1. High-pass filter at 80Hz (cuts low-frequency boominess and boxy rumble).
+    2. Dynamic broadcast loudness normalization to -14.0 dBFS (brings out vocal brightness,
+       clarity, breath details, and crisp high frequencies).
+    """
+    try:
+        clean_sound = sound.high_pass_filter(80)
+        target_dbfs = -14.0
+        current_dbfs = clean_sound.dBFS
+        if current_dbfs > -60.0:
+            gain = target_dbfs - current_dbfs
+            max_peak = clean_sound.max_dBFS
+            if max_peak + gain > -0.5:
+                gain = -0.5 - max_peak
+            return clean_sound.apply_gain(gain)
+        return clean_sound
+    except Exception as e:
+        logger.warning(f"Error enhancing vocal: {e}")
+        return sound
+
+
 def get_vieneu_engine():
     global _VIENEU_ENGINE
     if _VIENEU_ENGINE is None:
         from vieneu import Vieneu
         try:
-            logger.info("Initializing VieNeu-TTS Engine (Nano Mode - Fast & Lightweight)...")
-            _VIENEU_ENGINE = Vieneu(mode="v3nano")
+            logger.info("Initializing VieNeu-TTS Engine (Turbo 48kHz Studio Quality)...")
+            _fix_hf_onnx_symlinks()
+            _VIENEU_ENGINE = Vieneu(mode="v3turbo")
             _load_all_voices_into_engine(_VIENEU_ENGINE)
+            logger.info("✅ VieNeu-TTS Turbo 48kHz initialized successfully!")
         except Exception as e:
-            logger.info(f"Trying default Vieneu initialization: {e}")
-            _VIENEU_ENGINE = Vieneu()
-            _load_all_voices_into_engine(_VIENEU_ENGINE)
+            logger.warning(f"Could not initialize Turbo 48kHz ({e}). Falling back to v3nano 24kHz...")
+            try:
+                _VIENEU_ENGINE = Vieneu(mode="v3nano")
+                _load_all_voices_into_engine(_VIENEU_ENGINE)
+                logger.info("✅ VieNeu-TTS Nano 24kHz initialized as fallback.")
+            except Exception as e2:
+                logger.warning(f"Default initialization fallback: {e2}")
+                _VIENEU_ENGINE = Vieneu()
+                _load_all_voices_into_engine(_VIENEU_ENGINE)
     return _VIENEU_ENGINE
 
 
@@ -267,15 +324,21 @@ def generate_vieneu_speech(
     logger.info(f"Synthesizing text with VieNeu voice '{clean_voice}' (speed={speed:.2f}x)...")
 
     try:
-        audio = engine.infer(processed_text, voice=clean_voice, steps=16)
+        audio = engine.infer(processed_text, voice=clean_voice, apply_watermark=False)
     except TypeError:
-        audio = engine.infer(processed_text, voice=clean_voice)
+        try:
+            audio = engine.infer(processed_text, voice=clean_voice, steps=16)
+        except TypeError:
+            audio = engine.infer(processed_text, voice=clean_voice)
 
     temp_wav = output_path.with_suffix(".tmp.wav")
     engine.save(audio, str(temp_wav))
 
-    # Apply tempo speedup
+    # Load audio and apply studio vocal enhancement (high-pass filter + -14 dBFS broadcast loudness)
     sound = AudioSegment.from_wav(str(temp_wav))
+    sound = enhance_vocal(sound)
+
+    # Apply tempo speedup if adjusted
     if abs(speed - 1.0) >= 0.03:
         sound = change_tempo(sound, speed=speed)
 

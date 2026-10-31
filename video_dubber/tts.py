@@ -48,10 +48,7 @@ class TTSService:
     ) -> List[Segment]:
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        is_vieneu = self.voice.startswith("vieneu:") or self.voice in [
-            "Adam", "Ái Hân", "Mỹ Duyên", "Đức Trí", "Hữu Quân", "Xuân Tiên",
-            "Mai Anh", "Trúc Ly", "Anh Khôi", "Minh Quân", "Mạnh Dũng"
-        ]
+        is_vieneu = self.voice.startswith("vieneu:") or (not self.voice.endswith("Neural") and "Neural" not in self.voice)
 
         logger.info(
             f"Generating TTS speech for {len(segments)} segments using voice: {self.voice} (Engine: {'VieNeu-TTS' if is_vieneu else 'Edge-TTS'})..."

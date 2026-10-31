@@ -119,7 +119,11 @@ if "tts_main_text" not in st.session_state:
     )
 
 sample_options = {
-    "🔥 Adam Review Phim Kịch Tính": (
+    "🔥 Adam Review Phim Gốc (Chuẩn Tốp Tốp)": (
+        "Hello các con vợ, hôm nay Adam lại lên đồ ngon cho cả nhà đây! [cười] "
+        "Coi hết clip rồi hãy lướt nha!"
+    ),
+    "🎬 Adam Review Phim Kịch Tính": (
         "Khoan đã... [clears throat] các bạn có biết chuyện gì vừa xảy ra không? "
         "Hắn nghĩ mình đã an toàn [laughing], nhưng [thinking] bất ngờ thay [shocked] "
         "cánh cửa mở toang [panicked]! [sighs] Mọi chuyện coi như kết thúc."
