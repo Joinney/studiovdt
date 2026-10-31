@@ -123,21 +123,15 @@ st.markdown(
                 </div>
             </div>
         </div>
-        <div class="mobile-subtitle">Kho 31 giọng VieNeu-TTS chuẩn Studio 48kHz • 50+ thẻ cảm xúc • Lồng tiếng Video tự động</div>
+        <div class="mobile-subtitle">Kho 31 giọng VieNeu-TTS chuẩn Studio 48kHz • 50+ thẻ cảm xúc • Giọng đọc AI chuyên nghiệp</div>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-# Main Navigation Tabs
-tab_tts, tab_dubbing = st.tabs([
-    "🎙️ Tạo Giọng Nói AI",
-    "🎬 Lồng Tiếng Video",
-])
-
 
 # ==============================================================================
-# TAB 1: TEXT-TO-SPEECH (TTS STUDIO - MOBILE OPTIMIZED)
+# TEXT-TO-SPEECH (TTS STUDIO - MOBILE OPTIMIZED)
 # ==============================================================================
 async def generate_single_tts_edge(text: str, voice: str, rate: str, volume: str, pitch: str, output_path: Path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -515,292 +509,159 @@ mobile_toolbar_html = """
 </div>
 """
 
-with tab_tts:
-    # Responsive Columns (auto stacks on mobile)
-    col_input, col_settings = st.columns([1.15, 0.85], gap="medium")
+# Responsive Columns (auto stacks on mobile)
+col_input, col_settings = st.columns([1.15, 0.85], gap="medium")
 
-    with col_input:
-        with st.container(border=True):
-            st.markdown("#### 📝 Bước 1: Nhập văn bản")
+with col_input:
+    with st.container(border=True):
+        st.markdown("#### 📝 Bước 1: Nhập văn bản")
 
-            # Mobile-friendly Caret Toolbar
-            st.html(mobile_toolbar_html)
+        # Mobile-friendly Caret Toolbar
+        st.html(mobile_toolbar_html)
 
-            # Caret Injection Engine via components.html
-            components.html(caret_injector_html, height=0)
+        # Caret Injection Engine via components.html
+        components.html(caret_injector_html, height=0)
 
-            # Text Area
-            st.text_area(
-                "Nội dung văn bản:",
-                key="tts_main_text",
-                height=160,
-                placeholder="Nhập hoặc dán văn bản vào đây. Nhấp chuột vào bất kỳ vị trí nào rồi bấm nút cảm xúc...",
+        # Text Area
+        st.text_area(
+            "Nội dung văn bản:",
+            key="tts_main_text",
+            height=160,
+            placeholder="Nhập hoặc dán văn bản vào đây. Nhấp chuột vào bất kỳ vị trí nào rồi bấm nút cảm xúc...",
+            label_visibility="collapsed",
+        )
+
+        c_preset, c_upload = st.columns([1.1, 0.9])
+        with c_preset:
+            st.selectbox(
+                "Mẫu câu:",
+                options=["(Chọn mẫu câu tham khảo)"] + list(sample_options.keys()),
+                index=0,
+                key="sample_preset_choice",
+                on_change=apply_sample_preset,
+                label_visibility="collapsed",
+            )
+        with c_upload:
+            st.file_uploader(
+                "File .txt",
+                type=["txt"],
+                key="txt_upload",
+                on_change=apply_txt_upload,
                 label_visibility="collapsed",
             )
 
-            c_preset, c_upload = st.columns([1.1, 0.9])
-            with c_preset:
-                st.selectbox(
-                    "Mẫu câu:",
-                    options=["(Chọn mẫu câu tham khảo)"] + list(sample_options.keys()),
-                    index=0,
-                    key="sample_preset_choice",
-                    on_change=apply_sample_preset,
-                    label_visibility="collapsed",
-                )
-            with c_upload:
-                st.file_uploader(
-                    "File .txt",
-                    type=["txt"],
-                    key="txt_upload",
-                    on_change=apply_txt_upload,
-                    label_visibility="collapsed",
-                )
+with col_settings:
+    with st.container(border=True):
+        st.markdown("#### 🎙️ Bước 2: Chọn Giọng & Tốc độ")
 
-    with col_settings:
-        with st.container(border=True):
-            st.markdown("#### 🎙️ Bước 2: Chọn Giọng & Tốc độ")
+        tts_lang = st.selectbox(
+            "Ngôn ngữ:",
+            options=list(LANGUAGE_NAMES.keys()),
+            index=0,
+            format_func=lambda code: LANGUAGE_NAMES.get(code, code),
+            key="tts_lang_select",
+        )
 
-            tts_lang = st.selectbox(
-                "Ngôn ngữ:",
-                options=list(LANGUAGE_NAMES.keys()),
-                index=0,
-                format_func=lambda code: LANGUAGE_NAMES.get(code, code),
-                key="tts_lang_select",
-            )
+        voices_dict = VOICES_CATALOG.get(tts_lang, VOICES_CATALOG["vi"])
 
-            voices_dict = VOICES_CATALOG.get(tts_lang, VOICES_CATALOG["vi"])
+        selected_voice_label = st.selectbox(
+            "Giọng đọc AI:",
+            options=list(voices_dict.keys()),
+            index=0,  # Adam
+        )
+        selected_voice_id = voices_dict[selected_voice_label]
 
-            selected_voice_label = st.selectbox(
-                "Giọng đọc AI:",
-                options=list(voices_dict.keys()),
-                index=0,  # Adam
-            )
-            selected_voice_id = voices_dict[selected_voice_label]
+        st.markdown("**Tốc độ nói (Tempo):**")
+        sp1, sp2, sp3 = st.columns(3)
+        with sp1:
+            if st.button("1.0x", use_container_width=True):
+                st.session_state["slider_speed_val"] = 0
+                st.rerun()
+        with sp2:
+            if st.button("🔥 1.15x", use_container_width=True):
+                st.session_state["slider_speed_val"] = 15
+                st.rerun()
+        with sp3:
+            if st.button("1.25x", use_container_width=True):
+                st.session_state["slider_speed_val"] = 25
+                st.rerun()
 
-            st.markdown("**Tốc độ nói (Tempo):**")
-            sp1, sp2, sp3 = st.columns(3)
-            with sp1:
-                if st.button("1.0x", use_container_width=True):
-                    st.session_state["slider_speed_val"] = 0
-                    st.rerun()
-            with sp2:
-                if st.button("🔥 1.15x", use_container_width=True):
-                    st.session_state["slider_speed_val"] = 15
-                    st.rerun()
-            with sp3:
-                if st.button("1.25x", use_container_width=True):
-                    st.session_state["slider_speed_val"] = 25
-                    st.rerun()
+        current_speed = st.session_state.get("slider_speed_val", 15)
+        tts_rate_val = st.slider(
+            "Tùy chỉnh tốc độ %:",
+            min_value=-50,
+            max_value=100,
+            value=current_speed,
+            step=5,
+            format="%d%%",
+            key="slider_speed_widget",
+        )
+        st.session_state["slider_speed_val"] = tts_rate_val
 
-            current_speed = st.session_state.get("slider_speed_val", 15)
-            tts_rate_val = st.slider(
-                "Tùy chỉnh tốc độ %:",
-                min_value=-50,
-                max_value=100,
-                value=current_speed,
-                step=5,
-                format="%d%%",
-                key="slider_speed_widget",
-            )
-            st.session_state["slider_speed_val"] = tts_rate_val
+        speed_factor = 1.0 + (tts_rate_val / 100.0)
+        rate_str = f"{'+' if tts_rate_val >= 0 else ''}{tts_rate_val}%"
 
-            speed_factor = 1.0 + (tts_rate_val / 100.0)
-            rate_str = f"{'+' if tts_rate_val >= 0 else ''}{tts_rate_val}%"
+        # Primary Big Action Button
+        btn_generate_tts = st.button(
+            "🚀 Tạo Giọng Đọc AI Ngay",
+            type="primary",
+            use_container_width=True,
+        )
 
-            # Primary Big Action Button
-            btn_generate_tts = st.button(
-                "🚀 Tạo Giọng Đọc AI Ngay",
-                type="primary",
-                use_container_width=True,
-            )
+# Result Box
+if btn_generate_tts:
+    text_to_speak = st.session_state["tts_main_text"].strip()
+    if not text_to_speak:
+        st.warning("⚠️ Vui lòng nhập nội dung văn bản trước khi tạo giọng đọc!")
+    else:
+        tts_output_dir = Path("./output/tts")
+        tts_output_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    # Result Box
-    if btn_generate_tts:
-        text_to_speak = st.session_state["tts_main_text"].strip()
-        if not text_to_speak:
-            st.warning("⚠️ Vui lòng nhập nội dung văn bản trước khi tạo giọng đọc!")
-        else:
-            tts_output_dir = Path("./output/tts")
-            tts_output_dir.mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-            with st.spinner("⏳ Đang tổng hợp âm thanh giọng đọc AI..."):
-                try:
-                    if selected_voice_id.startswith("vieneu:"):
-                        clean_v = selected_voice_id.replace("vieneu:", "")
-                        out_file = tts_output_dir / f"tts_vieneu_{clean_v}_{timestamp}.mp3"
-                        generate_vieneu_speech(
-                            text=text_to_speak,
-                            voice=clean_v,
-                            speed=speed_factor,
+        with st.spinner("⏳ Đang tổng hợp âm thanh giọng đọc AI..."):
+            try:
+                if selected_voice_id.startswith("vieneu:"):
+                    clean_v = selected_voice_id.replace("vieneu:", "")
+                    out_file = tts_output_dir / f"tts_vieneu_{clean_v}_{timestamp}.mp3"
+                    generate_vieneu_speech(
+                        text=text_to_speak,
+                        voice=clean_v,
+                        speed=speed_factor,
+                        output_path=out_file,
+                    )
+                else:
+                    clean_text = text_to_speak
+                    for emo_tag in EMOTION_SOUND_MAP.keys():
+                        clean_text = clean_text.replace(f"[{emo_tag}]", "")
+                    out_file = tts_output_dir / f"tts_edge_{selected_voice_id}_{timestamp}.mp3"
+                    asyncio.run(
+                        generate_single_tts_edge(
+                            text=clean_text,
+                            voice=selected_voice_id,
+                            rate=rate_str,
+                            volume="+0%",
+                            pitch="+0Hz",
                             output_path=out_file,
                         )
-                    else:
-                        clean_text = text_to_speak
-                        for emo_tag in EMOTION_SOUND_MAP.keys():
-                            clean_text = clean_text.replace(f"[{emo_tag}]", "")
-                        out_file = tts_output_dir / f"tts_edge_{selected_voice_id}_{timestamp}.mp3"
-                        asyncio.run(
-                            generate_single_tts_edge(
-                                text=clean_text,
-                                voice=selected_voice_id,
-                                rate=rate_str,
-                                volume="+0%",
-                                pitch="+0Hz",
-                                output_path=out_file,
-                            )
-                        )
+                    )
 
-                    with st.container(border=True):
-                        st.success("🎉 Đã tạo giọng nói thành công!")
-                        st.markdown(f"**Giọng đọc:** `{selected_voice_label}` | **Tốc độ:** `{speed_factor:.2f}x`")
-                        st.audio(str(out_file), format="audio/mp3")
+                with st.container(border=True):
+                    st.success("🎉 Đã tạo giọng nói thành công!")
+                    st.markdown(f"**Giọng đọc:** `{selected_voice_label}` | **Tốc độ:** `{speed_factor:.2f}x`")
+                    st.audio(str(out_file), format="audio/mp3")
 
-                        with open(out_file, "rb") as f:
-                            st.download_button(
-                                label="⬇️ Tải file âm thanh MP3 về máy",
-                                data=f,
-                                file_name=out_file.name,
-                                mime="audio/mpeg",
-                                type="primary",
-                                use_container_width=True,
-                            )
-
-                except Exception as err:
-                    st.error(f"❌ Có lỗi xảy ra trong quá trình tạo âm thanh: {err}")
-
-
-# ==============================================================================
-# TAB 2: VIDEO DUBBING (MOBILE OPTIMIZED)
-# ==============================================================================
-with tab_dubbing:
-    col_dub_in, col_dub_set = st.columns([1, 1], gap="medium")
-
-    with col_dub_in:
-        with st.container(border=True):
-            st.markdown("#### 🎬 Bước 1: Tải lên Video gốc")
-            uploaded_video = st.file_uploader(
-                "Chọn video (mp4, mkv, mov, webm):",
-                type=["mp4", "mkv", "mov", "avi", "webm"],
-                key="dub_video_uploader",
-            )
-            if uploaded_video:
-                st.video(uploaded_video)
-
-    with col_dub_set:
-        with st.container(border=True):
-            st.markdown("#### ⚙️ Bước 2: Cài đặt Lồng tiếng")
-
-            dub_target_lang = st.selectbox(
-                "Ngôn ngữ lồng tiếng đích:",
-                options=list(LANGUAGE_NAMES.keys()),
-                index=0,
-                format_func=lambda code: LANGUAGE_NAMES.get(code, code),
-                key="dub_target_lang",
-            )
-
-            catalog_for_target = VOICES_CATALOG.get(dub_target_lang, VOICES_CATALOG["vi"])
-            selected_dub_voice_label = st.selectbox(
-                "Giọng đọc AI lồng tiếng:",
-                options=list(catalog_for_target.keys()),
-                index=0,
-                key="dub_voice_select",
-            )
-            selected_dub_voice = catalog_for_target[selected_dub_voice_label]
-
-            with st.expander("🛠️ Cài đặt nâng cao (Nhạc nền & Whisper)", expanded=False):
-                dub_source_lang = st.selectbox(
-                    "Ngôn ngữ gốc của video:",
-                    options=["auto"] + list(LANGUAGE_NAMES.keys()),
-                    index=0,
-                    format_func=lambda code: "Tự động phát hiện" if code == "auto" else LANGUAGE_NAMES.get(code, code),
-                    key="dub_source_lang",
-                )
-                whisper_model = st.selectbox(
-                    "Model Whisper nhận diện:",
-                    options=["tiny", "base", "small", "medium", "large-v3"],
-                    index=1,
-                    key="dub_whisper_model",
-                )
-                bg_vol = st.slider(
-                    "Âm lượng nhạc nền gốc (Ducking):",
-                    min_value=0.0,
-                    max_value=0.5,
-                    value=0.15,
-                    step=0.05,
-                    help="Giữ lại 15% tiếng động cơ, gió, nhạc nền gốc.",
-                    key="dub_bg_vol",
-                )
-
-            if uploaded_video:
-                btn_start_dub = st.button("🚀 Bắt đầu Lồng tiếng Video", type="primary", use_container_width=True, key="btn_dub")
-            else:
-                btn_start_dub = False
-
-    # Video Dubbing Processing
-    if btn_start_dub and uploaded_video:
-        with st.container(border=True):
-            progress_bar = st.progress(0.0)
-            status_text = st.empty()
-
-            temp_input = Path("./temp") / uploaded_video.name
-            temp_input.parent.mkdir(parents=True, exist_ok=True)
-            with open(temp_input, "wb") as f:
-                f.write(uploaded_video.getbuffer())
-
-            output_video_path = Path("./output") / f"{temp_input.stem}_dubbed_{dub_target_lang}.mp4"
-
-            cfg = DubbingConfig(
-                whisper_model=whisper_model,
-                source_language=dub_source_lang,
-                target_language=dub_target_lang,
-                tts_voice=selected_dub_voice,
-                original_audio_volume=bg_vol,
-            )
-
-            pipeline = VideoDubberPipeline(cfg)
-
-            def on_progress(msg: str, frac: float):
-                status_text.info(f"⏳ {msg}")
-                progress_bar.progress(frac)
-
-            try:
-                result_path = pipeline.process(
-                    video_path=temp_input,
-                    output_path=output_video_path,
-                    progress_callback=on_progress,
-                )
-
-                status_text.success("🎉 Đã hoàn thành lồng tiếng video thành công!")
-                progress_bar.progress(1.0)
-                st.video(str(result_path))
-
-                c_down1, c_down2 = st.columns(2)
-                with c_down1:
-                    with open(result_path, "rb") as f:
+                    with open(out_file, "rb") as f:
                         st.download_button(
-                            label="⬇️ Tải Video (.mp4)",
+                            label="⬇️ Tải file âm thanh MP3 về máy",
                             data=f,
-                            file_name=result_path.name,
-                            mime="video/mp4",
+                            file_name=out_file.name,
+                            mime="audio/mpeg",
                             type="primary",
                             use_container_width=True,
                         )
-                with c_down2:
-                    srt_file = result_path.with_suffix(".srt")
-                    if srt_file.exists():
-                        with open(srt_file, "r", encoding="utf-8") as f:
-                            st.download_button(
-                                label="📄 Tải Phụ đề (.srt)",
-                                data=f.read(),
-                                file_name=srt_file.name,
-                                mime="text/plain",
-                                use_container_width=True,
-                            )
-            except Exception as e:
-                status_text.error(f"❌ Có lỗi xảy ra trong quá trình xử lý: {e}")
-                st.exception(e)
+
+            except Exception as err:
+                st.error(f"❌ Có lỗi xảy ra trong quá trình tạo âm thanh: {err}")
 
 # Footer
 st.markdown(
