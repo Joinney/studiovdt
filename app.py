@@ -25,9 +25,16 @@ st.set_page_config(
 st.html(
     """
     <style>
-    /* Global Container Padding */
+    /* Adjust Streamlit top header bar */
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+        height: 2.5rem !important;
+        z-index: 10;
+    }
+
+    /* Global Container Padding with safe top clearance */
     .block-container {
-        padding-top: 1rem !important;
+        padding-top: 4.5rem !important;
         padding-bottom: 2.5rem !important;
         max-width: 1200px;
     }
@@ -36,6 +43,8 @@ st.html(
     .mobile-header {
         text-align: center;
         padding: 5px 0 15px 0;
+        margin-top: 5px;
+        margin-bottom: 5px;
     }
     .mobile-title {
         font-size: 1.8rem;
@@ -53,6 +62,7 @@ st.html(
     /* Mobile Enhancements for Phones (< 768px) */
     @media (max-width: 768px) {
         .block-container {
+            padding-top: 3.8rem !important;
             padding-left: 0.6rem !important;
             padding-right: 0.6rem !important;
         }
