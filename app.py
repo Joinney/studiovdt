@@ -209,22 +209,25 @@ caret_injector_html = """
 <body style="margin:0;padding:0;background:transparent;">
 <script>
 (function() {
-    function initInWindow(win, doc) {
-        if (!win || !doc) return;
-        win.__vdtLastPos = null;
+    try {
+        var parentDoc = window.parent ? window.parent.document : document;
+        var parentWin = window.parent ? window.parent : window;
+        if (!parentDoc) return;
 
-        function findTargetTextArea() {
-            var el = doc.activeElement;
+        parentWin.__vdtCaretPos = null;
+
+        function getTa() {
+            var el = parentDoc.activeElement;
             if (el && el.tagName === 'TEXTAREA') return el;
-            return doc.querySelector('textarea[data-testid="stTextAreaInput"]') 
-                || doc.querySelector('div[data-testid="stTextArea"] textarea') 
-                || doc.querySelector('textarea');
+            return parentDoc.querySelector('textarea[data-testid="stTextAreaInput"]') 
+                || parentDoc.querySelector('div[data-testid="stTextArea"] textarea') 
+                || parentDoc.querySelector('textarea');
         }
 
-        function trackPos(e) {
-            var ta = (e && e.target && e.target.tagName === 'TEXTAREA') ? e.target : findTargetTextArea();
+        function savePos() {
+            var ta = getTa();
             if (ta && typeof ta.selectionStart === 'number') {
-                win.__vdtLastPos = {
+                parentWin.__vdtCaretPos = {
                     start: ta.selectionStart,
                     end: ta.selectionEnd
                 };
@@ -232,30 +235,22 @@ caret_injector_html = """
         }
 
         ['focus', 'click', 'keyup', 'mouseup', 'select', 'input', 'touchend'].forEach(function(evt) {
-            doc.addEventListener(evt, trackPos, true);
+            parentDoc.addEventListener(evt, savePos, true);
         });
 
-        doc.addEventListener('selectionchange', function() {
-            var el = doc.activeElement;
-            if (el && el.tagName === 'TEXTAREA') {
-                trackPos({ target: el });
-            }
-        }, true);
+        parentDoc.addEventListener('selectionchange', savePos, true);
 
-        win.insertCaretTag = function(tag) {
-            var ta = findTargetTextArea();
-            if (!ta) {
-                console.warn('[StudioVDT] Target textarea not found');
-                return;
-            }
+        function doInsert(tag) {
+            var ta = getTa();
+            if (!ta) return;
 
             ta.focus();
 
-            var start = (win.__vdtLastPos && typeof win.__vdtLastPos.start === 'number') 
-                ? win.__vdtLastPos.start 
+            var start = (parentWin.__vdtCaretPos && typeof parentWin.__vdtCaretPos.start === 'number') 
+                ? parentWin.__vdtCaretPos.start 
                 : (typeof ta.selectionStart === 'number' ? ta.selectionStart : (ta.value ? ta.value.length : 0));
-            var end = (win.__vdtLastPos && typeof win.__vdtLastPos.end === 'number') 
-                ? win.__vdtLastPos.end 
+            var end = (parentWin.__vdtCaretPos && typeof parentWin.__vdtCaretPos.end === 'number') 
+                ? parentWin.__vdtCaretPos.end 
                 : (typeof ta.selectionEnd === 'number' ? ta.selectionEnd : start);
 
             var val = ta.value || '';
@@ -270,14 +265,14 @@ caret_injector_html = """
 
             var inserted = false;
             try {
-                inserted = doc.execCommand('insertText', false, insertStr);
+                inserted = parentDoc.execCommand('insertText', false, insertStr);
             } catch (err) {
                 inserted = false;
             }
 
             if (!inserted) {
                 var newVal = val.substring(0, start) + insertStr + val.substring(end);
-                var setter = Object.getOwnPropertyDescriptor(win.HTMLTextAreaElement.prototype, 'value');
+                var setter = Object.getOwnPropertyDescriptor(parentWin.HTMLTextAreaElement.prototype, 'value');
                 if (setter && setter.set) {
                     setter.set.call(ta, newVal);
                 } else {
@@ -287,29 +282,61 @@ caret_injector_html = """
                 ta.dispatchEvent(new Event('change', { bubbles: true }));
                 var nextPos = start + insertStr.length;
                 ta.setSelectionRange(nextPos, nextPos);
-                win.__vdtLastPos = { start: nextPos, end: nextPos };
+                parentWin.__vdtCaretPos = { start: nextPos, end: nextPos };
             } else {
-                win.__vdtLastPos = { start: ta.selectionStart, end: ta.selectionEnd };
+                parentWin.__vdtCaretPos = { start: ta.selectionStart, end: ta.selectionEnd };
             }
-        };
-
-        win.insertCaretDropdown = function() {
-            var sel = doc.getElementById('caretSelectTag');
-            if (sel && sel.value) {
-                win.insertCaretTag(sel.value);
-            }
-        };
-    }
-
-    try {
-        if (window.parent && window.parent.document) {
-            initInWindow(window.parent, window.parent.document);
         }
-    } catch (e) {}
 
-    try {
-        initInWindow(window, document);
-    } catch (e) {}
+        // Expose globally
+        parentWin.insertCaretTag = doInsert;
+        parentWin.insertCaretDropdown = function() {
+            var sel = parentDoc.getElementById('caretSelectTag');
+            if (sel && sel.value) doInsert(sel.value);
+        };
+
+        // Attach listeners directly to buttons in parent document
+        function bindButtons() {
+            var chips = parentDoc.querySelectorAll('.m-chip[data-tag]');
+            chips.forEach(function(chip) {
+                if (chip.__vdtBound) return;
+                chip.__vdtBound = true;
+
+                chip.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+
+                chip.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var tag = this.getAttribute('data-tag');
+                    if (tag) doInsert(tag);
+                });
+            });
+
+            var dropBtn = parentDoc.getElementById('caretDropdownBtn');
+            if (dropBtn && !dropBtn.__vdtBound) {
+                dropBtn.__vdtBound = true;
+                dropBtn.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+                dropBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var sel = parentDoc.getElementById('caretSelectTag');
+                    if (sel && sel.value) doInsert(sel.value);
+                });
+            }
+        }
+
+        bindButtons();
+        setInterval(bindButtons, 400);
+
+    } catch (e) {
+        console.error('[StudioVDT] Error in caret engine:', e);
+    }
 })();
 </script>
 </body>
@@ -410,17 +437,17 @@ mobile_toolbar_html = """
     <div class="m-bar">
         <span class="m-title">🎯 Bấm chèn cảm xúc tại vị trí con trỏ:</span>
         <div class="m-buttons-wrap">
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[cười]')">😄 Cười</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[sighs]')">😮‍💨 Thở dài</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[clears throat]')">🗣️ Hắng giọng</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[laughing]')">😂 Cười to</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[crying]')">😭 Khóc</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[shocked]')">😱 Sốc</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[thinking]')">🤔 Hmmm</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[panicked]')">🏃 Chết rồi!</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[angry]')">😡 Tức quá</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[nghỉ 0.5s]')">⏸️ Nghỉ 0.5s</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[nghỉ 1s]')">⏳ Nghỉ 1s</button>
+            <button type="button" class="m-chip" data-tag="[cười]" onmousedown="event.preventDefault();">😄 Cười</button>
+            <button type="button" class="m-chip" data-tag="[sighs]" onmousedown="event.preventDefault();">😮‍💨 Thở dài</button>
+            <button type="button" class="m-chip" data-tag="[clears throat]" onmousedown="event.preventDefault();">🗣️ Hắng giọng</button>
+            <button type="button" class="m-chip" data-tag="[laughing]" onmousedown="event.preventDefault();">😂 Cười to</button>
+            <button type="button" class="m-chip" data-tag="[crying]" onmousedown="event.preventDefault();">😭 Khóc</button>
+            <button type="button" class="m-chip" data-tag="[shocked]" onmousedown="event.preventDefault();">😱 Sốc</button>
+            <button type="button" class="m-chip" data-tag="[thinking]" onmousedown="event.preventDefault();">🤔 Hmmm</button>
+            <button type="button" class="m-chip" data-tag="[panicked]" onmousedown="event.preventDefault();">🏃 Chết rồi!</button>
+            <button type="button" class="m-chip" data-tag="[angry]" onmousedown="event.preventDefault();">😡 Tức quá</button>
+            <button type="button" class="m-chip" data-tag="[nghỉ 0.5s]" onmousedown="event.preventDefault();">⏸️ Nghỉ 0.5s</button>
+            <button type="button" class="m-chip" data-tag="[nghỉ 1s]" onmousedown="event.preventDefault();">⏳ Nghỉ 1s</button>
         </div>
 
         <div class="m-dropdown-row">
@@ -482,7 +509,7 @@ mobile_toolbar_html = """
                 <option value="[clears throat]">🗣️ [clears throat] - hèm hèm (hắng giọng)</option>
                 <option value="[smug]">😎 [smug] - biết ngay mà</option>
             </select>
-            <button type="button" class="m-insert-btn" onmousedown="event.preventDefault();" onclick="(window.insertCaretDropdown||(window.parent&&window.parent.insertCaretDropdown))()">➕ Chèn tại con trỏ</button>
+            <button type="button" id="caretDropdownBtn" class="m-insert-btn" onmousedown="event.preventDefault();">➕ Chèn tại con trỏ</button>
         </div>
     </div>
 </div>
