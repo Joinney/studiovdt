@@ -178,6 +178,24 @@ def apply_sample_preset():
         st.session_state["tts_main_text"] = sample_options[chosen]
 
 
+def add_fallback_tag():
+    choice = st.session_state.get("quick_tag_choice")
+    if choice:
+        clean_tag = choice.split(" - ")[0]
+        cur = st.session_state.get("tts_main_text", "")
+        st.session_state["tts_main_text"] = (cur + f" {clean_tag}").strip()
+
+
+def apply_txt_upload():
+    uploaded_file = st.session_state.get("txt_upload")
+    if uploaded_file:
+        try:
+            content_str = uploaded_file.read().decode("utf-8")
+            st.session_state["tts_main_text"] = content_str
+        except Exception:
+            pass
+
+
 # Dynamic Script Injection for Cursor/Caret Insertion Engine
 caret_js_code = """
 (function() {
@@ -490,11 +508,12 @@ with tab_tts:
                     label_visibility="collapsed",
                 )
             with c_tag2:
-                if st.button("➕ Thêm thẻ", key="btn_quick_add_tag", help="Thêm thẻ cảm xúc đã chọn vào văn bản"):
-                    clean_code = st.session_state["quick_tag_choice"].split(" - ")[0]
-                    cur = st.session_state.get("tts_main_text", "")
-                    st.session_state["tts_main_text"] = cur + f" {clean_code}"
-                    st.rerun()
+                st.button(
+                    "➕ Thêm thẻ",
+                    key="btn_quick_add_tag",
+                    on_click=add_fallback_tag,
+                    help="Thêm thẻ cảm xúc đã chọn vào văn bản",
+                )
 
             c_preset, c_upload = st.columns([1.1, 0.9])
             with c_preset:
@@ -507,12 +526,13 @@ with tab_tts:
                     label_visibility="collapsed",
                 )
             with c_upload:
-                uploaded_txt = st.file_uploader("File .txt", type=["txt"], key="txt_upload", label_visibility="collapsed")
-                if uploaded_txt:
-                    content_str = uploaded_txt.read().decode("utf-8")
-                    if content_str != st.session_state["tts_main_text"]:
-                        st.session_state["tts_main_text"] = content_str
-                        st.rerun()
+                st.file_uploader(
+                    "File .txt",
+                    type=["txt"],
+                    key="txt_upload",
+                    on_change=apply_txt_upload,
+                    label_visibility="collapsed",
+                )
 
     with col_settings:
         with st.container(border=True):
