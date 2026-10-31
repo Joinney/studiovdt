@@ -1,6 +1,6 @@
 """
 AI Studio: Video Dubbing & Multi-Voice Text-to-Speech
-Clean, Modern & Intuitive User Interface (No Broken DOM, Smooth Caret Insertion)
+Mobile-First Fully Responsive Design (Tương thích 100% điện thoại di động & máy tính)
 """
 import asyncio
 from datetime import datetime
@@ -17,21 +17,85 @@ st.set_page_config(
     page_title="AI Audio & Video Studio",
     page_icon="🎙️",
     layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
-# 2. Modern Clean Header
-st.title("🎙️ AI Audio & Video Studio")
-st.caption("Studio lồng tiếng video & chuyển văn bản thành giọng đọc AI (Hỗ trợ giọng Adam Tốp Tốp & Chèn cảm xúc tức thì tại con trỏ chuột)")
+# 2. Mobile-First Responsive CSS
+st.html(
+    """
+    <style>
+    /* Global Container Padding */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 2.5rem !important;
+        max-width: 1200px;
+    }
 
-# 3. Main Navigation
+    /* Studio Header */
+    .mobile-header {
+        text-align: center;
+        padding: 5px 0 15px 0;
+    }
+    .mobile-title {
+        font-size: 1.8rem;
+        font-weight: 800;
+        background: linear-gradient(90deg, #ff4b4b, #ff8c00);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 2px;
+    }
+    .mobile-subtitle {
+        color: #9ea3b0;
+        font-size: 0.9rem;
+    }
+
+    /* Mobile Enhancements for Phones (< 768px) */
+    @media (max-width: 768px) {
+        .block-container {
+            padding-left: 0.6rem !important;
+            padding-right: 0.6rem !important;
+        }
+        .mobile-title {
+            font-size: 1.45rem !important;
+        }
+        .mobile-subtitle {
+            font-size: 0.8rem !important;
+        }
+        /* Buttons larger touch target for thumbs */
+        button[kind="primary"], button[kind="secondary"] {
+            min-height: 42px !important;
+            font-size: 14px !important;
+        }
+        /* Tab labels font size */
+        div[data-baseweb="tab-list"] button {
+            font-size: 13.5px !important;
+            padding: 8px 10px !important;
+        }
+    }
+    </style>
+    """
+)
+
+# Header
+st.markdown(
+    """
+    <div class="mobile-header">
+        <div class="mobile-title">🎙️ AI Audio & Video Studio</div>
+        <div class="mobile-subtitle">Tạo giọng đọc AI Adam Tốp Tốp & Lồng tiếng Video tự động</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Main Navigation Tabs
 tab_tts, tab_dubbing = st.tabs([
-    "🎙️ Tạo Giọng Nói AI (Văn bản ➡️ Âm thanh)",
-    "🎬 Lồng Tiếng Video (Video Dubbing)",
+    "🎙️ Tạo Giọng Nói AI",
+    "🎬 Lồng Tiếng Video",
 ])
 
 
 # ==============================================================================
-# TAB 1: TEXT-TO-SPEECH (TTS STUDIO)
+# TAB 1: TEXT-TO-SPEECH (TTS STUDIO - MOBILE OPTIMIZED)
 # ==============================================================================
 async def generate_single_tts_edge(text: str, voice: str, rate: str, volume: str, pitch: str, output_path: Path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -81,98 +145,115 @@ def apply_sample_preset():
         st.session_state["tts_main_text"] = sample_options[chosen]
 
 
-# HTML & JS for Instant Caret Insertion (Using native st.html without iframe)
-toolbar_html = """
-<div style="margin-bottom: 8px;">
+# Mobile-Optimized Caret Toolbar HTML
+mobile_toolbar_html = """
+<div style="margin-bottom: 6px;">
     <style>
-        .emo-bar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            align-items: center;
-            background: #20222a;
-            border: 1px solid #363945;
+        .m-bar {
+            background: #1e2028;
+            border: 1px solid #363a47;
             border-radius: 8px;
-            padding: 8px 12px;
-            margin-bottom: 8px;
+            padding: 8px 10px;
+            margin-bottom: 6px;
         }
-        .emo-label {
-            font-size: 13px;
+        .m-title {
+            font-size: 12.5px;
             font-weight: 700;
             color: #ff9800;
-            margin-right: 4px;
+            margin-bottom: 6px;
+            display: block;
         }
-        .emo-chip {
-            background: #2b2d38;
-            color: #f1f1f1;
-            border: 1px solid #484b59;
+        .m-buttons-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 6px;
+        }
+        .m-chip {
+            background: #2b2e3b;
+            color: #ffffff;
+            border: 1px solid #484d5f;
             border-radius: 6px;
-            padding: 4px 9px;
-            font-size: 12.5px;
+            padding: 5px 8px;
+            font-size: 12px;
             cursor: pointer;
             transition: all 0.15s ease;
             user-select: none;
+            touch-action: manipulation;
         }
-        .emo-chip:hover {
+        .m-chip:active, .m-chip:hover {
             background: #ff4b4b;
             border-color: #ff4b4b;
             color: #ffffff;
-            transform: translateY(-1px);
         }
-        .emo-chip:active {
-            transform: translateY(1px);
-        }
-        .emo-select-wrap {
+        .m-dropdown-row {
             display: flex;
             gap: 6px;
             align-items: center;
-            margin-top: 4px;
             width: 100%;
         }
-        .emo-dropdown {
-            background: #2b2d38;
+        .m-dropdown {
+            background: #2b2e3b;
             color: #ffffff;
-            border: 1px solid #484b59;
+            border: 1px solid #484d5f;
             border-radius: 6px;
-            padding: 4px 8px;
-            font-size: 12.5px;
+            padding: 5px 8px;
+            font-size: 12px;
             flex-grow: 1;
-            max-width: 340px;
             outline: none;
             cursor: pointer;
+            height: 34px;
         }
-        .emo-add-btn {
+        .m-insert-btn {
             background: #ff4b4b;
-            color: #fff;
+            color: #ffffff;
             border: none;
             border-radius: 6px;
-            padding: 4px 12px;
+            padding: 0 12px;
+            height: 34px;
             font-size: 12.5px;
-            font-weight: 600;
+            font-weight: bold;
             cursor: pointer;
+            white-space: nowrap;
+            touch-action: manipulation;
         }
-        .emo-add-btn:hover {
-            background: #e03b3b;
+        .m-insert-btn:active {
+            background: #d83535;
+        }
+
+        @media (max-width: 480px) {
+            .m-chip {
+                padding: 6px 8px;
+                font-size: 11.5px;
+            }
+            .m-dropdown-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .m-insert-btn {
+                width: 100%;
+            }
         }
     </style>
 
-    <div class="emo-bar">
-        <span class="emo-label">🎯 Chèn tại con trỏ:</span>
-        <button type="button" class="emo-chip" onclick="window.insertCaretTag('[cười]')">😄 Cười</button>
-        <button type="button" class="emo-chip" onclick="window.insertCaretTag('[sighs]')">😮‍💨 Thở dài</button>
-        <button type="button" class="emo-chip" onclick="window.insertCaretTag('[clears throat]')">🗣️ Hắng giọng</button>
-        <button type="button" class="emo-chip" onclick="window.insertCaretTag('[laughing]')">😂 Cười to</button>
-        <button type="button" class="emo-chip" onclick="window.insertCaretTag('[crying]')">😭 Khóc</button>
-        <button type="button" class="emo-chip" onclick="window.insertCaretTag('[shocked]')">😱 Sốc/Trời ơi</button>
-        <button type="button" class="emo-chip" onclick="window.insertCaretTag('[thinking]')">🤔 Hmmm</button>
-        <button type="button" class="emo-chip" onclick="window.insertCaretTag('[panicked]')">🏃 Chết rồi!</button>
-        <button type="button" class="emo-chip" onclick="window.insertCaretTag('[angry]')">😡 Tức quá</button>
-        <button type="button" class="emo-chip" onclick="window.insertCaretTag('[nghỉ 0.5s]')">⏸️ Nghỉ 0.5s</button>
-        <button type="button" class="emo-chip" onclick="window.insertCaretTag('[nghỉ 1s]')">⏳ Nghỉ 1s</button>
+    <div class="m-bar">
+        <span class="m-title">🎯 Bấm chèn cảm xúc tại vị trí con trỏ:</span>
+        <div class="m-buttons-wrap">
+            <button type="button" class="m-chip" onclick="window.insertCaretTag('[cười]')">😄 Cười</button>
+            <button type="button" class="m-chip" onclick="window.insertCaretTag('[sighs]')">😮‍💨 Thở dài</button>
+            <button type="button" class="m-chip" onclick="window.insertCaretTag('[clears throat]')">🗣️ Hắng giọng</button>
+            <button type="button" class="m-chip" onclick="window.insertCaretTag('[laughing]')">😂 Cười to</button>
+            <button type="button" class="m-chip" onclick="window.insertCaretTag('[crying]')">😭 Khóc</button>
+            <button type="button" class="m-chip" onclick="window.insertCaretTag('[shocked]')">😱 Sốc</button>
+            <button type="button" class="m-chip" onclick="window.insertCaretTag('[thinking]')">🤔 Hmmm</button>
+            <button type="button" class="m-chip" onclick="window.insertCaretTag('[panicked]')">🏃 Chết rồi!</button>
+            <button type="button" class="m-chip" onclick="window.insertCaretTag('[angry]')">😡 Tức quá</button>
+            <button type="button" class="m-chip" onclick="window.insertCaretTag('[nghỉ 0.5s]')">⏸️ Nghỉ 0.5s</button>
+            <button type="button" class="m-chip" onclick="window.insertCaretTag('[nghỉ 1s]')">⏳ Nghỉ 1s</button>
+        </div>
 
-        <div class="emo-select-wrap">
-            <span class="emo-label">📚 Kho 50+ thẻ:</span>
-            <select id="caretSelectTag" class="emo-dropdown">
+        <div class="m-dropdown-row">
+            <select id="caretSelectTag" class="m-dropdown">
                 <option value="[crying]">😭 [crying] - hu hu (khóc)</option>
                 <option value="[coughs]">😷 [coughs] - khụ khụ (ho)</option>
                 <option value="[lip smacks]">😋 [lip smacks] - chẹp chẹp</option>
@@ -230,7 +311,7 @@ toolbar_html = """
                 <option value="[clears throat]">🗣️ [clears throat] - hèm hèm (hắng giọng)</option>
                 <option value="[smug]">😎 [smug] - biết ngay mà</option>
             </select>
-            <button type="button" class="emo-add-btn" onclick="window.insertCaretDropdown()">➕ Chèn tại con trỏ</button>
+            <button type="button" class="m-insert-btn" onclick="window.insertCaretDropdown()">➕ Chèn tại con trỏ</button>
         </div>
     </div>
 
@@ -273,36 +354,37 @@ toolbar_html = """
 """
 
 with tab_tts:
-    # 2 Cards Layout: Left (Input), Right (Settings)
-    col_input, col_settings = st.columns([1.2, 0.8], gap="medium")
+    # Responsive Columns (auto stacks on mobile)
+    col_input, col_settings = st.columns([1.15, 0.85], gap="medium")
 
     with col_input:
         with st.container(border=True):
-            st.markdown("### 📝 Bước 1: Nhập văn bản")
+            st.markdown("#### 📝 Bước 1: Nhập văn bản")
 
-            # Caret Toolbar (Direct DOM, No Iframe)
-            st.html(toolbar_html)
+            # Mobile-friendly Caret Toolbar
+            st.html(mobile_toolbar_html)
 
-            # Main text area
+            # Text Area
             st.text_area(
                 "Nội dung văn bản:",
                 key="tts_main_text",
-                height=180,
-                placeholder="Nhập hoặc dán văn bản vào đây. Đặt con trỏ chuột tại bất kỳ vị trí nào rồi bấm nút cảm xúc ở trên...",
+                height=160,
+                placeholder="Nhập hoặc dán văn bản vào đây. Nhấp chuột vào bất kỳ vị trí nào rồi bấm nút cảm xúc...",
                 label_visibility="collapsed",
             )
 
-            col_preset, col_file = st.columns([1.2, 0.8])
-            with col_preset:
+            c_preset, c_upload = st.columns([1.1, 0.9])
+            with c_preset:
                 st.selectbox(
-                    "Mẫu câu có sẵn:",
+                    "Mẫu câu:",
                     options=["(Chọn mẫu câu tham khảo)"] + list(sample_options.keys()),
                     index=0,
                     key="sample_preset_choice",
                     on_change=apply_sample_preset,
+                    label_visibility="collapsed",
                 )
-            with col_file:
-                uploaded_txt = st.file_uploader("Hoặc tải file .txt:", type=["txt"], key="txt_upload", label_visibility="collapsed")
+            with c_upload:
+                uploaded_txt = st.file_uploader("File .txt", type=["txt"], key="txt_upload", label_visibility="collapsed")
                 if uploaded_txt:
                     content_str = uploaded_txt.read().decode("utf-8")
                     if content_str != st.session_state["tts_main_text"]:
@@ -311,7 +393,7 @@ with tab_tts:
 
     with col_settings:
         with st.container(border=True):
-            st.markdown("### 🎙️ Bước 2: Chọn Giọng & Tốc độ")
+            st.markdown("#### 🎙️ Bước 2: Chọn Giọng & Tốc độ")
 
             tts_lang = st.selectbox(
                 "Ngôn ngữ:",
@@ -326,22 +408,22 @@ with tab_tts:
             selected_voice_label = st.selectbox(
                 "Giọng đọc AI:",
                 options=list(voices_dict.keys()),
-                index=0,  # Adam bựa is first
+                index=0,  # Adam
             )
             selected_voice_id = voices_dict[selected_voice_label]
 
-            st.markdown("**Tốc độ đọc (Tempo):**")
-            sp_c1, sp_c2, sp_c3 = st.columns(3)
-            with sp_c1:
-                if st.button("1.0x (Vừa)", use_container_width=True):
+            st.markdown("**Tốc độ nói (Tempo):**")
+            sp1, sp2, sp3 = st.columns(3)
+            with sp1:
+                if st.button("1.0x", use_container_width=True):
                     st.session_state["slider_speed_val"] = 0
                     st.rerun()
-            with sp_c2:
-                if st.button("🔥 1.15x (Tốp Tốp)", use_container_width=True):
+            with sp2:
+                if st.button("🔥 1.15x", use_container_width=True):
                     st.session_state["slider_speed_val"] = 15
                     st.rerun()
-            with sp_c3:
-                if st.button("1.25x (Nhanh)", use_container_width=True):
+            with sp3:
+                if st.button("1.25x", use_container_width=True):
                     st.session_state["slider_speed_val"] = 25
                     st.rerun()
 
@@ -360,14 +442,14 @@ with tab_tts:
             speed_factor = 1.0 + (tts_rate_val / 100.0)
             rate_str = f"{'+' if tts_rate_val >= 0 else ''}{tts_rate_val}%"
 
-            # Generate button inside card
+            # Primary Big Action Button
             btn_generate_tts = st.button(
                 "🚀 Tạo Giọng Đọc AI Ngay",
                 type="primary",
                 use_container_width=True,
             )
 
-    # Output Box
+    # Result Box
     if btn_generate_tts:
         text_to_speak = st.session_state["tts_main_text"].strip()
         if not text_to_speak:
@@ -377,7 +459,7 @@ with tab_tts:
             tts_output_dir.mkdir(parents=True, exist_ok=True)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-            with st.spinner("⏳ Đang tổng hợp âm thanh giọng đọc AI chuẩn Studio..."):
+            with st.spinner("⏳ Đang tổng hợp âm thanh giọng đọc AI..."):
                 try:
                     if selected_voice_id.startswith("vieneu:"):
                         clean_v = selected_voice_id.replace("vieneu:", "")
@@ -416,6 +498,7 @@ with tab_tts:
                                 file_name=out_file.name,
                                 mime="audio/mpeg",
                                 type="primary",
+                                use_container_width=True,
                             )
 
                 except Exception as err:
@@ -423,16 +506,16 @@ with tab_tts:
 
 
 # ==============================================================================
-# TAB 2: VIDEO DUBBING
+# TAB 2: VIDEO DUBBING (MOBILE OPTIMIZED)
 # ==============================================================================
 with tab_dubbing:
     col_dub_in, col_dub_set = st.columns([1, 1], gap="medium")
 
     with col_dub_in:
         with st.container(border=True):
-            st.markdown("### 🎬 Bước 1: Tải lên Video gốc")
+            st.markdown("#### 🎬 Bước 1: Tải lên Video gốc")
             uploaded_video = st.file_uploader(
-                "Chọn video cần lồng tiếng (mp4, mkv, mov, webm):",
+                "Chọn video (mp4, mkv, mov, webm):",
                 type=["mp4", "mkv", "mov", "avi", "webm"],
                 key="dub_video_uploader",
             )
@@ -441,7 +524,7 @@ with tab_dubbing:
 
     with col_dub_set:
         with st.container(border=True):
-            st.markdown("### ⚙️ Bước 2: Cài đặt Lồng tiếng")
+            st.markdown("#### ⚙️ Bước 2: Cài đặt Lồng tiếng")
 
             dub_target_lang = st.selectbox(
                 "Ngôn ngữ lồng tiếng đích:",
@@ -460,7 +543,7 @@ with tab_dubbing:
             )
             selected_dub_voice = catalog_for_target[selected_dub_voice_label]
 
-            with st.expander("🛠️ Cài đặt nâng cao (Nhạc nền & Whisper ASR)", expanded=False):
+            with st.expander("🛠️ Cài đặt nâng cao (Nhạc nền & Whisper)", expanded=False):
                 dub_source_lang = st.selectbox(
                     "Ngôn ngữ gốc của video:",
                     options=["auto"] + list(LANGUAGE_NAMES.keys()),
@@ -475,12 +558,12 @@ with tab_dubbing:
                     key="dub_whisper_model",
                 )
                 bg_vol = st.slider(
-                    "Âm lượng nhạc nền gốc (Audio Ducking):",
+                    "Âm lượng nhạc nền gốc (Ducking):",
                     min_value=0.0,
                     max_value=0.5,
                     value=0.15,
                     step=0.05,
-                    help="Giữ lại 15% tiếng động cơ, gió, nhạc nền gốc để video tự nhiên.",
+                    help="Giữ lại 15% tiếng động cơ, gió, nhạc nền gốc.",
                     key="dub_bg_vol",
                 )
 
@@ -489,7 +572,7 @@ with tab_dubbing:
             else:
                 btn_start_dub = False
 
-    # Video Dubbing Execution
+    # Video Dubbing Processing
     if btn_start_dub and uploaded_video:
         with st.container(border=True):
             progress_bar = st.progress(0.0)
@@ -527,23 +610,23 @@ with tab_dubbing:
                 progress_bar.progress(1.0)
                 st.video(str(result_path))
 
-                col_down1, col_down2 = st.columns(2)
-                with col_down1:
+                c_down1, c_down2 = st.columns(2)
+                with c_down1:
                     with open(result_path, "rb") as f:
                         st.download_button(
-                            label="⬇️ Tải Video đã lồng tiếng (.mp4)",
+                            label="⬇️ Tải Video (.mp4)",
                             data=f,
                             file_name=result_path.name,
                             mime="video/mp4",
                             type="primary",
                             use_container_width=True,
                         )
-                with col_down2:
+                with c_down2:
                     srt_file = result_path.with_suffix(".srt")
                     if srt_file.exists():
                         with open(srt_file, "r", encoding="utf-8") as f:
                             st.download_button(
-                                label="📄 Tải Phụ đề lồng tiếng (.srt)",
+                                label="📄 Tải Phụ đề (.srt)",
                                 data=f.read(),
                                 file_name=srt_file.name,
                                 mime="text/plain",
