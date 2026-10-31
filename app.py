@@ -405,37 +405,172 @@ st.html(
         }
     }
 
-    /* Responsive đặc biệt cho màn hình Điện Thoại Di Động (< 640px) */
+    /* =========================================================================
+       TỐI ƯU TOÀN DIỆN CHO GIAO DIỆN ĐIỆN THOẠI DI ĐỘNG (< 640px)
+       ========================================================================= */
     @media (max-width: 640px) {
+        /* Bố cục trang chung */
         .block-container {
-            padding-top: 1rem !important;
-            padding-bottom: 110px !important;
-            padding-left: 6px !important;
-            padding-right: 6px !important;
+            padding-top: 0.5rem !important;
+            padding-bottom: 130px !important;
+            padding-left: 8px !important;
+            padding-right: 8px !important;
         }
+
+        /* Container khung thẻ DAW */
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            padding: 10px 8px !important;
+            border-radius: 12px !important;
+            margin-bottom: 8px !important;
+        }
+
+        /* Top Brand Header */
+        .vdt-brand-title {
+            font-size: 1.15rem !important;
+        }
+        .vdt-badge-pill {
+            font-size: 9px !important;
+            padding: 1px 5px !important;
+        }
+        .vdt-header-status {
+            display: none !important;
+        }
+        .vdt-brand-sub {
+            font-size: 0.72rem !important;
+            line-height: 1.3 !important;
+        }
+
+        /* Bước 1 Header buttons */
+        .step-header-actions {
+            width: 100% !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            gap: 4px !important;
+            margin-top: 6px !important;
+        }
+        .step-header-actions button {
+            flex: 1 1 auto !important;
+            font-size: 10px !important;
+            padding: 5px 4px !important;
+            text-align: center !important;
+            white-space: nowrap !important;
+        }
+
+        /* Neon Emotion Tag Chips: Xếp gọn gàng không bị tràn màn hình */
+        .neon-row {
+            margin-left: 0 !important;
+            gap: 3px !important;
+            margin-bottom: 6px !important;
+        }
+        .neon-row-sub {
+            margin-left: 0 !important;
+        }
+        .neon-cat {
+            display: block !important;
+            width: 100% !important;
+            min-width: 100% !important;
+            text-align: left !important;
+            background: transparent !important;
+            border: none !important;
+            color: #f97316 !important;
+            font-size: 10.5px !important;
+            font-weight: 800 !important;
+            padding: 2px 0 1px 0 !important;
+        }
+        .neon-tag-chip {
+            padding: 4px 6px !important;
+            font-size: 11px !important;
+            border-radius: 5px !important;
+        }
+
+        /* Caret Dropdown & Button trên điện thoại */
+        .caret-select-container {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 6px !important;
+        }
+        .caret-select-container > div {
+            width: 100% !important;
+            min-width: 100% !important;
+        }
+        #caretDropdownBtn {
+            width: 100% !important;
+            justify-content: center !important;
+            padding: 8px 10px !important;
+            font-size: 12px !important;
+        }
+
+        /* Editor stats bar */
+        #daw-stat-duration {
+            font-size: 10px !important;
+        }
+
+        /* Thẻ nhân vật & Nút nghe thử mẫu trên điện thoại */
+        #vdt-btn-preview-sample {
+            height: auto !important;
+            padding: 8px 10px !important;
+            flex-direction: row !important;
+            justify-content: center !important;
+            gap: 8px !important;
+            margin-top: 4px !important;
+        }
+        #vdt-btn-preview-sample > div {
+            max-width: none !important;
+        }
+
+        /* 4 nút gợi ý giọng đọc 2x2 */
+        div[data-testid="column"] button[kind="secondary"] {
+            padding: 6px 4px !important;
+            font-size: 10.5px !important;
+            min-height: 44px !important;
+            line-height: 1.25 !important;
+        }
+
+        /* Nút Tốc độ và Acoustic FX trên điện thoại */
+        .stButton button {
+            padding: 5px 2px !important;
+            font-size: 10.5px !important;
+        }
+
+        /* Nút Khổng Lồ TẠO GIỌNG ĐỌC AI NGAY trên điện thoại */
+        button[kind="primary"] {
+            font-size: 13.5px !important;
+            padding: 12px 8px !important;
+            letter-spacing: 0.3px !important;
+            font-weight: 800 !important;
+        }
+
+        /* =====================================================================
+           THANH PHÁT DAW GHIM ĐÁY 2 TẦNG CHUYÊN NGHIỆP TRÊN ĐIỆN THOẠI
+           ===================================================================== */
         .daw-dock-fixed {
-            padding: 6px 10px !important;
+            padding: 7px 10px 8px 10px !important;
+            bottom: 0px !important;
         }
         .daw-dock-inner {
-            flex-wrap: nowrap !important;
-            gap: 6px !important;
+            display: flex !important;
+            flex-wrap: wrap !important;
+            align-items: center !important;
             justify-content: space-between !important;
+            gap: 5px !important;
         }
+        /* Tầng 1 bên trái: Đĩa quay & Tiêu đề bài */
         .daw-dock-left {
+            order: 1 !important;
+            flex: 1 1 auto !important;
             min-width: 0 !important;
-            flex-shrink: 1 !important;
+            max-width: 58% !important;
             gap: 6px !important;
-            overflow: hidden !important;
         }
         #daw-disc {
-            width: 30px !important;
-            height: 30px !important;
-            font-size: 14px !important;
+            width: 28px !important;
+            height: 28px !important;
+            font-size: 13px !important;
             flex-shrink: 0 !important;
         }
         #daw-track-title {
             font-size: 0.8rem !important;
-            max-width: 95px !important;
+            max-width: 125px !important;
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
@@ -447,24 +582,10 @@ st.html(
             font-size: 8px !important;
             padding: 1px 4px !important;
         }
-        .daw-dock-center {
-            flex-grow: 0 !important;
-            min-width: 0 !important;
-            gap: 5px !important;
-        }
-        #daw-btn-prev, #daw-btn-next, #daw-btn-loop, #daw-waveform-wrapper {
-            display: none !important;
-        }
-        #daw-btn-play {
-            width: 34px !important;
-            height: 34px !important;
-            font-size: 14px !important;
-        }
-        #daw-timecode-display {
-            font-size: 10px !important;
-            min-width: 68px !important;
-        }
+        /* Tầng 1 bên phải: Nút tải MP3, WAV và Thu nhỏ */
         .daw-dock-right {
+            order: 2 !important;
+            flex: 0 0 auto !important;
             gap: 4px !important;
         }
         .daw-dock-right #daw-btn-dl-srt {
@@ -475,8 +596,56 @@ st.html(
             font-size: 10px !important;
         }
         .daw-dock-right #daw-btn-dl-wav {
-            padding: 5px 9px !important;
+            padding: 4px 9px !important;
             font-size: 10px !important;
+        }
+        #daw-btn-toggle-size {
+            padding: 4px 6px !important;
+            font-size: 10px !important;
+        }
+        /* Tầng 2 bên dưới: Nút Play + Timecode + Toàn bộ Waveform Loang & Sướt tua */
+        .daw-dock-center {
+            order: 3 !important;
+            width: 100% !important;
+            flex: 1 1 100% !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            gap: 6px !important;
+            margin-top: 1px !important;
+            padding-top: 4px !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+        }
+        #daw-btn-prev, #daw-btn-next, #daw-btn-loop {
+            display: none !important;
+        }
+        #daw-btn-play {
+            width: 30px !important;
+            height: 30px !important;
+            font-size: 12px !important;
+            flex-shrink: 0 !important;
+        }
+        #daw-timecode-display {
+            font-size: 10px !important;
+            min-width: 72px !important;
+            flex-shrink: 0 !important;
+        }
+        #daw-waveform-wrapper {
+            display: flex !important;
+            flex-grow: 1 !important;
+            min-width: 0 !important;
+            gap: 4px !important;
+        }
+        #daw-waveform-scrub {
+            display: flex !important;
+            width: 100% !important;
+            flex-grow: 1 !important;
+            min-width: 90px !important;
+            height: 24px !important;
+            padding: 1px 4px !important;
+        }
+        #daw-time-start, #daw-time-end {
+            display: none !important;
         }
     }
 
@@ -591,24 +760,24 @@ st.html(
     <div style="margin-bottom: 14px;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 6px;">
             <!-- Brand / Logo -->
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="width: 44px; height: 44px; border-radius: 50%; background: #181d2a; border: 2px solid #f97316; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 16px rgba(249, 115, 22, 0.45);">
-                    <img src="{author_logo_b64}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;" />
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 42px; height: 42px; border-radius: 50%; background: #181d2a; border: 2px solid #f97316; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 16px rgba(249, 115, 22, 0.45); flex-shrink: 0;">
+                    <img src="{author_logo_b64}" style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover;" />
                 </div>
                 <div>
-                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <span style="font-size: 1.45rem; font-weight: 900; letter-spacing: -0.5px; color: #ffffff;">Studio VDT</span>
-                        <span style="background: rgba(249, 115, 22, 0.15); border: 1px solid #ea580c; color: #fb923c; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 16px; letter-spacing: 0.5px;">• ENTERPRISE PRO AUDIO</span>
-                        <span style="background: #141824; border: 1px solid #232b3d; color: #94a3b8; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 16px;">VieNeu Neural v4.2 Max</span>
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <span class="vdt-brand-title" style="font-size: 1.45rem; font-weight: 900; letter-spacing: -0.5px; color: #ffffff;">Studio VDT</span>
+                        <span class="vdt-badge-pill" style="background: rgba(249, 115, 22, 0.15); border: 1px solid #ea580c; color: #fb923c; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 16px; letter-spacing: 0.5px;">• ENTERPRISE PRO AUDIO</span>
+                        <span class="vdt-badge-pill" style="background: #141824; border: 1px solid #232b3d; color: #94a3b8; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 16px;">VieNeu Neural v4.2 Max</span>
                     </div>
-                    <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">
+                    <div class="vdt-brand-sub" style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">
                         Sáng lập & Bản quyền: <span style="color: #f97316; font-weight: 700;">Võ Duy Toàn</span> | Hệ thống phối âm & lồng tiếng AI cao cấp
                     </div>
                 </div>
             </div>
 
             <!-- Server Status & Indicator Dot -->
-            <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="vdt-header-status" style="display: flex; align-items: center; gap: 10px;">
                 <span style="width: 9px; height: 9px; border-radius: 50%; background: #f97316; box-shadow: 0 0 10px #f97316;"></span>
                 <span style="background: #1c2233; border: 1px solid #2e3852; color: #f97316; border-radius: 6px; padding: 3px 10px; font-size: 11px; font-weight: 700;">PRO STUDIO</span>
             </div>
@@ -936,7 +1105,7 @@ with col_script:
                         <div style="font-size: 0.78rem; color: #94a3b8;">Smart Emotion Scriptwriter • Gắn nhãn cảm xúc & nhịp ngắt chuẩn xác theo vị trí con trỏ</div>
                     </div>
                 </div>
-                <div style="display: flex; gap: 6px;">
+                <div class="step-header-actions" style="display: flex; gap: 6px;">
                     <button type="button" id="btn-action-split" style="background: #151a26; border: 1px solid #232b3c; border-radius: 6px; color: #cbd5e1; padding: 4px 9px; font-size: 11px; font-weight: 600; cursor: pointer;">✂️ Tách câu tự động</button>
                     <button type="button" id="btn-action-clear" style="background: #151a26; border: 1px solid #232b3c; border-radius: 6px; color: #cbd5e1; padding: 4px 9px; font-size: 11px; font-weight: 600; cursor: pointer;">🔄 Làm trống</button>
                     <button type="button" class="btn-copy-emotion-table" style="background: linear-gradient(135deg, #f97316, #ea580c); border: 1px solid #fb923c; border-radius: 6px; color: #ffffff; padding: 4px 9px; font-size: 11px; font-weight: 700; cursor: pointer;">✨ Kịch bản mẫu / Copy AI</button>
@@ -984,6 +1153,9 @@ with col_script:
                         margin-bottom: 5px;
                         flex-wrap: wrap;
                     }
+                    .neon-row-sub {
+                        margin-left: 130px;
+                    }
                     .neon-cat {
                         font-size: 10px;
                         font-weight: 800;
@@ -1026,7 +1198,7 @@ with col_script:
                 </div>
 
                 <!-- Row 3b: Phụ kịch tính -->
-                <div class="neon-row" style="margin-left: 130px;">
+                <div class="neon-row neon-row-sub">
                     <button type="button" class="m-chip neon-tag-chip" data-tag="[panicked]">🏃 [Chết rồi!]</button>
                     <button type="button" class="m-chip neon-tag-chip" data-tag="[thinking]">🤔 [Hmm...]</button>
                 </div>
@@ -1041,7 +1213,7 @@ with col_script:
                 </div>
 
                 <!-- Dropdown Đầy Đủ 55+ Mã Biểu Cảm & Nút Chèn Tại Con Trỏ -->
-                <div style="display: flex; gap: 8px; align-items: center; margin-top: 10px; padding-top: 9px; border-top: 1px solid #1c2333; flex-wrap: wrap;">
+                <div class="caret-select-container" style="display: flex; gap: 8px; align-items: center; margin-top: 10px; padding-top: 9px; border-top: 1px solid #1c2333; flex-wrap: wrap;">
                     <div style="flex-grow: 1; min-width: 250px;">
                         <select id="caretSelectTag" style="width: 100%; background: #141926; color: #ffffff; border: 1.5px solid #283147; border-radius: 6px; padding: 6px 10px; font-size: 12px; outline: none; cursor: pointer;">
                             <option value="[crying]">😭 [crying] - hu hu (khóc)</option>
