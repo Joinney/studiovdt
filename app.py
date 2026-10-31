@@ -3,6 +3,7 @@ AI Studio: Video Dubbing & Multi-Voice Text-to-Speech
 Mobile-First Fully Responsive Design (Tương thích 100% điện thoại di động & máy tính)
 """
 import asyncio
+import base64
 from datetime import datetime
 from pathlib import Path
 import streamlit as st
@@ -76,12 +77,29 @@ st.html(
     """
 )
 
-# Header
+def get_author_logo_base64():
+    logo_path = Path(__file__).parent / "assets" / "author.png"
+    if logo_path.exists():
+        encoded = base64.b64encode(logo_path.read_bytes()).decode("utf-8")
+        return f"data:image/png;base64,{encoded}"
+    return "https://github.com/Joinney.png"
+
+author_logo_b64 = get_author_logo_base64()
+
+# Header with Author Branding
 st.markdown(
-    """
+    f"""
     <div class="mobile-header">
-        <div class="mobile-title">🎙️ AI Audio & Video Studio</div>
-        <div class="mobile-subtitle">Tạo giọng đọc AI Adam Tốp Tốp & Lồng tiếng Video tự động</div>
+        <div style="display: inline-flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 6px; flex-wrap: wrap;">
+            <img src="{author_logo_b64}" alt="Võ Duy Toàn" style="width: 62px; height: 62px; border-radius: 50%; border: 2.5px solid #ff4b4b; box-shadow: 0 0 16px rgba(255, 75, 75, 0.45); object-fit: cover;" />
+            <div style="text-align: left;">
+                <div class="mobile-title" style="margin: 0; line-height: 1.15;">Studio VDT • AI Dubbing & TTS</div>
+                <div style="font-size: 0.88rem; color: #ff8c00; font-weight: 600; margin-top: 3px;">
+                    ✨ Tác giả: <span style="color: #ffffff; font-weight: 700;">Võ Duy Toàn</span>
+                </div>
+            </div>
+        </div>
+        <div class="mobile-subtitle">Kho 31 giọng VieNeu-TTS chuẩn Studio 48kHz • 50+ thẻ cảm xúc • Lồng tiếng Video tự động</div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -639,3 +657,19 @@ with tab_dubbing:
             except Exception as e:
                 status_text.error(f"❌ Có lỗi xảy ra trong quá trình xử lý: {e}")
                 st.exception(e)
+
+# Footer
+st.markdown(
+    f"""
+    <div style="text-align: center; margin-top: 40px; padding: 18px 10px 10px 10px; border-top: 1px solid rgba(255, 255, 255, 0.08); color: #8a8f9d; font-size: 0.84rem;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 5px; flex-wrap: wrap;">
+            <img src="{author_logo_b64}" style="width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #ff4b4b; object-fit: cover;" />
+            <span style="font-weight: 700; color: #ffffff;">Studio VDT</span> — Sáng lập & Bản quyền bởi <span style="color: #ff4b4b; font-weight: 800;">Võ Duy Toàn</span>
+        </div>
+        <div style="font-size: 0.78rem; color: #6b7280;">
+            Hệ thống lồng tiếng video & tạo giọng đọc AI đa cảm xúc • Tích hợp trọn bộ 31 giọng VieNeu-TTS
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
