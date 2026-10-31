@@ -1822,7 +1822,11 @@ if active_audio_path and Path(active_audio_path).exists():
     audio_uri = f"data:audio/mp3;base64,{b64_audio}"
     audio_filename = Path(active_audio_path).name
     track_title = st.session_state.get("script_generated_title", "Audio_Master_Ready")
-    gen_voice_name = st.session_state.get("script_generated_voice_name", clean_name)
+    gen_voice_name = st.session_state.get("script_generated_voice_name")
+    if not gen_voice_name:
+        # Tự động trích xuất tên nhân vật từ tên track (ví dụ "Thiện Minh_20261031_173618" -> "Thiện Minh")
+        parts = track_title.rsplit("_", 2)
+        gen_voice_name = parts[0] if len(parts) >= 3 else clean_name
     voice_display_info = f"{gen_voice_name} • 48kHz / 24-bit Lossless"
 
     # Tạo nội dung phụ đề SRT đi kèm đồng bộ
