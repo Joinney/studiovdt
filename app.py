@@ -271,17 +271,17 @@ mobile_toolbar_html = """
     <div class="m-bar">
         <span class="m-title">🎯 Bấm chèn cảm xúc tại vị trí con trỏ:</span>
         <div class="m-buttons-wrap">
-            <button type="button" class="m-chip" onclick="window.insertCaretTag('[cười]')">😄 Cười</button>
-            <button type="button" class="m-chip" onclick="window.insertCaretTag('[sighs]')">😮‍💨 Thở dài</button>
-            <button type="button" class="m-chip" onclick="window.insertCaretTag('[clears throat]')">🗣️ Hắng giọng</button>
-            <button type="button" class="m-chip" onclick="window.insertCaretTag('[laughing]')">😂 Cười to</button>
-            <button type="button" class="m-chip" onclick="window.insertCaretTag('[crying]')">😭 Khóc</button>
-            <button type="button" class="m-chip" onclick="window.insertCaretTag('[shocked]')">😱 Sốc</button>
-            <button type="button" class="m-chip" onclick="window.insertCaretTag('[thinking]')">🤔 Hmmm</button>
-            <button type="button" class="m-chip" onclick="window.insertCaretTag('[panicked]')">🏃 Chết rồi!</button>
-            <button type="button" class="m-chip" onclick="window.insertCaretTag('[angry]')">😡 Tức quá</button>
-            <button type="button" class="m-chip" onclick="window.insertCaretTag('[nghỉ 0.5s]')">⏸️ Nghỉ 0.5s</button>
-            <button type="button" class="m-chip" onclick="window.insertCaretTag('[nghỉ 1s]')">⏳ Nghỉ 1s</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[cười]')">😄 Cười</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[sighs]')">😮‍💨 Thở dài</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[clears throat]')">🗣️ Hắng giọng</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[laughing]')">😂 Cười to</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[crying]')">😭 Khóc</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[shocked]')">😱 Sốc</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[thinking]')">🤔 Hmmm</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[panicked]')">🏃 Chết rồi!</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[angry]')">😡 Tức quá</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[nghỉ 0.5s]')">⏸️ Nghỉ 0.5s</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[nghỉ 1s]')">⏳ Nghỉ 1s</button>
         </div>
 
         <div class="m-dropdown-row">
@@ -343,44 +343,77 @@ mobile_toolbar_html = """
                 <option value="[clears throat]">🗣️ [clears throat] - hèm hèm (hắng giọng)</option>
                 <option value="[smug]">😎 [smug] - biết ngay mà</option>
             </select>
-            <button type="button" class="m-insert-btn" onclick="window.insertCaretDropdown()">➕ Chèn tại con trỏ</button>
+            <button type="button" class="m-insert-btn" onmousedown="event.preventDefault();" onclick="window.insertCaretDropdown()">➕ Chèn tại con trỏ</button>
         </div>
     </div>
 
     <script>
-        window.insertCaretTag = function(tag) {
-            const textarea = document.querySelector('textarea');
-            if (!textarea) return;
+        (function() {
+            let savedStart = null;
+            let savedEnd = null;
 
-            const start = textarea.selectionStart !== undefined ? textarea.selectionStart : textarea.value.length;
-            const end = textarea.selectionEnd !== undefined ? textarea.selectionEnd : start;
-            const val = textarea.value;
-
-            const prefix = (start > 0 && val[start - 1] !== ' ' && val[start - 1] !== '\\n') ? ' ' : '';
-            const suffix = (end < val.length && val[end] !== ' ' && val[end] !== '\\n') ? ' ' : ' ';
-            const insertStr = prefix + tag + suffix;
-
-            const newVal = val.substring(0, start) + insertStr + val.substring(end);
-
-            const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
-            if (nativeSetter) {
-                nativeSetter.call(textarea, newVal);
-            } else {
-                textarea.value = newVal;
+            function getTa() {
+                return document.querySelector('div[data-testid="stTextArea"] textarea') || document.querySelector('textarea');
             }
 
-            textarea.dispatchEvent(new Event('input', { bubbles: true }));
-            const nextPos = start + insertStr.length;
-            textarea.setSelectionRange(nextPos, nextPos);
-            textarea.focus();
-        };
-
-        window.insertCaretDropdown = function() {
-            const sel = document.getElementById('caretSelectTag');
-            if (sel && sel.value) {
-                window.insertCaretTag(sel.value);
+            function track() {
+                const ta = getTa();
+                if (ta && ta.selectionStart !== undefined) {
+                    savedStart = ta.selectionStart;
+                    savedEnd = ta.selectionEnd;
+                }
             }
-        };
+
+            ['keyup', 'keydown', 'mouseup', 'mousedown', 'input', 'select', 'focus'].forEach(function(ev) {
+                document.addEventListener(ev, function(e) {
+                    const ta = getTa();
+                    if (e.target === ta) {
+                        track();
+                    }
+                }, true);
+            });
+
+            window.insertCaretTag = function(tag) {
+                const ta = getTa();
+                if (!ta) return;
+
+                let start = (ta.selectionStart !== undefined && ta.selectionStart !== null) ? ta.selectionStart : savedStart;
+                let end = (ta.selectionEnd !== undefined && ta.selectionEnd !== null) ? ta.selectionEnd : savedEnd;
+
+                if (start === null || start === undefined) start = ta.value.length;
+                if (end === null || end === undefined) end = start;
+
+                const val = ta.value || '';
+                const prefix = (start > 0 && val[start - 1] !== ' ' && val[start - 1] !== '\\n') ? ' ' : '';
+                const suffix = (end < val.length && val[end] !== ' ' && val[end] !== '\\n') ? ' ' : ' ';
+                const insertStr = prefix + tag + suffix;
+
+                const newVal = val.substring(0, start) + insertStr + val.substring(end);
+
+                const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+                if (nativeSetter) {
+                    nativeSetter.call(ta, newVal);
+                } else {
+                    ta.value = newVal;
+                }
+
+                ta.dispatchEvent(new Event('input', { bubbles: true }));
+                ta.dispatchEvent(new Event('change', { bubbles: true }));
+
+                const nextPos = start + insertStr.length;
+                savedStart = nextPos;
+                savedEnd = nextPos;
+                ta.focus();
+                ta.setSelectionRange(nextPos, nextPos);
+            };
+
+            window.insertCaretDropdown = function() {
+                const sel = document.getElementById('caretSelectTag');
+                if (sel && sel.value) {
+                    window.insertCaretTag(sel.value);
+                }
+            };
+        })();
     </script>
 </div>
 """
@@ -393,8 +426,8 @@ with tab_tts:
         with st.container(border=True):
             st.markdown("#### 📝 Bước 1: Nhập văn bản")
 
-            # Mobile-friendly Caret Toolbar
-            st.html(mobile_toolbar_html)
+            # Mobile-friendly Caret Toolbar (with JavaScript execution enabled)
+            st.html(mobile_toolbar_html, unsafe_allow_javascript=True)
 
             # Text Area
             st.text_area(
