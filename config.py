@@ -8,31 +8,17 @@ from typing import Dict, List
 # Extensive Voices Catalog categorized by Language and Engine
 VOICES_CATALOG: Dict[str, Dict[str, str]] = {
     "vi": {
-        "🔥 Adam bựa (VieNeu - Giọng Review Phim TikTok Miền Bắc)": "vieneu:Adam bựa",
-        "🔥 Adam (VieNeu - Giọng Tốp Tốp Tự Nhiên Miền Nam)": "vieneu:Adam",
+        "🔥 Adam (VieNeu - Giọng Tốp Tốp Tự Nhiên & Đa Cảm Xúc)": "vieneu:Adam",
+        "🔥 Adam bựa (VieNeu - Giọng Review Phim Miền Bắc)": "vieneu:Adam bựa",
         "Trúc Ly (VieNeu - Nữ Bắc tự nhiên, dễ thương)": "vieneu:Trúc Ly",
-        "Thiện Minh (VieNeu - Nam Bắc kể chuyện, truyền cảm)": "vieneu:Thiện Minh",
         "Mai Anh (VieNeu - Nữ Bắc tin tức, thời sự)": "vieneu:Mai Anh",
-        "Hải Đăng (VieNeu - Nam Bắc tự nhiên, phóng khoáng)": "vieneu:Hải Đăng",
-        "Thùy Dung (VieNeu - Nữ Nam tin tức, lưu loát)": "vieneu:Thùy Dung",
-        "Thiền Tâm Đức (VieNeu - Nam Bắc triết lý, đọc kinh, kể chuyện)": "vieneu:Thiền Tâm Đức",
-        "Ngọc Huyền (VieNeu - Nữ Bắc dịu dàng)": "vieneu:Ngọc Huyền",
-        "Quang Sơn (VieNeu - Nam Trung tự nhiên)": "vieneu:Quang Sơn",
-        "Ngọc Trân (VieNeu - Nữ Trung tự nhiên)": "vieneu:Ngọc Trân",
-        "Minh Đức (VieNeu - Nam Bắc tin tức)": "vieneu:Minh Đức",
-        "Phạm Tuyên (VieNeu - Nam Bắc đĩnh đạc)": "vieneu:Phạm Tuyên",
-        "Thái Sơn (VieNeu - Nam Nam kể chuyện)": "vieneu:Thái Sơn",
-        "Xuân Vĩnh (VieNeu - Nam Bắc hào sảng)": "vieneu:Xuân Vĩnh",
-        "Thanh Bình (VieNeu - Nam Bắc ấm áp)": "vieneu:Thanh Bình",
-        "Ngọc Linh (VieNeu - Nữ Bắc kể chuyện)": "vieneu:Ngọc Linh",
-        "Đoan Trang (VieNeu - Nữ Bắc tự nhiên)": "vieneu:Đoan Trang",
-        "Thục Đoan (VieNeu - Nữ Nam kể chuyện)": "vieneu:Thục Đoan",
-        "Minh Triết (VieNeu - Nam Nam tin tức)": "vieneu:Minh Triết",
+        "Ái Hân (VieNeu - Nữ nhẹ nhàng, truyền cảm)": "vieneu:Ái Hân",
+        "Thiện Minh (VieNeu - Nam Bắc kể chuyện, truyền cảm)": "vieneu:Thiện Minh",
         "Mỹ Duyên (VieNeu - Nữ Nam đọc truyện tình cảm)": "vieneu:Mỹ Duyên",
-        "Quỳnh Anh (VieNeu - Nữ Bắc đọc truyện)": "vieneu:Quỳnh Anh",
         "Đức Trí (VieNeu - Nam Nam đọc truyện trinh thám)": "vieneu:Đức Trí",
-        "Kim Thanh (VieNeu - Nữ Nam đọc truyện diễn cảm)": "vieneu:Kim Thanh",
-        "Quốc Tuấn (VieNeu - Nam Bắc phong độ)": "vieneu:Quốc Tuấn",
+        "Hữu Quân (VieNeu - Nam phóng khoáng)": "vieneu:Hữu Quân",
+        "Anh Khôi (VieNeu - Nam trẻ trung)": "vieneu:Anh Khôi",
+        "Minh Quân (VieNeu - Nam điềm đạm)": "vieneu:Minh Quân",
         "vi-VN-HoaiMyNeural (Edge - Nữ truyền cảm, tin tức)": "vi-VN-HoaiMyNeural",
         "vi-VN-NamMinhNeural (Edge - Nam trầm ấm, chuyên nghiệp)": "vi-VN-NamMinhNeural",
     },
@@ -94,7 +80,6 @@ VOICES_CATALOG: Dict[str, Dict[str, str]] = {
 
 DEFAULT_VOICES: Dict[str, Dict[str, str]] = {
     "vi": {
-        "adam_bua": "vieneu:Adam bựa",
         "adam": "vieneu:Adam",
         "female": "vi-VN-HoaiMyNeural",
         "male": "vi-VN-NamMinhNeural",
@@ -131,7 +116,7 @@ class DubbingConfig:
     compute_type: str = "int8"
     source_language: str = "auto"
     target_language: str = "vi"
-    tts_voice: str = "vieneu:Adam bựa"
+    tts_voice: str = "vieneu:Adam"
     tts_rate: str = "+0%"
     tts_volume: str = "+0%"
     original_audio_volume: float = 0.15

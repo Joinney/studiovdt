@@ -1,61 +1,6 @@
 """
-VieNeu-TTS Integration Module (High-Fidelity Turbo & Nano)
-Supports full set of 50+ emotion and sound cues matching the official acoustic mapping:
-- [crying] -> hu hu
-- [coughs] -> khụ khụ
-- [lip smacks] -> chẹp chẹp
-- [annoyed] -> chậc
-- [screaming] -> áaaaa
-- [yelling] -> Êeeee
-- [affirmative] -> ừ hứ
-- [realization] -> ôooo
-- [giggles] -> hí hí hí
-- [thinking] -> hmmm
-- [gasps] -> hự
-- [excited] -> wowww
-- [relieved] -> phùuu
-- [confused] -> hả?
-- [agreeing] -> đúng rồi
-- [cheering] -> yeahhhh
-- [groans] -> ôi trời ơi...
-- [embarrassed] -> ôi ngại quá
-- [angry] -> tức quá
-- [curious] -> ủa?
-- [sarcastic] -> ghê chưa
-- [happy] -> vui quá
-- [celebrating] -> yooooo
-- [pleading] -> làm ơn đi
-- [confident] -> chắc chắn luôn
-- [grunts] -> hự! Cố lên
-- [snickers] -> khì khì
-- [panicked] -> chết chết chết!
-- [sneezes] -> ách xì
-- [hesitant] -> ừm...
-- [chuckles] -> [cười]
-- [shouting] -> gôôôôô
-- [sighs] -> [thở dài]
-- [surprised] -> á há
-- [awkward laugh] -> hơ hơ hơ
-- [laughing] -> hahaha
-- [yawns] -> ngáppp
-- [whispering] -> psst...
-- [shocked] -> trời ơi!
-- [amazed] -> ôi wow
-- [frustrated] -> trời đất ơi
-- [doubtful] -> thật không vậy?
-- [disagreeing] -> không đâu
-- [applause] -> bốp bốp bốp
-- [nervous laugh] -> hơ hơ...
-- [disappointed] -> ôi thôi rồi
-- [worried] -> chết rồi
-- [teasing] -> ê nhaaa
-- [proud] -> tuyệt vời
-- [sad] -> buồn ghê
-- [apologetic] -> anh xin lỗi nhé
-- [determined] -> nhất định rồi
-- [excited gasp] -> ôiiii không
-- [clears throat] -> [hắng giọng]
-- [smug] -> biết ngay mà
+VieNeu-TTS Integration Module (High-Fidelity Turbo & Nano with Auto-Fallback)
+Seamlessly handles voice compatibility so 'Voice not found' errors never occur.
 """
 import logging
 import re
@@ -84,7 +29,7 @@ EMOTION_SOUND_MAP: Dict[str, str] = {
     "hắng giọng": "[hắng giọng]",
     "hang giong": "[hắng giọng]",
 
-    # Sound FX & Emotional Vocalizations (Exact mapping from chart)
+    # Sound FX & Emotional Vocalizations
     "crying": "hu hu... ",
     "khóc": "hu hu... ",
     "coughs": "khụ khụ... ",
@@ -193,28 +138,18 @@ EMOTION_SOUND_MAP: Dict[str, str] = {
 
 
 def preprocess_emotion_text(text: str) -> str:
-    """
-    Transforms [bracketed emotion tags] (e.g. [crying], [sneezes], [sighs], [panicked])
-    into appropriate neural phonetic cues or natural vocalizations.
-    """
     def replacer(match):
         raw_tag = match.group(1).strip().lower()
         if raw_tag in EMOTION_SOUND_MAP:
             return EMOTION_SOUND_MAP[raw_tag]
-        # Keep intact if not in map
         return f"[{match.group(1)}]"
 
-    # Replace bracket tags [tag]
     processed = re.sub(r"\[([^\]]+)\]", replacer, text)
-    # Clean up double spaces
     processed = re.sub(r"\s+", " ", processed).strip()
     return processed
 
 
 def change_tempo(sound: AudioSegment, speed: float = 1.0) -> AudioSegment:
-    """
-    Adjust audio tempo without changing pitch.
-    """
     if abs(speed - 1.0) < 0.03:
         return sound
 
@@ -231,18 +166,13 @@ def change_tempo(sound: AudioSegment, speed: float = 1.0) -> AudioSegment:
 
 
 def get_vieneu_engine(mode: str = "v3turbo"):
-    """
-    Singleton getter for Vieneu instance.
-    Prefers v3turbo for 48kHz audio and all 25 voices including 'Adam bựa'.
-    Falls back to v3nano if turbo fails.
-    """
     global _VIENEU_TURBO_INSTANCE, _VIENEU_NANO_INSTANCE
     from vieneu import Vieneu
 
     if mode == "v3turbo":
         if _VIENEU_TURBO_INSTANCE is None:
             try:
-                logger.info("Initializing VieNeu-TTS Turbo (48kHz, 25 preset voices)...")
+                logger.info("Initializing VieNeu-TTS Turbo...")
                 _VIENEU_TURBO_INSTANCE = Vieneu(mode="v3turbo")
             except Exception as e:
                 logger.warning(f"Failed to initialize VieNeu Turbo ({e}), falling back to v3nano.")
@@ -262,27 +192,39 @@ def list_vieneu_voices() -> List[Tuple[str, str]]:
 
 def generate_vieneu_speech(
     text: str,
-    voice: str = "Adam bựa",
+    voice: str = "Adam",
     speed: float = 1.0,
     output_path: Union[str, Path] = "output.wav",
 ) -> Path:
     """
-    Synthesizes Vietnamese speech using VieNeu-TTS with tempo adjustment and full 50+ emotion cues.
+    Synthesizes speech with robust voice fallback so 'Voice not found' never throws.
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     clean_voice = voice.replace("vieneu:", "").strip()
     if not clean_voice:
-        clean_voice = "Adam bựa"
+        clean_voice = "Adam"
 
-    # Preprocess text through full 50+ emotion dictionary
+    # Preprocess emotion cues
     processed_text = preprocess_emotion_text(text)
 
+    # Get active engine
     engine = get_vieneu_engine(mode="v3turbo")
-    logger.info(f"Synthesizing text with VieNeu-TTS voice '{clean_voice}' (speed={speed:.2f}x)...")
 
-    # Use steps=16 for fast high-quality generation
+    # Safe Voice Resolution: if selected voice not in active engine, auto-resolve safely!
+    available_preset_ids = [vid for _, vid in engine.list_preset_voices()]
+    if clean_voice not in available_preset_ids:
+        logger.info(f"Voice '{clean_voice}' not found in active engine presets. Resolving fallback...")
+        if "adam" in clean_voice.lower() and "Adam" in available_preset_ids:
+            clean_voice = "Adam"
+        elif available_preset_ids:
+            clean_voice = available_preset_ids[0]
+        else:
+            clean_voice = "Adam"
+
+    logger.info(f"Synthesizing text with VieNeu voice '{clean_voice}' (speed={speed:.2f}x)...")
+
     try:
         audio = engine.infer(processed_text, voice=clean_voice, steps=16)
     except TypeError:
@@ -291,7 +233,7 @@ def generate_vieneu_speech(
     temp_wav = output_path.with_suffix(".tmp.wav")
     engine.save(audio, str(temp_wav))
 
-    # Apply speed adjustment if requested
+    # Apply tempo speedup
     sound = AudioSegment.from_wav(str(temp_wav))
     if abs(speed - 1.0) >= 0.03:
         sound = change_tempo(sound, speed=speed)
