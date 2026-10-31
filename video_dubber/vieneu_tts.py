@@ -168,7 +168,7 @@ def change_tempo(sound: AudioSegment, speed: float = 1.0) -> AudioSegment:
 
 def _load_all_voices_into_engine(engine):
     """
-    Ensures ALL 31 preset voices from VieNeu repository assets exist in engine._preset_voices.
+    Ensures ALL 35+ preset voices from VieNeu repository assets exist in engine._preset_voices.
     Guarantees voice availability whether running on Streamlit Cloud, Docker, or Local.
     """
     try:
@@ -181,10 +181,14 @@ def _load_all_voices_into_engine(engine):
         except Exception:
             pass
 
-        # Reference style for nano mode (e.g. from Adam)
-        ref_style = None
+        # Reference voice fallback from Adam if available
+        adam_codes = None
+        adam_style = None
         if hasattr(engine, "_preset_voices") and "Adam" in engine._preset_voices:
-            ref_style = engine._preset_voices["Adam"].get("style")
+            adam_codes = engine._preset_voices["Adam"].get("codes")
+            adam_style = engine._preset_voices["Adam"].get("style")
+
+        is_nano = hasattr(engine, "SAMPLE_RATE") and getattr(engine, "SAMPLE_RATE", 48000) == 24000
 
         for turbo_path in candidate_paths:
             if turbo_path.exists():
@@ -193,16 +197,42 @@ def _load_all_voices_into_engine(engine):
 
                 for name, v in presets_turbo.items():
                     if hasattr(engine, "_preset_voices") and name not in engine._preset_voices:
-                        emb = np.asarray(v["speaker_emb"], dtype=np.float32)
-                        style = ref_style if ref_style is not None else np.zeros((50, 256), dtype=np.float32)
-                        engine._preset_voices[name] = {
-                            "description": v.get("description", ""),
-                            "gender": v.get("gender", "male"),
-                            "style": style,
-                            "codes": style,
-                            "speaker_emb": emb,
-                            "podcast": True,
-                        }
+                        emb = np.asarray(v["speaker_emb"], dtype=np.float32) if "speaker_emb" in v else None
+
+                        raw_codes = v.get("codes")
+                        if raw_codes is not None and isinstance(raw_codes, list) and len(raw_codes) > 0 and isinstance(raw_codes[0], list):
+                            try:
+                                codes = np.asarray(raw_codes, dtype=np.int64)
+                            except Exception:
+                                codes = adam_codes
+                        else:
+                            codes = adam_codes
+
+                        if is_nano:
+                            # In nano mode, style is float array [50, 256]
+                            if isinstance(adam_style, np.ndarray):
+                                style = adam_style
+                            else:
+                                style = np.zeros((50, 256), dtype=np.float32)
+                            engine._preset_voices[name] = {
+                                "description": v.get("description", ""),
+                                "gender": v.get("gender", "male"),
+                                "style": style,
+                                "codes": style,
+                                "speaker_emb": emb,
+                                "podcast": True,
+                            }
+                        else:
+                            # In turbo mode, style is string label (e.g. "tu_nhien"), codes is int64 array
+                            style_str = v.get("style", "tu_nhien") if isinstance(v.get("style"), str) else "tu_nhien"
+                            engine._preset_voices[name] = {
+                                "description": v.get("description", ""),
+                                "gender": v.get("gender", "male"),
+                                "style": style_str,
+                                "codes": codes,
+                                "speaker_emb": emb,
+                                "podcast": True,
+                            }
                 break
 
         logger.info(f"✅ Registered {len(getattr(engine, '_preset_voices', {}))} total preset voices in VieNeu Engine!")
