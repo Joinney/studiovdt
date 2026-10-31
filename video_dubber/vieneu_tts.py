@@ -210,30 +210,42 @@ def _load_all_voices_into_engine(engine):
         logger.warning(f"Error while registering all voices: {e}")
 
 
-def _fix_hf_onnx_symlinks():
+def _patch_vieneu_fetch():
     """
-    On Linux / Cloud environments, Hugging Face Hub uses symlinks that cause ONNX Runtime
-    to throw 'External data path escapes model directory'.
-    Replacing symlinks with actual copies resolves this completely.
+    On Linux / Streamlit Cloud environments, Hugging Face Hub downloads models with symlinks
+    into the 'blobs/' cache directory. Newer ONNX Runtime versions reject these symlinks with
+    'External data path escapes model directory'.
+    We monkey-patch OnnxV3LiteEngine._fetch to convert symlinks into real files right upon download.
     """
     try:
-        import os
         import shutil
-        hf_cache = Path(os.path.expanduser("~/.cache/huggingface/hub"))
-        if not hf_cache.exists():
+        from pathlib import Path
+        import vieneu._v3_turbo_engine.onnx_runtime_lite as lite_mod
+
+        if getattr(lite_mod, "_safe_fetch_patched", False):
             return
-        for pattern in ("*.onnx", "*.onnx_data"):
-            for f in hf_cache.rglob(pattern):
-                if f.is_symlink():
-                    try:
-                        target = f.resolve()
-                        if target.exists():
-                            f.unlink()
-                            shutil.copy2(target, f)
-                    except Exception:
-                        pass
-    except Exception:
-        pass
+
+        orig_fetch = lite_mod.OnnxV3LiteEngine._fetch
+
+        def safe_fetch(repo, files, subfolder):
+            folder = Path(orig_fetch(repo, files, subfolder))
+            if folder.exists():
+                for f in folder.iterdir():
+                    if f.is_symlink():
+                        try:
+                            target = f.resolve()
+                            if target.exists():
+                                f.unlink()
+                                shutil.copy2(target, f)
+                        except Exception:
+                            pass
+            return folder
+
+        lite_mod.OnnxV3LiteEngine._fetch = staticmethod(safe_fetch)
+        lite_mod._safe_fetch_patched = True
+        logger.info("✅ Patched VieNeu OnnxV3LiteEngine._fetch for symlink-safe model loading.")
+    except Exception as e:
+        logger.warning(f"Could not patch vieneu fetch: {e}")
 
 
 def enhance_vocal(sound: AudioSegment) -> AudioSegment:
@@ -265,7 +277,7 @@ def get_vieneu_engine():
         from vieneu import Vieneu
         try:
             logger.info("Initializing VieNeu-TTS Engine (Turbo 48kHz Studio Quality)...")
-            _fix_hf_onnx_symlinks()
+            _patch_vieneu_fetch()
             _VIENEU_ENGINE = Vieneu(mode="v3turbo")
             _load_all_voices_into_engine(_VIENEU_ENGINE)
             logger.info("✅ VieNeu-TTS Turbo 48kHz initialized successfully!")
