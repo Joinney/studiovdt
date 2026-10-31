@@ -178,14 +178,6 @@ def apply_sample_preset():
         st.session_state["tts_main_text"] = sample_options[chosen]
 
 
-def add_fallback_tag():
-    choice = st.session_state.get("quick_tag_choice")
-    if choice:
-        clean_tag = choice.split(" - ")[0]
-        cur = st.session_state.get("tts_main_text", "")
-        st.session_state["tts_main_text"] = (cur + f" {clean_tag}").strip()
-
-
 def apply_txt_upload():
     uploaded_file = st.session_state.get("txt_upload")
     if uploaded_file:
@@ -485,35 +477,6 @@ with tab_tts:
                 placeholder="Nhập hoặc dán văn bản vào đây. Nhấp chuột vào bất kỳ vị trí nào rồi bấm nút cảm xúc...",
                 label_visibility="collapsed",
             )
-
-            # Fallback 1-click emotion insert
-            c_tag1, c_tag2 = st.columns([0.72, 0.28])
-            with c_tag1:
-                st.selectbox(
-                    "Thêm nhanh thẻ cảm xúc:",
-                    options=[
-                        "[cười] - Cười vui vẻ",
-                        "[sighs] - Thở dài ngao ngán",
-                        "[clears throat] - Hắng giọng",
-                        "[laughing] - Cười to ha ha",
-                        "[crying] - Khóc hu hu",
-                        "[shocked] - Sốc, kinh ngạc",
-                        "[thinking] - Hmmm suy nghĩ",
-                        "[panicked] - Chết rồi!",
-                        "[angry] - Tức giận",
-                        "[nghỉ 0.5s] - Tạm dừng 0.5s",
-                        "[nghỉ 1s] - Tạm dừng 1s",
-                    ],
-                    key="quick_tag_choice",
-                    label_visibility="collapsed",
-                )
-            with c_tag2:
-                st.button(
-                    "➕ Thêm thẻ",
-                    key="btn_quick_add_tag",
-                    on_click=add_fallback_tag,
-                    help="Thêm thẻ cảm xúc đã chọn vào văn bản",
-                )
 
             c_preset, c_upload = st.columns([1.1, 0.9])
             with c_preset:
