@@ -8,17 +8,44 @@ from typing import Dict, List
 # Extensive Voices Catalog categorized by Language and Engine
 VOICES_CATALOG: Dict[str, Dict[str, str]] = {
     "vi": {
+        # 🔥 Giọng Tuyển Chọn Hàng Đầu (Hot / Review / Tốp Tốp)
+        "🔥 Adam bựa (VieNeu - Review Phim Tốp Tốp dí dỏm, hài hước)": "vieneu:Adam bựa",
         "🔥 Adam (VieNeu - Giọng Tốp Tốp Tự Nhiên & Đa Cảm Xúc)": "vieneu:Adam",
-        "🔥 Adam bựa (VieNeu - Giọng Review Phim Miền Bắc)": "vieneu:Adam bựa",
-        "Trúc Ly (VieNeu - Nữ Bắc tự nhiên, dễ thương)": "vieneu:Trúc Ly",
-        "Mai Anh (VieNeu - Nữ Bắc tin tức, thời sự)": "vieneu:Mai Anh",
-        "Ái Hân (VieNeu - Nữ nhẹ nhàng, truyền cảm)": "vieneu:Ái Hân",
-        "Thiện Minh (VieNeu - Nam Bắc kể chuyện, truyền cảm)": "vieneu:Thiện Minh",
-        "Mỹ Duyên (VieNeu - Nữ Nam đọc truyện tình cảm)": "vieneu:Mỹ Duyên",
-        "Đức Trí (VieNeu - Nam Nam đọc truyện trinh thám)": "vieneu:Đức Trí",
-        "Hữu Quân (VieNeu - Nam phóng khoáng)": "vieneu:Hữu Quân",
-        "Anh Khôi (VieNeu - Nam trẻ trung)": "vieneu:Anh Khôi",
-        "Minh Quân (VieNeu - Nam điềm đạm)": "vieneu:Minh Quân",
+        "🔥 Hải Đăng (VieNeu - Nam Bắc chuẩn phát thanh, tin tức)": "vieneu:Hải Đăng",
+        "🔥 Trúc Ly (VieNeu - Nữ Bắc tự nhiên, trẻ trung, dễ thương)": "vieneu:Trúc Ly",
+        "🔥 Thiện Minh (VieNeu - Nam Bắc kể chuyện, sâu lắng, truyền cảm)": "vieneu:Thiện Minh",
+        "🔥 Mai Anh (VieNeu - Nữ Bắc tin tức, thời sự chuyên nghiệp)": "vieneu:Mai Anh",
+        "🔥 Thùy Dung (VieNeu - Nữ Nam ngọt ngào, nhẹ nhàng)": "vieneu:Thùy Dung",
+        "🔥 Thiền Tâm Đức (VieNeu - Nam Bắc trầm tĩnh, triết lý, thiền định)": "vieneu:Thiền Tâm Đức",
+        "🔥 Ngọc Huyền (VieNeu - Nữ Bắc kể chuyện, diễn cảm)": "vieneu:Ngọc Huyền",
+        "🔥 Quang Sơn (VieNeu - Nam Trung trầm ấm, chân chất)": "vieneu:Quang Sơn",
+        "🔥 Ngọc Trân (VieNeu - Nữ Trung đằm thắm, dịu dàng)": "vieneu:Ngọc Trân",
+
+        # 🎙️ Giọng Miền Bắc Đặc Sắc (VieNeu-TTS)
+        "Minh Đức (VieNeu - Nam Bắc chững chạc, tin tức)": "vieneu:Minh Đức",
+        "Phạm Tuyên (VieNeu - Nam Bắc trầm ấm, tự nhiên)": "vieneu:Phạm Tuyên",
+        "Xuân Vĩnh (VieNeu - Nam Bắc tự sự, truyền thống)": "vieneu:Xuân Vĩnh",
+        "Thanh Bình (VieNeu - Nam Bắc điềm đạm, ấm áp)": "vieneu:Thanh Bình",
+        "Ngọc Linh (VieNeu - Nữ Bắc trong sáng, hoạt bát)": "vieneu:Ngọc Linh",
+        "Đoan Trang (VieNeu - Nữ Bắc trang nhã, thanh lịch)": "vieneu:Đoan Trang",
+        "Quỳnh Anh (VieNeu - Nữ Bắc nhẹ nhàng, tự nhiên)": "vieneu:Quỳnh Anh",
+        "Quốc Tuấn (VieNeu - Nam Bắc khỏe khoắn, đĩnh đạc)": "vieneu:Quốc Tuấn",
+        "Ái Hân (VieNeu - Nữ Bắc nhẹ nhàng, truyền cảm)": "vieneu:Ái Hân",
+        "Hữu Quân (VieNeu - Nam Bắc phóng khoáng, tự do)": "vieneu:Hữu Quân",
+        "Xuân Tiên (VieNeu - Nữ Bắc dễ thương, tươi trẻ)": "vieneu:Xuân Tiên",
+        "Anh Khôi (VieNeu - Nam Bắc trẻ trung, năng động)": "vieneu:Anh Khôi",
+        "Minh Quân (VieNeu - Nam Bắc điềm đạm, tin cậy)": "vieneu:Minh Quân",
+        "Mạnh Dũng (VieNeu - Nam Bắc mạnh mẽ, dứt khoát)": "vieneu:Mạnh Dũng",
+
+        # 🎙️ Giọng Miền Nam Đặc Sắc (VieNeu-TTS)
+        "Thái Sơn (VieNeu - Nam Nam hào sảng, hiện đại)": "vieneu:Thái Sơn",
+        "Thục Đoan (VieNeu - Nữ Nam duyên dáng, truyền cảm)": "vieneu:Thục Đoan",
+        "Minh Triết (VieNeu - Nam Nam trí thức, đĩnh đạc)": "vieneu:Minh Triết",
+        "Mỹ Duyên (VieNeu - Nữ Nam đọc truyện tình cảm, ngọt ngào)": "vieneu:Mỹ Duyên",
+        "Đức Trí (VieNeu - Nam Nam đọc truyện trinh thám, lôi cuốn)": "vieneu:Đức Trí",
+        "Kim Thanh (VieNeu - Nữ Nam tươi sáng, hoạt bát)": "vieneu:Kim Thanh",
+
+        # ⚡ Giọng Microsoft Edge-TTS (Tốc độ cao)
         "vi-VN-HoaiMyNeural (Edge - Nữ truyền cảm, tin tức)": "vi-VN-HoaiMyNeural",
         "vi-VN-NamMinhNeural (Edge - Nam trầm ấm, chuyên nghiệp)": "vi-VN-NamMinhNeural",
     },
