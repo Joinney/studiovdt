@@ -1,11 +1,12 @@
 """
-AI Studio: Video Dubbing & Multi-Voice Text-to-Speech (Edge-TTS + VieNeu-TTS with 50+ Rich Emotion FX)
+AI Studio: Video Dubbing & Multi-Voice Text-to-Speech (Edge-TTS + VieNeu-TTS with Cursor-Aware Emotion Tags)
 Run with: streamlit run app.py
 """
 import asyncio
 from datetime import datetime
 from pathlib import Path
 import streamlit as st
+import streamlit.components.v1 as components
 import edge_tts
 
 from config import DEFAULT_VOICES, LANGUAGE_NAMES, VOICES_CATALOG, DubbingConfig
@@ -19,7 +20,7 @@ st.set_page_config(
 )
 
 st.title("🎙️ AI Audio & Video Studio")
-st.caption("Lồng tiếng video tự động & Chuyển đổi văn bản thành giọng nói (Hỗ trợ kho 50+ Thẻ cảm xúc & Giọng Adam Tốp Tốp)")
+st.caption("Lồng tiếng video tự động & Chuyển đổi văn bản thành giọng nói (Chèn thẻ cảm xúc chính xác tại vị trí con trỏ chuột)")
 
 tab_dubbing, tab_tts = st.tabs([
     "🎬 Lồng tiếng Video (Video Dubbing)",
@@ -160,7 +161,7 @@ with tab_dubbing:
 
 
 # ==============================================================================
-# TAB 2: TEXT-TO-SPEECH (TTS STUDIO WITH 50+ RICH EMOTION CUES)
+# TAB 2: TEXT-TO-SPEECH (TTS STUDIO WITH CURSOR-AWARE EMOTION INSERTER)
 # ==============================================================================
 async def generate_single_tts_edge(text: str, voice: str, rate: str, volume: str, pitch: str, output_path: Path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -179,15 +180,9 @@ async def generate_single_tts_edge(text: str, voice: str, rate: str, volume: str
 if "tts_content_box" not in st.session_state:
     st.session_state["tts_content_box"] = (
         "Khoan đã... [clears throat] các bạn có biết chuyện gì vừa xảy ra không? "
-        "Tên sát thủ tưởng như đã trốn thoát [laughing], nhưng [pause] hắn không hề biết rằng [shocked] "
+        "Hắn nghĩ mình đã an toàn [laughing], nhưng [thinking] bất ngờ thay [shocked] "
         "toàn bộ căn phòng đã bị bao vây [sighs]. [panicked] Chuyện này kết thúc thế nào đây?!"
     )
-
-
-def insert_emotion_callback(tag: str):
-    """Callback to instantly append emotion tag to the textarea state."""
-    current_text = st.session_state.get("tts_content_box", "")
-    st.session_state["tts_content_box"] = current_text.rstrip() + f" {tag} "
 
 
 def apply_sample_callback():
@@ -216,138 +211,263 @@ sample_texts = {
     ),
 }
 
-# Grouped emotions for selectbox
-ALL_EMOTIONS_CATALOG = {
-    "🎭 Cười & Vui vẻ": [
-        ("[cười]", "[cười] - Tiếng cười nhẹ"),
-        ("[laughing]", "[laughing] - Cười to (hahaha)"),
-        ("[chuckles]", "[chuckles] - Cười khúc khích (he he he)"),
-        ("[giggles]", "[giggles] - Cười rúc rích (hí hí hí)"),
-        ("[snickers]", "[snickers] - Cười khẩy (khì khì)"),
-        ("[awkward laugh]", "[awkward laugh] - Cười gượng (hơ hơ hơ)"),
-        ("[happy]", "[happy] - Vui sướng (vui quá)"),
-        ("[cheering]", "[cheering] - Reo hò (yeahhhh)"),
-        ("[celebrating]", "[celebrating] - Ăn mừng (yooooo)"),
-    ],
-    "😮‍💨 Thở dài & Phản xạ cơ thể": [
-        ("[sighs]", "[sighs] - Thở dài (haizzz)"),
-        ("[clears throat]", "[clears throat] - Hắng giọng (hèm hèm)"),
-        ("[coughs]", "[coughs] - Ho (khụ khụ)"),
-        ("[sneezes]", "[sneezes] - Hắt xì (ách xì)"),
-        ("[yawns]", "[yawns] - Ngáp (ngáppp)"),
-        ("[lip smacks]", "[lip smacks] - Chẹp miệng (chẹp chẹp)"),
-        ("[relieved]", "[relieved] - Thở phào nhẹ nhõm (phùuu)"),
-        ("[gasps]", "[gasps] - Thở gấp / hụt hơi (hự)"),
-        ("[grunts]", "[grunts] - Gắng sức (hự! Cố lên)"),
-    ],
-    "😱 Bất ngờ, Sốc & Kịch tính": [
-        ("[shocked]", "[shocked] - Sốc kinh hoàng (trời ơi!)"),
-        ("[surprised]", "[surprised] - Ngạc nhiên (á há)"),
-        ("[amazed]", "[amazed] - Kinh ngạc (ôi wow)"),
-        ("[excited gasp]", "[excited gasp] - Thốt lên (ôiiii không)"),
-        ("[panicked]", "[panicked] - Hoảng loạn (chết chết chết!)"),
-        ("[screaming]", "[screaming] - Hét thất thanh (áaaaa)"),
-        ("[shouting]", "[shouting] - Hét vang (gôôôôô)"),
-        ("[yelling]", "[yelling] - Gọi lớn (Êeeee)"),
-    ],
-    "😢 Buồn bã & Khóc lóc": [
-        ("[crying]", "[crying] - Khóc nức nở (hu hu)"),
-        ("[sad]", "[sad] - Buồn bã (buồn ghê)"),
-        ("[disappointed]", "[disappointed] - Thất vọng (ôi thôi rồi)"),
-        ("[groans]", "[groans] - Than vãn (ôi trời ơi...)"),
-        ("[worried]", "[worried] - Lo lắng (chết rồi)"),
-        ("[apologetic]", "[apologetic] - Xin lỗi (anh xin lỗi nhé)"),
-        ("[pleading]", "[pleading] - Năn nỉ (làm ơn đi)"),
-    ],
-    "😡 Tức giận & Khó chịu": [
-        ("[angry]", "[angry] - Tức giận (tức quá)"),
-        ("[annoyed]", "[annoyed] - Bực dọc (chậc)"),
-        ("[frustrated]", "[frustrated] - Bực bội (trời đất ơi)"),
-        ("[embarrassed]", "[embarrassed] - Ngượng ngùng (ôi ngại quá)"),
-    ],
-    "🤔 Thái độ, Suy nghĩ & Diễn đạt": [
-        ("[thinking]", "[thinking] - Đang suy nghĩ (hmmm)"),
-        ("[hesitant]", "[hesitant] - Do dự (ừm...)"),
-        ("[smug]", "[smug] - Đắc ý (biết ngay mà)"),
-        ("[sarcastic]", "[sarcastic] - Mỉa mai (ghê chưa)"),
-        ("[curious]", "[curious] - Tò mò (ủa?)"),
-        ("[confused]", "[confused] - Bối rối (hả?)"),
-        ("[doubtful]", "[doubtful] - Nghi ngờ (thật không vậy?)"),
-        ("[whispering]", "[whispering] - Thì thầm (psst...)"),
-        ("[affirmative]", "[affirmative] - Khẳng định (ừ hứ)"),
-        ("[realization]", "[realization] - Nhận ra (ôooo)"),
-        ("[agreeing]", "[agreeing] - Đồng tình (đúng rồi)"),
-        ("[disagreeing]", "[disagreeing] - Phản đối (không đâu)"),
-        ("[teasing]", "[teasing] - Trêu chọc (ê nhaaa)"),
-        ("[proud]", "[proud] - Tự hào (tuyệt vời)"),
-        ("[confident]", "[confident] - Tự tin (chắc chắn luôn)"),
-        ("[determined]", "[determined] - Quyết tâm (nhất định rồi)"),
-        ("[applause]", "[applause] - Vỗ tay (bốp bốp bốp)"),
-    ],
-}
+# 50+ Emotion catalog items formatted for Javascript toolbar
+ALL_EMOTION_ITEMS = [
+    ("[crying]", "😭 [crying] - hu hu (khóc)"),
+    ("[coughs]", "😷 [coughs] - khụ khụ (ho)"),
+    ("[lip smacks]", "😋 [lip smacks] - chẹp chẹp"),
+    ("[annoyed]", "😤 [annoyed] - chậc (khó chịu)"),
+    ("[screaming]", "😱 [screaming] - áaaaa (hét)"),
+    ("[yelling]", "📢 [yelling] - Êeeee (gọi to)"),
+    ("[affirmative]", "👌 [affirmative] - ừ hứ (đồng tình)"),
+    ("[realization]", "💡 [realization] - ôooo (nhận ra)"),
+    ("[giggles]", "🤭 [giggles] - hí hí hí (cười khúc khích)"),
+    ("[thinking]", "🤔 [thinking] - hmmm (suy nghĩ)"),
+    ("[gasps]", "😮 [gasps] - hự (thở gấp)"),
+    ("[excited]", "🤩 [excited] - wowww (hào hứng)"),
+    ("[relieved]", "😌 [relieved] - phùuu (thở phào)"),
+    ("[confused]", "🤨 [confused] - hả? (bối rối)"),
+    ("[agreeing]", "👍 [agreeing] - đúng rồi"),
+    ("[cheering]", "🎉 [cheering] - yeahhhh (cổ vũ)"),
+    ("[groans]", "😩 [groans] - ôi trời ơi..."),
+    ("[embarrassed]", "😳 [embarrassed] - ôi ngại quá"),
+    ("[angry]", "😡 [angry] - tức quá!"),
+    ("[curious]", "🧐 [curious] - ủa? (tò mò)"),
+    ("[sarcastic]", "😏 [sarcastic] - ghê chưa (mỉa mai)"),
+    ("[happy]", "😄 [happy] - vui quá"),
+    ("[celebrating]", "🥳 [celebrating] - yooooo (ăn mừng)"),
+    ("[pleading]", "🥺 [pleading] - làm ơn đi"),
+    ("[confident]", "😎 [confident] - chắc chắn luôn"),
+    ("[grunts]", "💪 [grunts] - hự! Cố lên"),
+    ("[snickers]", "😼 [snickers] - khì khì (cười khẩy)"),
+    ("[panicked]", "🏃 [panicked] - chết chết chết!"),
+    ("[sneezes]", "🤧 [sneezes] - ách xì"),
+    ("[hesitant]", "🤐 [hesitant] - ừm... (ngập ngừng)"),
+    ("[chuckles]", "😆 [chuckles] - he he he"),
+    ("[cười]", "😄 [cười] - tiếng cười tự nhiên"),
+    ("[shouting]", "🗣️ [shouting] - gôôôôô"),
+    ("[sighs]", "😮‍💨 [sighs] - haizzz (thở dài)"),
+    ("[surprised]", "😲 [surprised] - á há (ngạc nhiên)"),
+    ("[awkward laugh]", "😅 [awkward laugh] - hơ hơ hơ (gượng gạo)"),
+    ("[laughing]", "😂 [laughing] - hahaha (cười to)"),
+    ("[yawns]", "🥱 [yawns] - ngáppp (ngáp)"),
+    ("[whispering]", "🤫 [whispering] - psst... (thì thầm)"),
+    ("[shocked]", "😱 [shocked] - trời ơi! (sốc)"),
+    ("[amazed]", "✨ [amazed] - ôi wow (kinh ngạc)"),
+    ("[frustrated]", "😫 [frustrated] - trời đất ơi"),
+    ("[doubtful]", "🤨 [doubtful] - thật không vậy?"),
+    ("[disagreeing]", "🙅 [disagreeing] - không đâu"),
+    ("[applause]", "👏 [applause] - bốp bốp bốp (vỗ tay)"),
+    ("[nervous laugh]", "😬 [nervous laugh] - hơ hơ..."),
+    ("[disappointed]", "😞 [disappointed] - ôi thôi rồi"),
+    ("[worried]", "😟 [worried] - chết rồi (lo lắng)"),
+    ("[teasing]", "😜 [teasing] - ê nhaaa (trêu chọc)"),
+    ("[proud]", "🦁 [proud] - tuyệt vời (tự hào)"),
+    ("[sad]", "😢 [sad] - buồn ghê"),
+    ("[apologetic]", "🙏 [apologetic] - anh xin lỗi nhé"),
+    ("[determined]", "🔥 [determined] - nhất định rồi"),
+    ("[excited gasp]", "😮‍💨 [excited gasp] - ôiiii không"),
+    ("[clears throat]", "🗣️ [clears throat] - hèm hèm (hắng giọng)"),
+    ("[smug]", "😎 [smug] - biết ngay mà"),
+    ("[nghỉ 0.5s]", "⏸️ [nghỉ 0.5s] - ngắt nhịp lửng lơ"),
+    ("[nghỉ 1s]", "⏳ [nghỉ 1s] - khoảng lặng kịch tính"),
+]
+
+
+# HTML + JS Toolbar that inserts tags EXACTLY at cursor caret position
+def render_cursor_toolbar_html():
+    dropdown_options_html = "".join([f'<option value="{tag}">{label}</option>' for tag, label in ALL_EMOTION_ITEMS])
+
+    html_code = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{
+                margin: 0;
+                padding: 0;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                background: transparent;
+                color: #e0e0e0;
+            }}
+            .toolbar-container {{
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                padding: 8px 0;
+            }}
+            .toolbar-row {{
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                align-items: center;
+            }}
+            .toolbar-label {{
+                font-size: 13px;
+                font-weight: 600;
+                color: #ff9800;
+                margin-right: 4px;
+            }}
+            .emo-btn {{
+                background: #262730;
+                color: #ffffff;
+                border: 1px solid #4a4d5a;
+                border-radius: 6px;
+                padding: 4px 9px;
+                font-size: 12.5px;
+                cursor: pointer;
+                transition: all 0.15s ease;
+                white-space: nowrap;
+                user-select: none;
+            }}
+            .emo-btn:hover {{
+                background: #ff4b4b;
+                border-color: #ff4b4b;
+                color: #ffffff;
+                transform: translateY(-1px);
+            }}
+            .emo-btn:active {{
+                transform: translateY(1px);
+            }}
+            .picker-row {{
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                margin-top: 2px;
+            }}
+            .custom-select {{
+                background: #262730;
+                color: #ffffff;
+                border: 1px solid #4a4d5a;
+                border-radius: 6px;
+                padding: 5px 10px;
+                font-size: 13px;
+                flex-grow: 1;
+                max-width: 380px;
+                cursor: pointer;
+            }}
+            .custom-select:focus {{
+                border-color: #ff4b4b;
+                outline: none;
+            }}
+            .insert-btn {{
+                background: #ff4b4b;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 5px 14px;
+                font-size: 13px;
+                font-weight: bold;
+                cursor: pointer;
+                transition: background 0.15s ease;
+            }}
+            .insert-btn:hover {{
+                background: #ff3333;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="toolbar-container">
+            <!-- Row 1: Common Quick Emotion Buttons -->
+            <div class="toolbar-row">
+                <span class="toolbar-label">⚡ Chèn tại con trỏ:</span>
+                <button type="button" class="emo-btn" onclick="insertTagAtCursor('[cười]')">😄 [cười]</button>
+                <button type="button" class="emo-btn" onclick="insertTagAtCursor('[sighs]')">😮‍💨 [sighs]</button>
+                <button type="button" class="emo-btn" onclick="insertTagAtCursor('[clears throat]')">🗣️ [clears throat]</button>
+                <button type="button" class="emo-btn" onclick="insertTagAtCursor('[crying]')">😭 [crying]</button>
+                <button type="button" class="emo-btn" onclick="insertTagAtCursor('[shocked]')">😱 [shocked]</button>
+                <button type="button" class="emo-btn" onclick="insertTagAtCursor('[laughing]')">😂 [laughing]</button>
+                <button type="button" class="emo-btn" onclick="insertTagAtCursor('[thinking]')">🤔 [thinking]</button>
+                <button type="button" class="emo-btn" onclick="insertTagAtCursor('[panicked]')">🏃 [panicked]</button>
+                <button type="button" class="emo-btn" onclick="insertTagAtCursor('[angry]')">😡 [angry]</button>
+                <button type="button" class="emo-btn" onclick="insertTagAtCursor('[sneezes]')">🤧 [sneezes]</button>
+                <button type="button" class="emo-btn" onclick="insertTagAtCursor('[yawns]')">🥱 [yawns]</button>
+                <button type="button" class="emo-btn" onclick="insertTagAtCursor('[smug]')">😏 [smug]</button>
+                <button type="button" class="emo-btn" onclick="insertTagAtCursor('[nghỉ 0.5s]')">⏸️ [nghỉ 0.5s]</button>
+                <button type="button" class="emo-btn" onclick="insertTagAtCursor('[nghỉ 1s]')">⏳ [nghỉ 1s]</button>
+            </div>
+
+            <!-- Row 2: Full 50+ Tag Dropdown Picker -->
+            <div class="picker-row">
+                <span class="toolbar-label">📚 Kho 50+ Thẻ:</span>
+                <select id="emotionDropdown" class="custom-select">
+                    {dropdown_options_html}
+                </select>
+                <button type="button" class="insert-btn" onclick="insertSelectedDropdown()">➕ Chèn vào đúng con trỏ</button>
+            </div>
+        </div>
+
+        <script>
+            function insertTagAtCursor(tag) {{
+                try {{
+                    const parentDoc = window.parent.document;
+                    // Find the main textarea of Streamlit
+                    const textarea = parentDoc.querySelector('textarea[aria-label*="Nội dung văn bản"]') || parentDoc.querySelector('textarea');
+                    if (!textarea) {{
+                        console.warn("Không tìm thấy textarea trong Streamlit DOM");
+                        return;
+                    }}
+
+                    // Get exact cursor caret start and end positions
+                    const startPos = textarea.selectionStart !== undefined ? textarea.selectionStart : textarea.value.length;
+                    const endPos = textarea.selectionEnd !== undefined ? textarea.selectionEnd : startPos;
+                    const originalText = textarea.value;
+
+                    // Surround with spaces smartly
+                    const needsPrefixSpace = startPos > 0 && originalText[startPos - 1] !== ' ' && originalText[startPos - 1] !== '\\n';
+                    const needsSuffixSpace = endPos < originalText.length && originalText[endPos] !== ' ' && originalText[endPos] !== '\\n';
+                    const tagWithSpacing = (needsPrefixSpace ? ' ' : '') + tag + (needsSuffixSpace ? ' ' : ' ');
+
+                    // Build new text with tag inserted right at caret
+                    const newText = originalText.substring(0, startPos) + tagWithSpacing + originalText.substring(endPos);
+
+                    // Call native React value setter to notify Streamlit Virtual DOM
+                    const nativeSetter = Object.getOwnPropertyDescriptor(window.parent.HTMLTextAreaElement.prototype, "value").set;
+                    if (nativeSetter) {{
+                        nativeSetter.call(textarea, newText);
+                    }} else {{
+                        textarea.value = newText;
+                    }}
+
+                    // Dispatch React input event
+                    const inputEvent = new Event('input', {{ bubbles: true }});
+                    textarea.dispatchEvent(inputEvent);
+
+                    // Move cursor right after the newly inserted tag and keep focus!
+                    const newCaretPos = startPos + tagWithSpacing.length;
+                    textarea.setSelectionRange(newCaretPos, newCaretPos);
+                    textarea.focus();
+
+                }} catch (e) {{
+                    console.error("Lỗi khi chèn tag tại vị trí con trỏ:", e);
+                }}
+            }}
+
+            function insertSelectedDropdown() {{
+                const dropdown = document.getElementById('emotionDropdown');
+                if (dropdown && dropdown.value) {{
+                    insertTagAtCursor(dropdown.value);
+                }}
+            }}
+        </script>
+    </body>
+    </html>
+    """
+    components.html(html_code, height=95)
 
 
 with tab_tts:
     st.subheader("🎙️ Chuyển đổi Văn bản thành Giọng nói AI (Đa giọng đọc & 50+ Thẻ Cảm Xúc)")
-    st.caption("Kho cảm xúc đầy đủ 50+ thẻ âm thanh: [crying], [sighs], [clears throat], [laughing], [panicked], [shocked]...")
+    st.caption("Bấm bất kỳ thẻ cảm xúc nào bên dưới, thẻ sẽ được chèn CHÍNH XÁC tại vị trí con trỏ chuột trong văn bản!")
 
     col_tts_left, col_tts_right = st.columns([1.2, 0.8])
 
     with col_tts_left:
-        st.markdown("##### 📝 1. Nhập văn bản & Thêm cảm xúc:")
+        st.markdown("##### 📝 1. Nhập văn bản & Chèn cảm xúc tại con trỏ:")
 
-        # Quick common buttons row 1
-        st.markdown("**⚡ Chèn nhanh các cảm xúc phổ biến:**")
-        r1_c1, r1_c2, r1_c3, r1_c4, r1_c5, r1_c6 = st.columns(6)
-        with r1_c1:
-            st.button("😄 [cười]", on_click=insert_emotion_callback, args=("[cười]",), use_container_width=True)
-        with r1_c2:
-            st.button("😮‍💨 [sighs]", on_click=insert_emotion_callback, args=("[sighs]",), use_container_width=True)
-        with r1_c3:
-            st.button("🗣️ [hắng giọng]", on_click=insert_emotion_callback, args=("[clears throat]",), use_container_width=True)
-        with r1_c4:
-            st.button("😭 [crying]", on_click=insert_emotion_callback, args=("[crying]",), use_container_width=True)
-        with r1_c5:
-            st.button("😱 [shocked]", on_click=insert_emotion_callback, args=("[shocked]",), use_container_width=True)
-        with r1_c6:
-            st.button("😡 [angry]", on_click=insert_emotion_callback, args=("[angry]",), use_container_width=True)
-
-        # Quick common buttons row 2
-        r2_c1, r2_c2, r2_c3, r2_c4, r2_c5, r2_c6 = st.columns(6)
-        with r2_c1:
-            st.button("😂 [laughing]", on_click=insert_emotion_callback, args=("[laughing]",), use_container_width=True)
-        with r2_c2:
-            st.button("🤔 [thinking]", on_click=insert_emotion_callback, args=("[thinking]",), use_container_width=True)
-        with r2_c3:
-            st.button("🏃 [panicked]", on_click=insert_emotion_callback, args=("[panicked]",), use_container_width=True)
-        with r2_c4:
-            st.button("🤧 [sneezes]", on_click=insert_emotion_callback, args=("[sneezes]",), use_container_width=True)
-        with r2_c5:
-            st.button("🥱 [yawns]", on_click=insert_emotion_callback, args=("[yawns]",), use_container_width=True)
-        with r2_c6:
-            st.button("😏 [smug]", on_click=insert_emotion_callback, args=("[smug]",), use_container_width=True)
-
-        # Full Emotion Catalog Dropdown Picker
-        with st.expander("📚 Mở Kho 50+ Thẻ Cảm Xúc Mở Rộng", expanded=False):
-            col_grp, col_item, col_add = st.columns([1.2, 2, 0.8])
-            with col_grp:
-                selected_group = st.selectbox("Chọn nhóm:", options=list(ALL_EMOTIONS_CATALOG.keys()))
-            with col_item:
-                items_in_grp = ALL_EMOTIONS_CATALOG[selected_group]
-                selected_item_tag = st.selectbox(
-                    "Chọn cảm xúc cụ thể:",
-                    options=[t[0] for t in items_in_grp],
-                    format_func=lambda x: dict(items_in_grp).get(x, x),
-                )
-            with col_add:
-                st.write("")
-                st.write("")
-                st.button(
-                    "➕ Chèn thẻ",
-                    on_click=insert_emotion_callback,
-                    args=(selected_item_tag,),
-                    use_container_width=True,
-                )
+        # The Cursor-Aware Toolbar Component
+        render_cursor_toolbar_html()
 
         col_sample, _ = st.columns([2, 1])
         with col_sample:
@@ -361,9 +481,9 @@ with tab_tts:
 
         # The Text Area directly binded with session state
         st.text_area(
-            "Nội dung văn bản (hỗ trợ nhập bất kỳ thẻ nào trong bảng 50+ cảm xúc):",
+            "Nội dung văn bản (đặt con trỏ chuột tại vị trí bất kỳ rồi bấm thẻ cảm xúc ở trên):",
             key="tts_content_box",
-            height=160,
+            height=170,
             placeholder="Nhập đoạn văn bản bạn muốn chuyển đổi...",
         )
 
