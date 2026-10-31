@@ -299,6 +299,151 @@ def enhance_vocal(sound: AudioSegment) -> AudioSegment:
         return sound
 
 
+def apply_acoustic_fx(
+    sound_or_path: Union[AudioSegment, str, Path],
+    fx_name: str = "Studio Dry",
+    pitch_semitones: int = 0,
+    output_path: Optional[Union[str, Path]] = None,
+) -> Union[AudioSegment, Path]:
+    """
+    Áp dụng mô phỏng buồng thu âm (Acoustic FX Simulation) & Equalizer DSP:
+    - Studio Dry: Buồng thu tiêu âm chuyên nghiệp, triệt tiêu tạp âm, giọng mộc khô & sáng rõ.
+    - Room Reverb: Mô phỏng không gian phòng thu / hội trường có độ vang ấm tự nhiên (Early Reflections).
+    - AI Denoise: Khử ồn thông minh, cắt tần số ù nền và xì hiss, tăng cường độ rõ của vocal.
+    - Pitch Shifting: Tinh chỉnh cao độ (-12st đến +12st).
+    """
+    try:
+        from pydub import AudioSegment
+    except ImportError:
+        logger.warning("pydub not installed, skipping acoustic FX.")
+        if isinstance(sound_or_path, (str, Path)):
+            return Path(sound_or_path)
+        return sound_or_path
+
+    is_file = isinstance(sound_or_path, (str, Path))
+    if is_file:
+        p = Path(sound_or_path)
+        if not p.exists():
+            return p
+        try:
+            sound = AudioSegment.from_file(str(p))
+        except Exception as e:
+            logger.warning(f"Could not load audio file for acoustic FX: {e}")
+            return p
+        dest_path = Path(output_path) if output_path else p
+    else:
+        sound = sound_or_path
+        dest_path = Path(output_path) if output_path else None
+
+    # 1. Cao độ (Pitch Shifting) từ -12 đến +12 semitones
+    if pitch_semitones and pitch_semitones != 0:
+        try:
+            factor = 2.0 ** (pitch_semitones / 12.0)
+            orig_frame_rate = sound.frame_rate
+            new_rate = int(orig_frame_rate * factor)
+            if new_rate > 8000:
+                pitched = sound._spawn(sound.raw_data, overrides={"frame_rate": new_rate})
+                sound = pitched.set_frame_rate(orig_frame_rate)
+        except Exception as pe:
+            logger.warning(f"Pitch shift note: {pe}")
+
+    # 2. Xử lý hiệu ứng âm học buồng thu (Acoustic FX)
+    mode = (fx_name or "Studio Dry").strip().lower()
+
+    if "reverb" in mode or "room" in mode:
+        # ROOM REVERB: Mô phỏng dội âm phòng thu tự nhiên với 3 phản xạ sớm (Early Reflections)
+        try:
+            dry = sound
+            sr = sound.frame_rate
+
+            # Phản xạ 1: 28ms trễ, giảm -13dB, lọc ấm tần số cao < 5200Hz
+            r1 = AudioSegment.silent(duration=28, frame_rate=sr) + dry.apply_gain(-13.0)
+            try:
+                r1 = r1.low_pass_filter(5200)
+            except Exception:
+                pass
+
+            # Phản xạ 2: 60ms trễ, giảm -17dB, lọc hấp thụ tường phòng < 3800Hz
+            r2 = AudioSegment.silent(duration=60, frame_rate=sr) + dry.apply_gain(-17.0)
+            try:
+                r2 = r2.low_pass_filter(3800)
+            except Exception:
+                pass
+
+            # Phản xạ 3: 105ms trễ, giảm -22dB, dội xa tường sau < 2800Hz
+            r3 = AudioSegment.silent(duration=105, frame_rate=sr) + dry.apply_gain(-22.0)
+            try:
+                r3 = r3.low_pass_filter(2800)
+            except Exception:
+                pass
+
+            wet = r1.overlay(r2).overlay(r3)
+            sound = dry.overlay(wet)
+        except Exception as re_err:
+            logger.warning(f"Room Reverb DSP note: {re_err}")
+
+    elif "denoise" in mode or "ai" in mode:
+        # AI DENOISE: Cắt lọc dải tần rác và làm nổi bật tần số trung âm của giọng nói
+        try:
+            # Triệt tiêu ù nền tần số thấp dưới 110Hz
+            try:
+                clean = sound.high_pass_filter(110)
+            except Exception:
+                clean = sound
+            # Triệt tiêu tiếng xì hiss điện tử trên 11500Hz
+            try:
+                clean = clean.low_pass_filter(11500)
+            except Exception:
+                pass
+            # Kích hoạt Vocal Clarity Boost (1800Hz - 4200Hz) giúp giọng đọc trong và rõ từng phụ âm
+            try:
+                clarity = clean.high_pass_filter(1800).low_pass_filter(4200).apply_gain(2.2)
+                sound = clean.overlay(clarity)
+            except Exception:
+                sound = clean
+        except Exception as de_err:
+            logger.warning(f"AI Denoise DSP note: {de_err}")
+
+    else:
+        # STUDIO DRY: Chuẩn phòng thu tiêu âm mộc, trong trẻo, không vang
+        try:
+            # Lọc rung mic cận âm dưới 85Hz
+            clean = sound.high_pass_filter(85)
+            # Tăng độ sáng tự nhiên cho dải cao (Air Band trên 4000Hz)
+            try:
+                sparkle = clean.high_pass_filter(4000).apply_gain(1.6)
+                sound = clean.overlay(sparkle)
+            except Exception:
+                sound = clean
+        except Exception as dr_err:
+            logger.warning(f"Studio Dry DSP note: {dr_err}")
+
+    # 3. Chuẩn hóa âm lượng đầu ra (Broadcast Loudness Normalization -14.0 dBFS)
+    try:
+        target_dbfs = -14.0
+        cur_dbfs = sound.dBFS
+        if cur_dbfs > -60.0:
+            gain = target_dbfs - cur_dbfs
+            peak = sound.max_dBFS
+            if peak + gain > -0.5:
+                gain = -0.5 - peak
+            sound = sound.apply_gain(gain)
+    except Exception:
+        pass
+
+    # Xuất file nếu đầu vào là đường dẫn file
+    if is_file and dest_path:
+        try:
+            fmt = "mp3" if dest_path.suffix.lower() == ".mp3" else "wav"
+            sound.export(str(dest_path), format=fmt)
+            return dest_path
+        except Exception as exp_err:
+            logger.warning(f"Failed to export processed acoustic FX: {exp_err}")
+            return dest_path
+
+    return sound
+
+
 def get_vieneu_engine(preferred_mode: Optional[str] = None):
     global _VIENEU_ENGINE
     if _VIENEU_ENGINE is None:

@@ -263,6 +263,10 @@ def set_quick_tempo(val: int):
     st.session_state["slider_speed_widget"] = val
 
 
+def set_acoustic_fx(val: str):
+    st.session_state["active_acoustic_fx"] = val
+
+
 # 4. Global Dark Studio DAW CSS (Tông đen than chì & cam amber chuyên nghiệp)
 st.html(
     """
@@ -1698,18 +1702,34 @@ with col_studio:
             """
         )
         fx1, fx2, fx3 = st.columns(3)
+        current_fx = st.session_state.get("active_acoustic_fx", "Studio Dry")
         with fx1:
-            if st.button("🎙️ Studio Dry", use_container_width=True, type="primary" if st.session_state["active_acoustic_fx"] == "Studio Dry" else "secondary"):
-                st.session_state["active_acoustic_fx"] = "Studio Dry"
-                st.rerun()
+            st.button(
+                "🎙️ Studio Dry",
+                key="btn_fx_dry",
+                on_click=set_acoustic_fx,
+                args=("Studio Dry",),
+                use_container_width=True,
+                type="primary" if current_fx == "Studio Dry" else "secondary",
+            )
         with fx2:
-            if st.button("🏛️ Room Reverb", use_container_width=True, type="primary" if st.session_state["active_acoustic_fx"] == "Room Reverb" else "secondary"):
-                st.session_state["active_acoustic_fx"] = "Room Reverb"
-                st.rerun()
+            st.button(
+                "🏛️ Room Reverb",
+                key="btn_fx_reverb",
+                on_click=set_acoustic_fx,
+                args=("Room Reverb",),
+                use_container_width=True,
+                type="primary" if current_fx == "Room Reverb" else "secondary",
+            )
         with fx3:
-            if st.button("🎧 AI Denoise", use_container_width=True, type="primary" if st.session_state["active_acoustic_fx"] == "AI Denoise" else "secondary"):
-                st.session_state["active_acoustic_fx"] = "AI Denoise"
-                st.rerun()
+            st.button(
+                "🎧 AI Denoise",
+                key="btn_fx_denoise",
+                on_click=set_acoustic_fx,
+                args=("AI Denoise",),
+                use_container_width=True,
+                type="primary" if current_fx == "AI Denoise" else "secondary",
+            )
 
         # GIANT PRIMARY RENDER AUDIO BUTTON
         st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
@@ -1782,11 +1802,28 @@ if btn_generate_tts:
                     )
                 )
 
-            # Giai đoạn 4: 61% -> 85% (Xử lý hiệu ứng DSP và buồng thu âm)
+            # Giai đoạn 4: 61% -> 85% (Xử lý hiệu ứng DSP và buồng thu âm thực thụ)
             fx_name = st.session_state.get("active_acoustic_fx", "Studio Dry")
-            for p in range(62, 86, 5):
-                progress_slot.progress(p, text=f"🎛️ Tiến trình kết xuất VieNeu: {p}% — Xử lý hiệu ứng buồng thu [{fx_name}] & Equalizer...")
-                time.sleep(0.02)
+            pitch_semitones = st.session_state.get("pitch_val", 0)
+
+            for p in range(62, 72, 3):
+                progress_slot.progress(p, text=f"🎛️ Tiến trình kết xuất: {p}% — Nạp buồng thu âm [{fx_name}]...")
+                time.sleep(0.015)
+
+            try:
+                from video_dubber.vieneu_tts import apply_acoustic_fx
+                apply_acoustic_fx(
+                    sound_or_path=out_file,
+                    fx_name=fx_name,
+                    pitch_semitones=pitch_semitones,
+                    output_path=out_file,
+                )
+            except Exception as dsp_err:
+                logger.warning(f"Acoustic FX processing note: {dsp_err}")
+
+            for p in range(74, 86, 3):
+                progress_slot.progress(p, text=f"🎛️ Tiến trình kết xuất: {p}% — Hoàn tất hiệu ứng buồng thu [{fx_name}] & Equalizer Mastering...")
+                time.sleep(0.015)
 
             # Giai đoạn 5: 86% -> 99% (Mastering Lossless & Đồng bộ Timecode Phụ đề)
             for p in range(86, 100, 3):
