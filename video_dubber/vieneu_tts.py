@@ -1,18 +1,66 @@
 """
 VieNeu-TTS Integration Module (High-Fidelity Turbo & Nano)
-Supports rich emotion tags and dramatic acting cues:
-- [cười] (chuckle / laugh)
-- [thở dài] (sigh)
-- [hắng giọng] (throat clear)
-- [nghỉ 0.5s], [nghỉ 1s] (dramatic pause)
-- [ngập ngừng] (hesitation)
-- [sửng sốt] (shocked / gasping)
-- [nhấn mạnh] (emphasis)
+Supports full set of 50+ emotion and sound cues matching the official acoustic mapping:
+- [crying] -> hu hu
+- [coughs] -> khụ khụ
+- [lip smacks] -> chẹp chẹp
+- [annoyed] -> chậc
+- [screaming] -> áaaaa
+- [yelling] -> Êeeee
+- [affirmative] -> ừ hứ
+- [realization] -> ôooo
+- [giggles] -> hí hí hí
+- [thinking] -> hmmm
+- [gasps] -> hự
+- [excited] -> wowww
+- [relieved] -> phùuu
+- [confused] -> hả?
+- [agreeing] -> đúng rồi
+- [cheering] -> yeahhhh
+- [groans] -> ôi trời ơi...
+- [embarrassed] -> ôi ngại quá
+- [angry] -> tức quá
+- [curious] -> ủa?
+- [sarcastic] -> ghê chưa
+- [happy] -> vui quá
+- [celebrating] -> yooooo
+- [pleading] -> làm ơn đi
+- [confident] -> chắc chắn luôn
+- [grunts] -> hự! Cố lên
+- [snickers] -> khì khì
+- [panicked] -> chết chết chết!
+- [sneezes] -> ách xì
+- [hesitant] -> ừm...
+- [chuckles] -> [cười]
+- [shouting] -> gôôôôô
+- [sighs] -> [thở dài]
+- [surprised] -> á há
+- [awkward laugh] -> hơ hơ hơ
+- [laughing] -> hahaha
+- [yawns] -> ngáppp
+- [whispering] -> psst...
+- [shocked] -> trời ơi!
+- [amazed] -> ôi wow
+- [frustrated] -> trời đất ơi
+- [doubtful] -> thật không vậy?
+- [disagreeing] -> không đâu
+- [applause] -> bốp bốp bốp
+- [nervous laugh] -> hơ hơ...
+- [disappointed] -> ôi thôi rồi
+- [worried] -> chết rồi
+- [teasing] -> ê nhaaa
+- [proud] -> tuyệt vời
+- [sad] -> buồn ghê
+- [apologetic] -> anh xin lỗi nhé
+- [determined] -> nhất định rồi
+- [excited gasp] -> ôiiii không
+- [clears throat] -> [hắng giọng]
+- [smug] -> biết ngay mà
 """
 import logging
 import re
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 from pydub import AudioSegment
 
 logger = logging.getLogger(__name__)
@@ -20,19 +68,147 @@ logger = logging.getLogger(__name__)
 _VIENEU_TURBO_INSTANCE = None
 _VIENEU_NANO_INSTANCE = None
 
+# Comprehensive 50+ Emotion and Sound FX Dictionary
+EMOTION_SOUND_MAP: Dict[str, str] = {
+    # Native tokens for VieNeu neural acoustic cues
+    "chuckles": "[cười]",
+    "chuckle": "[cười]",
+    "cười": "[cười]",
+    "cuoi": "[cười]",
+    "sighs": "[thở dài]",
+    "sigh": "[thở dài]",
+    "thở dài": "[thở dài]",
+    "tho dai": "[thở dài]",
+    "clears throat": "[hắng giọng]",
+    "clear throat": "[hắng giọng]",
+    "hắng giọng": "[hắng giọng]",
+    "hang giong": "[hắng giọng]",
+
+    # Sound FX & Emotional Vocalizations (Exact mapping from chart)
+    "crying": "hu hu... ",
+    "khóc": "hu hu... ",
+    "coughs": "khụ khụ... ",
+    "ho": "khụ khụ... ",
+    "lip smacks": "chẹp chẹp... ",
+    "annoyed": "chậc! ",
+    "screaming": "áaaaa! ",
+    "hét": "áaaaa! ",
+    "yelling": "Êeeee! ",
+    "la hét": "Êeeee! ",
+    "affirmative": "ừ hứ, ",
+    "realization": "ôooo, ",
+    "nhận ra": "ôooo, ",
+    "giggles": "hí hí hí ",
+    "cười khúc khích": "hí hí hí ",
+    "thinking": "hmmm... ",
+    "suy nghĩ": "hmmm... ",
+    "gasps": "hự! ",
+    "excited": "wowww! ",
+    "hào hứng": "wowww! ",
+    "relieved": "phùuu... ",
+    "thở phào": "phùuu... ",
+    "confused": "hả? ",
+    "bối rối": "hả? ",
+    "agreeing": "đúng rồi! ",
+    "đồng ý": "đúng rồi! ",
+    "cheering": "yeahhhh! ",
+    "cổ vũ": "yeahhhh! ",
+    "groans": "ôi trời ơi... ",
+    "rên rỉ": "ôi trời ơi... ",
+    "embarrassed": "ôi ngại quá! ",
+    "ngại ngùng": "ôi ngại quá! ",
+    "angry": "tức quá! ",
+    "tức giận": "tức quá! ",
+    "curious": "ủa? ",
+    "tò mò": "ủa? ",
+    "sarcastic": "ghê chưa! ",
+    "mỉa mai": "ghê chưa! ",
+    "happy": "vui quá! ",
+    "vui vẻ": "vui quá! ",
+    "celebrating": "yooooo! ",
+    "ăn mừng": "yooooo! ",
+    "pleading": "làm ơn đi... ",
+    "năn nỉ": "làm ơn đi... ",
+    "confident": "chắc chắn luôn! ",
+    "tự tin": "chắc chắn luôn! ",
+    "grunts": "hự! Cố lên! ",
+    "gắng sức": "hự! Cố lên! ",
+    "snickers": "khì khì ",
+    "cười khẩy": "khì khì ",
+    "panicked": "chết chết chết! ",
+    "hoảng loạn": "chết chết chết! ",
+    "sneezes": "ách xì! ",
+    "hắt xì": "ách xì! ",
+    "hesitant": "ừm... ",
+    "ngập ngừng": "ừm... ",
+    "shouting": "gôôôôô! ",
+    "surprised": "á há! ",
+    "ngạc nhiên": "á há! ",
+    "awkward laugh": "hơ hơ hơ... ",
+    "cười gượng": "hơ hơ hơ... ",
+    "laughing": "hahaha ",
+    "cười lớn": "hahaha ",
+    "yawns": "ngáppp... ",
+    "ngáp": "ngáppp... ",
+    "whispering": "psst... ",
+    "thì thầm": "psst... ",
+    "shocked": "trời ơi! ",
+    "sốc": "trời ơi! ",
+    "amazed": "ôi wow! ",
+    "kinh ngạc": "ôi wow! ",
+    "frustrated": "trời đất ơi! ",
+    "bực bội": "trời đất ơi! ",
+    "doubtful": "thật không vậy? ",
+    "nghi ngờ": "thật không vậy? ",
+    "disagreeing": "không đâu! ",
+    "không đồng ý": "không đâu! ",
+    "applause": "bốp bốp bốp! ",
+    "vỗ tay": "bốp bốp bốp! ",
+    "nervous laugh": "hơ hơ... ",
+    "cười trừ": "hơ hơ... ",
+    "disappointed": "ôi thôi rồi... ",
+    "thất vọng": "ôi thôi rồi... ",
+    "worried": "chết rồi! ",
+    "lo lắng": "chết rồi! ",
+    "teasing": "ê nhaaa! ",
+    "trêu chọc": "ê nhaaa! ",
+    "proud": "tuyệt vời! ",
+    "tự hào": "tuyệt vời! ",
+    "sad": "buồn ghê... ",
+    "buồn": "buồn ghê... ",
+    "apologetic": "anh xin lỗi nhé... ",
+    "xin lỗi": "anh xin lỗi nhé... ",
+    "determined": "nhất định rồi! ",
+    "quyết tâm": "nhất định rồi! ",
+    "excited gasp": "ôiiii không! ",
+    "smug": "biết ngay mà! ",
+    "đắc ý": "biết ngay mà! ",
+
+    # Dramatic Pauses
+    "nghỉ 0.5s": "... ",
+    "nghỉ 1s": "...... ",
+    "nhấn mạnh": "... chính xác là! ",
+    "sửng sốt": "hả?! ... ",
+}
+
 
 def preprocess_emotion_text(text: str) -> str:
     """
-    Transforms UI emotion shortcuts into optimized phonetic cues for VieNeu-TTS.
+    Transforms [bracketed emotion tags] (e.g. [crying], [sneezes], [sighs], [panicked])
+    into appropriate neural phonetic cues or natural vocalizations.
     """
-    # Normalize pauses
-    text = re.sub(r"\[nghỉ\s*0\.5s?\]", "... ", text, flags=re.IGNORECASE)
-    text = re.sub(r"\[nghỉ\s*1s?\]", "...... ", text, flags=re.IGNORECASE)
-    text = re.sub(r"\[ngập\s*ngừng\]", "à... ừm... ", text, flags=re.IGNORECASE)
-    text = re.sub(r"\[sửng\s*sốt\]", "hả?! ... ", text, flags=re.IGNORECASE)
-    text = re.sub(r"\[nhấn\s*mạnh\]", "... chính xác là! ", text, flags=re.IGNORECASE)
-    text = re.sub(r"\[thì\s*thầm\]", "... nghe này... ", text, flags=re.IGNORECASE)
-    return text
+    def replacer(match):
+        raw_tag = match.group(1).strip().lower()
+        if raw_tag in EMOTION_SOUND_MAP:
+            return EMOTION_SOUND_MAP[raw_tag]
+        # Keep intact if not in map
+        return f"[{match.group(1)}]"
+
+    # Replace bracket tags [tag]
+    processed = re.sub(r"\[([^\]]+)\]", replacer, text)
+    # Clean up double spaces
+    processed = re.sub(r"\s+", " ", processed).strip()
+    return processed
 
 
 def change_tempo(sound: AudioSegment, speed: float = 1.0) -> AudioSegment:
@@ -91,7 +267,7 @@ def generate_vieneu_speech(
     output_path: Union[str, Path] = "output.wav",
 ) -> Path:
     """
-    Synthesizes Vietnamese speech using VieNeu-TTS with tempo adjustment and emotion cues.
+    Synthesizes Vietnamese speech using VieNeu-TTS with tempo adjustment and full 50+ emotion cues.
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -100,13 +276,13 @@ def generate_vieneu_speech(
     if not clean_voice:
         clean_voice = "Adam bựa"
 
-    # Preprocess text to format extended cues
+    # Preprocess text through full 50+ emotion dictionary
     processed_text = preprocess_emotion_text(text)
 
     engine = get_vieneu_engine(mode="v3turbo")
     logger.info(f"Synthesizing text with VieNeu-TTS voice '{clean_voice}' (speed={speed:.2f}x)...")
 
-    # Use steps=16 for high quality + fast rendering
+    # Use steps=16 for fast high-quality generation
     try:
         audio = engine.infer(processed_text, voice=clean_voice, steps=16)
     except TypeError:
@@ -115,7 +291,7 @@ def generate_vieneu_speech(
     temp_wav = output_path.with_suffix(".tmp.wav")
     engine.save(audio, str(temp_wav))
 
-    # Speed up if requested
+    # Apply speed adjustment if requested
     sound = AudioSegment.from_wav(str(temp_wav))
     if abs(speed - 1.0) >= 0.03:
         sound = change_tempo(sound, speed=speed)

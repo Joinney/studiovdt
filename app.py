@@ -1,5 +1,5 @@
 """
-AI Studio: Video Dubbing & Multi-Voice Text-to-Speech (Edge-TTS + VieNeu-TTS with Rich Emotion & Drama Tags)
+AI Studio: Video Dubbing & Multi-Voice Text-to-Speech (Edge-TTS + VieNeu-TTS with 50+ Rich Emotion FX)
 Run with: streamlit run app.py
 """
 import asyncio
@@ -10,7 +10,7 @@ import edge_tts
 
 from config import DEFAULT_VOICES, LANGUAGE_NAMES, VOICES_CATALOG, DubbingConfig
 from video_dubber.pipeline import VideoDubberPipeline
-from video_dubber.vieneu_tts import generate_vieneu_speech
+from video_dubber.vieneu_tts import generate_vieneu_speech, EMOTION_SOUND_MAP
 
 st.set_page_config(
     page_title="AI Dubbing & TTS Studio",
@@ -19,11 +19,11 @@ st.set_page_config(
 )
 
 st.title("🎙️ AI Audio & Video Studio")
-st.caption("Lồng tiếng video tự động & Chuyển đổi văn bản thành giọng nói (Hỗ trợ kho cảm xúc phong phú & Giọng Adam Tốp Tốp)")
+st.caption("Lồng tiếng video tự động & Chuyển đổi văn bản thành giọng nói (Hỗ trợ kho 50+ Thẻ cảm xúc & Giọng Adam Tốp Tốp)")
 
 tab_dubbing, tab_tts = st.tabs([
     "🎬 Lồng tiếng Video (Video Dubbing)",
-    "🎙️ Văn bản sang Âm thanh (Text to Speech - Đa giọng đọc & Kho Cảm Xúc)",
+    "🎙️ Văn bản sang Âm thanh (Text to Speech - Đa giọng đọc & 50+ Cảm xúc)",
 ])
 
 
@@ -160,7 +160,7 @@ with tab_dubbing:
 
 
 # ==============================================================================
-# TAB 2: TEXT-TO-SPEECH (TTS STUDIO WITH EXTENDED EMOTION & DRAMA CUES)
+# TAB 2: TEXT-TO-SPEECH (TTS STUDIO WITH 50+ RICH EMOTION CUES)
 # ==============================================================================
 async def generate_single_tts_edge(text: str, voice: str, rate: str, volume: str, pitch: str, output_path: Path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -178,9 +178,9 @@ async def generate_single_tts_edge(text: str, voice: str, rate: str, volume: str
 # Session state initialization for instant reaction
 if "tts_content_box" not in st.session_state:
     st.session_state["tts_content_box"] = (
-        "Chào các bạn đã quay trở lại với kênh Tốp Tốp của tôi! [hắng giọng] "
-        "Hôm nay chúng ta sẽ cùng review một bộ phim cực kỳ kịch tính [cười]. "
-        "Cái kết làm ai cũng ngỡ ngàng [thở dài]. Đừng quên bấm theo dõi nhé!"
+        "Khoan đã... [clears throat] các bạn có biết chuyện gì vừa xảy ra không? "
+        "Tên sát thủ tưởng như đã trốn thoát [laughing], nhưng [pause] hắn không hề biết rằng [shocked] "
+        "toàn bộ căn phòng đã bị bao vây [sighs]. [panicked] Chuyện này kết thúc thế nào đây?!"
     )
 
 
@@ -197,67 +197,162 @@ def apply_sample_callback():
 
 
 sample_texts = {
-    "🔥 Giọng Adam Tốp Tốp (Review phim/Meme)": (
-        "Khoan đã... [hắng giọng] các bạn có biết chuyện gì vừa xảy ra không? "
-        "Tên sát thủ tưởng như đã trốn thoát [cười], nhưng [nghỉ 0.5s] hắn không hề biết rằng [sửng sốt] "
-        "toàn bộ căn phòng đã bị bao vây [thở dài]."
+    "🔥 Giọng Adam Review phim (Kết hợp đa cảm xúc)": (
+        "Khoan đã... [clears throat] các bạn có biết chuyện gì vừa xảy ra không? "
+        "Hắn nghĩ mình đã an toàn [laughing], nhưng [thinking] bất ngờ thay [shocked] "
+        "cánh cửa mở toang [panicked]! [sighs] Mọi chuyện coi như chấm hết."
     ),
-    "📖 Kể chuyện trinh thám / gay cấn": (
-        "Đêm hôm đó, tiếng bước chân tiến lại gần cánh cửa phòng [nghỉ 1s]. "
-        "Tôi nín thở... [ngập ngừng] và khi cánh cửa mở toang [nhấn mạnh] "
-        "chẳng có ai ở đó cả [thở dài]."
+    "😭 Cảnh xúc động / Buồn bã": (
+        "Đừng đi mà... [crying] Em biết em sai rồi [apologetic]. [groans] "
+        "Tại sao mọi chuyện lại ra nông nỗi này? [sad] Anh hãy ở lại đi mà [pleading]!"
     ),
-    "Tiếng Việt (Tâm sự / Kể chuyện nhẹ nhàng)": (
-        "Đêm đó trời mưa rả rích ngoài hiên. [thở dài] "
-        "Anh ấy nhìn tôi rồi mỉm cười nói: 'Đừng lo, mọi chuyện rồi sẽ qua thôi' [cười]."
+    "😂 Hài hước / Meme TikTok": (
+        "Trời ơi là trời [frustrated]! [coughs] Tôi vừa thấy cái gì thế này? [awkward laugh] "
+        "Tưởng thế nào, hóa ra là như thế [snickers]! [smug] Biết ngay mà!"
     ),
-    "English (Business)": (
-        "Welcome to our AI Audio Studio! You can convert any text into lifelike speech with multiple natural voices."
+    "😱 Giật gân / Kinh dị": (
+        "Trong bóng tối tĩnh mịch... [whispering] Có tiếng bước chân lại gần [gasps]. "
+        "Cái bóng đen đó là ai [screaming]?! [panicked] Chạy mau lên!"
     ),
+}
+
+# Grouped emotions for selectbox
+ALL_EMOTIONS_CATALOG = {
+    "🎭 Cười & Vui vẻ": [
+        ("[cười]", "[cười] - Tiếng cười nhẹ"),
+        ("[laughing]", "[laughing] - Cười to (hahaha)"),
+        ("[chuckles]", "[chuckles] - Cười khúc khích (he he he)"),
+        ("[giggles]", "[giggles] - Cười rúc rích (hí hí hí)"),
+        ("[snickers]", "[snickers] - Cười khẩy (khì khì)"),
+        ("[awkward laugh]", "[awkward laugh] - Cười gượng (hơ hơ hơ)"),
+        ("[happy]", "[happy] - Vui sướng (vui quá)"),
+        ("[cheering]", "[cheering] - Reo hò (yeahhhh)"),
+        ("[celebrating]", "[celebrating] - Ăn mừng (yooooo)"),
+    ],
+    "😮‍💨 Thở dài & Phản xạ cơ thể": [
+        ("[sighs]", "[sighs] - Thở dài (haizzz)"),
+        ("[clears throat]", "[clears throat] - Hắng giọng (hèm hèm)"),
+        ("[coughs]", "[coughs] - Ho (khụ khụ)"),
+        ("[sneezes]", "[sneezes] - Hắt xì (ách xì)"),
+        ("[yawns]", "[yawns] - Ngáp (ngáppp)"),
+        ("[lip smacks]", "[lip smacks] - Chẹp miệng (chẹp chẹp)"),
+        ("[relieved]", "[relieved] - Thở phào nhẹ nhõm (phùuu)"),
+        ("[gasps]", "[gasps] - Thở gấp / hụt hơi (hự)"),
+        ("[grunts]", "[grunts] - Gắng sức (hự! Cố lên)"),
+    ],
+    "😱 Bất ngờ, Sốc & Kịch tính": [
+        ("[shocked]", "[shocked] - Sốc kinh hoàng (trời ơi!)"),
+        ("[surprised]", "[surprised] - Ngạc nhiên (á há)"),
+        ("[amazed]", "[amazed] - Kinh ngạc (ôi wow)"),
+        ("[excited gasp]", "[excited gasp] - Thốt lên (ôiiii không)"),
+        ("[panicked]", "[panicked] - Hoảng loạn (chết chết chết!)"),
+        ("[screaming]", "[screaming] - Hét thất thanh (áaaaa)"),
+        ("[shouting]", "[shouting] - Hét vang (gôôôôô)"),
+        ("[yelling]", "[yelling] - Gọi lớn (Êeeee)"),
+    ],
+    "😢 Buồn bã & Khóc lóc": [
+        ("[crying]", "[crying] - Khóc nức nở (hu hu)"),
+        ("[sad]", "[sad] - Buồn bã (buồn ghê)"),
+        ("[disappointed]", "[disappointed] - Thất vọng (ôi thôi rồi)"),
+        ("[groans]", "[groans] - Than vãn (ôi trời ơi...)"),
+        ("[worried]", "[worried] - Lo lắng (chết rồi)"),
+        ("[apologetic]", "[apologetic] - Xin lỗi (anh xin lỗi nhé)"),
+        ("[pleading]", "[pleading] - Năn nỉ (làm ơn đi)"),
+    ],
+    "😡 Tức giận & Khó chịu": [
+        ("[angry]", "[angry] - Tức giận (tức quá)"),
+        ("[annoyed]", "[annoyed] - Bực dọc (chậc)"),
+        ("[frustrated]", "[frustrated] - Bực bội (trời đất ơi)"),
+        ("[embarrassed]", "[embarrassed] - Ngượng ngùng (ôi ngại quá)"),
+    ],
+    "🤔 Thái độ, Suy nghĩ & Diễn đạt": [
+        ("[thinking]", "[thinking] - Đang suy nghĩ (hmmm)"),
+        ("[hesitant]", "[hesitant] - Do dự (ừm...)"),
+        ("[smug]", "[smug] - Đắc ý (biết ngay mà)"),
+        ("[sarcastic]", "[sarcastic] - Mỉa mai (ghê chưa)"),
+        ("[curious]", "[curious] - Tò mò (ủa?)"),
+        ("[confused]", "[confused] - Bối rối (hả?)"),
+        ("[doubtful]", "[doubtful] - Nghi ngờ (thật không vậy?)"),
+        ("[whispering]", "[whispering] - Thì thầm (psst...)"),
+        ("[affirmative]", "[affirmative] - Khẳng định (ừ hứ)"),
+        ("[realization]", "[realization] - Nhận ra (ôooo)"),
+        ("[agreeing]", "[agreeing] - Đồng tình (đúng rồi)"),
+        ("[disagreeing]", "[disagreeing] - Phản đối (không đâu)"),
+        ("[teasing]", "[teasing] - Trêu chọc (ê nhaaa)"),
+        ("[proud]", "[proud] - Tự hào (tuyệt vời)"),
+        ("[confident]", "[confident] - Tự tin (chắc chắn luôn)"),
+        ("[determined]", "[determined] - Quyết tâm (nhất định rồi)"),
+        ("[applause]", "[applause] - Vỗ tay (bốp bốp bốp)"),
+    ],
 }
 
 
 with tab_tts:
-    st.subheader("🎙️ Chuyển đổi Văn bản thành Giọng nói AI (Đa giọng đọc & Kho Cảm Xúc)")
-    st.caption("Kho cảm xúc phong phú: tiếng cười, thở dài, hắng giọng, ngắt nhịp kịch tính, ngập ngừng, sửng sốt...")
+    st.subheader("🎙️ Chuyển đổi Văn bản thành Giọng nói AI (Đa giọng đọc & 50+ Thẻ Cảm Xúc)")
+    st.caption("Kho cảm xúc đầy đủ 50+ thẻ âm thanh: [crying], [sighs], [clears throat], [laughing], [panicked], [shocked]...")
 
     col_tts_left, col_tts_right = st.columns([1.2, 0.8])
 
     with col_tts_left:
         st.markdown("##### 📝 1. Nhập văn bản & Thêm cảm xúc:")
 
-        # Row 1: Vocal Emotion Cues
-        st.markdown("**🎭 Âm thanh cảm xúc (Giọng nói tự nhiên):**")
-        c_lbl1, c_b1, c_b2, c_b3, c_b4 = st.columns([1.1, 1.4, 1.4, 1.6, 1.6])
-        with c_lbl1:
-            st.markdown("<p style='padding-top: 6px; font-weight: bold;'>Biểu cảm:</p>", unsafe_allow_html=True)
-        with c_b1:
-            st.button("😄 [cười]", on_click=insert_emotion_callback, args=("[cười]",), help="Tiếng cười khúc khích tự nhiên")
-        with c_b2:
-            st.button("😮‍💨 [thở dài]", on_click=insert_emotion_callback, args=("[thở dài]",), help="Tiếng thở dài trầm ngâm")
-        with c_b3:
-            st.button("🗣️ [hắng giọng]", on_click=insert_emotion_callback, args=("[hắng giọng]",), help="Tiếng e hèm lấy giọng")
-        with c_b4:
-            st.button("🤔 [ngập ngừng]", on_click=insert_emotion_callback, args=("[ngập ngừng]",), help="Ngập ngừng 'à... ừm...'")
+        # Quick common buttons row 1
+        st.markdown("**⚡ Chèn nhanh các cảm xúc phổ biến:**")
+        r1_c1, r1_c2, r1_c3, r1_c4, r1_c5, r1_c6 = st.columns(6)
+        with r1_c1:
+            st.button("😄 [cười]", on_click=insert_emotion_callback, args=("[cười]",), use_container_width=True)
+        with r1_c2:
+            st.button("😮‍💨 [sighs]", on_click=insert_emotion_callback, args=("[sighs]",), use_container_width=True)
+        with r1_c3:
+            st.button("🗣️ [hắng giọng]", on_click=insert_emotion_callback, args=("[clears throat]",), use_container_width=True)
+        with r1_c4:
+            st.button("😭 [crying]", on_click=insert_emotion_callback, args=("[crying]",), use_container_width=True)
+        with r1_c5:
+            st.button("😱 [shocked]", on_click=insert_emotion_callback, args=("[shocked]",), use_container_width=True)
+        with r1_c6:
+            st.button("😡 [angry]", on_click=insert_emotion_callback, args=("[angry]",), use_container_width=True)
 
-        # Row 2: Dramatic Timing & Acting Cues
-        st.markdown("**⏱️ Nhịp điệu kịch tính & Diễn xuất (Review phim / Kể chuyện):**")
-        c_lbl2, c_d1, c_d2, c_d3, c_d4 = st.columns([1.1, 1.4, 1.4, 1.6, 1.6])
-        with c_lbl2:
-            st.markdown("<p style='padding-top: 6px; font-weight: bold;'>Nhịp điệu:</p>", unsafe_allow_html=True)
-        with c_d1:
-            st.button("⏸️ [nghỉ 0.5s]", on_click=insert_emotion_callback, args=("[nghỉ 0.5s]",), help="Ngắt nhịp 0.5 giây tạo tò mò")
-        with c_d2:
-            st.button("⏳ [nghỉ 1s]", on_click=insert_emotion_callback, args=("[nghỉ 1s]",), help="Khoảng lặng 1 giây hồi hộp gay cấn")
-        with c_d3:
-            st.button("😱 [sửng sốt]", on_click=insert_emotion_callback, args=("[sửng sốt]",), help="Sửng sốt, giật mình 'hả?! ...'")
-        with c_d4:
-            st.button("⚡ [nhấn mạnh]", on_click=insert_emotion_callback, args=("[nhấn mạnh]",), help="Nhấn mạnh dứt khoát vào câu nói")
+        # Quick common buttons row 2
+        r2_c1, r2_c2, r2_c3, r2_c4, r2_c5, r2_c6 = st.columns(6)
+        with r2_c1:
+            st.button("😂 [laughing]", on_click=insert_emotion_callback, args=("[laughing]",), use_container_width=True)
+        with r2_c2:
+            st.button("🤔 [thinking]", on_click=insert_emotion_callback, args=("[thinking]",), use_container_width=True)
+        with r2_c3:
+            st.button("🏃 [panicked]", on_click=insert_emotion_callback, args=("[panicked]",), use_container_width=True)
+        with r2_c4:
+            st.button("🤧 [sneezes]", on_click=insert_emotion_callback, args=("[sneezes]",), use_container_width=True)
+        with r2_c5:
+            st.button("🥱 [yawns]", on_click=insert_emotion_callback, args=("[yawns]",), use_container_width=True)
+        with r2_c6:
+            st.button("😏 [smug]", on_click=insert_emotion_callback, args=("[smug]",), use_container_width=True)
+
+        # Full Emotion Catalog Dropdown Picker
+        with st.expander("📚 Mở Kho 50+ Thẻ Cảm Xúc Mở Rộng", expanded=False):
+            col_grp, col_item, col_add = st.columns([1.2, 2, 0.8])
+            with col_grp:
+                selected_group = st.selectbox("Chọn nhóm:", options=list(ALL_EMOTIONS_CATALOG.keys()))
+            with col_item:
+                items_in_grp = ALL_EMOTIONS_CATALOG[selected_group]
+                selected_item_tag = st.selectbox(
+                    "Chọn cảm xúc cụ thể:",
+                    options=[t[0] for t in items_in_grp],
+                    format_func=lambda x: dict(items_in_grp).get(x, x),
+                )
+            with col_add:
+                st.write("")
+                st.write("")
+                st.button(
+                    "➕ Chèn thẻ",
+                    on_click=insert_emotion_callback,
+                    args=(selected_item_tag,),
+                    use_container_width=True,
+                )
 
         col_sample, _ = st.columns([2, 1])
         with col_sample:
             st.selectbox(
-                "Chèn nhanh văn bản mẫu:",
+                "Chèn nhanh văn bản mẫu diễn xuất:",
                 options=["(Tùy chọn mẫu)"] + list(sample_texts.keys()),
                 index=0,
                 key="sample_selector",
@@ -266,7 +361,7 @@ with tab_tts:
 
         # The Text Area directly binded with session state
         st.text_area(
-            "Nội dung văn bản:",
+            "Nội dung văn bản (hỗ trợ nhập bất kỳ thẻ nào trong bảng 50+ cảm xúc):",
             key="tts_content_box",
             height=160,
             placeholder="Nhập đoạn văn bản bạn muốn chuyển đổi...",
@@ -375,7 +470,7 @@ with tab_tts:
                 for voice_id, label in zip(selected_voices, selected_labels):
                     try:
                         if voice_id.startswith("vieneu:"):
-                            # VieNeu-TTS Engine (Supports rich emotion tags + speed multiplier)
+                            # VieNeu-TTS Engine (Supports full 50+ emotion cues + speed multiplier)
                             clean_v = voice_id.replace("vieneu:", "")
                             out_filename = f"tts_vieneu_{clean_v}_{timestamp}.mp3"
                             out_path = tts_output_dir / out_filename
@@ -386,14 +481,10 @@ with tab_tts:
                                 output_path=out_path,
                             )
                         else:
-                            # Edge-TTS Engine (strips emotion tags cleanly)
+                            # Edge-TTS Engine (cleanly converts emotion tags to text or removes them)
                             clean_text_for_edge = text_to_speak
-                            for emo_tag in [
-                                "[cười]", "[thở dài]", "[hắng giọng]", "[ngập ngừng]",
-                                "[nghỉ 0.5s]", "[nghỉ 1s]", "[sửng sốt]", "[nhấn mạnh]",
-                                "[chuckle]", "[sigh]", "[clear throat]"
-                            ]:
-                                clean_text_for_edge = clean_text_for_edge.replace(emo_tag, "")
+                            for emo_tag in EMOTION_SOUND_MAP.keys():
+                                clean_text_for_edge = clean_text_for_edge.replace(f"[{emo_tag}]", "")
 
                             out_filename = f"tts_edge_{voice_id}_{timestamp}.mp3"
                             out_path = tts_output_dir / out_filename
