@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 import urllib.parse
 import streamlit as st
+import streamlit.components.v1 as components
 import edge_tts
 
 from config import DEFAULT_VOICES, LANGUAGE_NAMES, VOICES_CATALOG, DubbingConfig
@@ -38,6 +39,18 @@ st.html(
         padding-top: 4.5rem !important;
         padding-bottom: 2.5rem !important;
         max-width: 1200px;
+    }
+
+    /* Invisible iframe container for JS engine */
+    iframe[title="streamlit.components.v1.html"], [data-testid="stCustomComponentV1"] {
+        position: absolute !important;
+        width: 0 !important;
+        height: 0 !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        border: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 
     /* Studio Header */
@@ -188,126 +201,146 @@ def apply_txt_upload():
             pass
 
 
-# Dynamic Script Injection for Cursor/Caret Insertion Engine
-caret_js_code = """
+# Caret Injection Engine HTML for components.html (Direct DOM Access to Parent Streamlit Window)
+caret_injector_html = """
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:transparent;">
+<script>
 (function() {
-    window.__vdtLastPos = null;
+    function initInWindow(win, doc) {
+        if (!win || !doc) return;
+        win.__vdtLastPos = null;
 
-    function getTa() {
-        var el = document.activeElement;
-        if (el && el.tagName === 'TEXTAREA') return el;
-        return document.querySelector('div[data-testid="stTextArea"] textarea') || document.querySelector('textarea');
-    }
-
-    function savePos() {
-        var ta = getTa();
-        if (ta && typeof ta.selectionStart === 'number') {
-            window.__vdtLastPos = {
-                start: ta.selectionStart,
-                end: ta.selectionEnd
-            };
+        function findTargetTextArea() {
+            var el = doc.activeElement;
+            if (el && el.tagName === 'TEXTAREA') return el;
+            return doc.querySelector('textarea[data-testid="stTextAreaInput"]') 
+                || doc.querySelector('div[data-testid="stTextArea"] textarea') 
+                || doc.querySelector('textarea');
         }
-    }
 
-    ['focus', 'click', 'keyup', 'mouseup', 'select', 'input', 'touchend'].forEach(function(evt) {
-        document.addEventListener(evt, function(e) {
-            if (e.target && e.target.tagName === 'TEXTAREA') {
-                savePos();
+        function trackPos(e) {
+            var ta = (e && e.target && e.target.tagName === 'TEXTAREA') ? e.target : findTargetTextArea();
+            if (ta && typeof ta.selectionStart === 'number') {
+                win.__vdtLastPos = {
+                    start: ta.selectionStart,
+                    end: ta.selectionEnd
+                };
+            }
+        }
+
+        ['focus', 'click', 'keyup', 'mouseup', 'select', 'input', 'touchend'].forEach(function(evt) {
+            doc.addEventListener(evt, trackPos, true);
+        });
+
+        doc.addEventListener('selectionchange', function() {
+            var el = doc.activeElement;
+            if (el && el.tagName === 'TEXTAREA') {
+                trackPos({ target: el });
             }
         }, true);
-    });
 
-    document.addEventListener('selectionchange', function() {
-        var el = document.activeElement;
-        if (el && el.tagName === 'TEXTAREA') {
-            savePos();
-        }
-    });
-
-    window.insertCaretTag = function(tag) {
-        var ta = getTa();
-        if (!ta) return;
-
-        ta.focus();
-
-        var start = (window.__vdtLastPos && typeof window.__vdtLastPos.start === 'number') 
-            ? window.__vdtLastPos.start 
-            : (typeof ta.selectionStart === 'number' ? ta.selectionStart : (ta.value ? ta.value.length : 0));
-        var end = (window.__vdtLastPos && typeof window.__vdtLastPos.end === 'number') 
-            ? window.__vdtLastPos.end 
-            : (typeof ta.selectionEnd === 'number' ? ta.selectionEnd : start);
-
-        var val = ta.value || '';
-        if (start > val.length) start = val.length;
-        if (end > val.length) end = start;
-
-        ta.setSelectionRange(start, end);
-
-        var prefix = (start > 0 && val.charAt(start - 1) !== ' ' && val.charAt(start - 1) !== '\\n') ? ' ' : '';
-        var suffix = (end < val.length && val.charAt(end) !== ' ' && val.charAt(end) !== '\\n') ? ' ' : ' ';
-        var insertStr = prefix + tag + suffix;
-
-        var inserted = false;
-        try {
-            inserted = document.execCommand('insertText', false, insertStr);
-        } catch (e) {
-            inserted = false;
-        }
-
-        if (!inserted) {
-            var newVal = val.substring(0, start) + insertStr + val.substring(end);
-            var setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value');
-            if (setter && setter.set) {
-                setter.set.call(ta, newVal);
-            } else {
-                ta.value = newVal;
+        win.insertCaretTag = function(tag) {
+            var ta = findTargetTextArea();
+            if (!ta) {
+                console.warn('[StudioVDT] Target textarea not found');
+                return;
             }
-            ta.dispatchEvent(new Event('input', { bubbles: true }));
-            ta.dispatchEvent(new Event('change', { bubbles: true }));
-            var nextPos = start + insertStr.length;
-            ta.setSelectionRange(nextPos, nextPos);
-            window.__vdtLastPos = { start: nextPos, end: nextPos };
-        } else {
-            window.__vdtLastPos = { start: ta.selectionStart, end: ta.selectionEnd };
-        }
-    };
 
-    window.insertCaretDropdown = function() {
-        var sel = document.getElementById('caretSelectTag');
-        if (sel && sel.value) {
-            window.insertCaretTag(sel.value);
+            ta.focus();
+
+            var start = (win.__vdtLastPos && typeof win.__vdtLastPos.start === 'number') 
+                ? win.__vdtLastPos.start 
+                : (typeof ta.selectionStart === 'number' ? ta.selectionStart : (ta.value ? ta.value.length : 0));
+            var end = (win.__vdtLastPos && typeof win.__vdtLastPos.end === 'number') 
+                ? win.__vdtLastPos.end 
+                : (typeof ta.selectionEnd === 'number' ? ta.selectionEnd : start);
+
+            var val = ta.value || '';
+            if (start > val.length) start = val.length;
+            if (end > val.length) end = start;
+
+            ta.setSelectionRange(start, end);
+
+            var prefix = (start > 0 && val.charAt(start - 1) !== ' ' && val.charAt(start - 1) !== '\\n') ? ' ' : '';
+            var suffix = (end < val.length && val.charAt(end) !== ' ' && val.charAt(end) !== '\\n') ? ' ' : ' ';
+            var insertStr = prefix + tag + suffix;
+
+            var inserted = false;
+            try {
+                inserted = doc.execCommand('insertText', false, insertStr);
+            } catch (err) {
+                inserted = false;
+            }
+
+            if (!inserted) {
+                var newVal = val.substring(0, start) + insertStr + val.substring(end);
+                var setter = Object.getOwnPropertyDescriptor(win.HTMLTextAreaElement.prototype, 'value');
+                if (setter && setter.set) {
+                    setter.set.call(ta, newVal);
+                } else {
+                    ta.value = newVal;
+                }
+                ta.dispatchEvent(new Event('input', { bubbles: true }));
+                ta.dispatchEvent(new Event('change', { bubbles: true }));
+                var nextPos = start + insertStr.length;
+                ta.setSelectionRange(nextPos, nextPos);
+                win.__vdtLastPos = { start: nextPos, end: nextPos };
+            } else {
+                win.__vdtLastPos = { start: ta.selectionStart, end: ta.selectionEnd };
+            }
+        };
+
+        win.insertCaretDropdown = function() {
+            var sel = doc.getElementById('caretSelectTag');
+            if (sel && sel.value) {
+                win.insertCaretTag(sel.value);
+            }
+        };
+    }
+
+    try {
+        if (window.parent && window.parent.document) {
+            initInWindow(window.parent, window.parent.document);
         }
-    };
+    } catch (e) {}
+
+    try {
+        initInWindow(window, document);
+    } catch (e) {}
 })();
+</script>
+</body>
+</html>
 """
 
-encoded_caret_js = urllib.parse.quote(caret_js_code)
-
 # Mobile-Optimized Caret Toolbar HTML
-mobile_toolbar_html = f"""
+mobile_toolbar_html = """
 <div style="margin-bottom: 6px;">
     <style>
-        .m-bar {{
+        .m-bar {
             background: #1e2028;
             border: 1px solid #363a47;
             border-radius: 8px;
             padding: 8px 10px;
             margin-bottom: 6px;
-        }}
-        .m-title {{
+        }
+        .m-title {
             font-size: 12.5px;
             font-weight: 700;
             color: #ff9800;
             margin-bottom: 6px;
             display: block;
-        }}
-        .m-buttons-wrap {{
+        }
+        .m-buttons-wrap {
             display: flex;
             flex-wrap: wrap;
             gap: 5px;
             margin-bottom: 6px;
-        }}
-        .m-chip {{
+        }
+        .m-chip {
             background: #2b2e3b;
             color: #ffffff;
             border: 1px solid #484d5f;
@@ -318,19 +351,19 @@ mobile_toolbar_html = f"""
             transition: all 0.15s ease;
             user-select: none;
             touch-action: manipulation;
-        }}
-        .m-chip:active, .m-chip:hover {{
+        }
+        .m-chip:active, .m-chip:hover {
             background: #ff4b4b;
             border-color: #ff4b4b;
             color: #ffffff;
-        }}
-        .m-dropdown-row {{
+        }
+        .m-dropdown-row {
             display: flex;
             gap: 6px;
             align-items: center;
             width: 100%;
-        }}
-        .m-dropdown {{
+        }
+        .m-dropdown {
             background: #2b2e3b;
             color: #ffffff;
             border: 1px solid #484d5f;
@@ -341,8 +374,8 @@ mobile_toolbar_html = f"""
             outline: none;
             cursor: pointer;
             height: 34px;
-        }}
-        .m-insert-btn {{
+        }
+        .m-insert-btn {
             background: #ff4b4b;
             color: #ffffff;
             border: none;
@@ -354,40 +387,40 @@ mobile_toolbar_html = f"""
             cursor: pointer;
             white-space: nowrap;
             touch-action: manipulation;
-        }}
-        .m-insert-btn:active {{
+        }
+        .m-insert-btn:active {
             background: #d83535;
-        }}
+        }
 
-        @media (max-width: 480px) {{
-            .m-chip {{
+        @media (max-width: 480px) {
+            .m-chip {
                 padding: 6px 8px;
                 font-size: 11.5px;
-            }}
-            .m-dropdown-row {{
+            }
+            .m-dropdown-row {
                 flex-direction: column;
                 align-items: stretch;
-            }}
-            .m-insert-btn {{
+            }
+            .m-insert-btn {
                 width: 100%;
-            }}
-        }}
+            }
+        }
     </style>
 
     <div class="m-bar">
         <span class="m-title">🎯 Bấm chèn cảm xúc tại vị trí con trỏ:</span>
         <div class="m-buttons-wrap">
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[cười]')">😄 Cười</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[sighs]')">😮‍💨 Thở dài</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[clears throat]')">🗣️ Hắng giọng</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[laughing]')">😂 Cười to</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[crying]')">😭 Khóc</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[shocked]')">😱 Sốc</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[thinking]')">🤔 Hmmm</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[panicked]')">🏃 Chết rồi!</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[angry]')">😡 Tức quá</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[nghỉ 0.5s]')">⏸️ Nghỉ 0.5s</button>
-            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="window.insertCaretTag('[nghỉ 1s]')">⏳ Nghỉ 1s</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[cười]')">😄 Cười</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[sighs]')">😮‍💨 Thở dài</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[clears throat]')">🗣️ Hắng giọng</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[laughing]')">😂 Cười to</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[crying]')">😭 Khóc</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[shocked]')">😱 Sốc</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[thinking]')">🤔 Hmmm</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[panicked]')">🏃 Chết rồi!</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[angry]')">😡 Tức quá</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[nghỉ 0.5s]')">⏸️ Nghỉ 0.5s</button>
+            <button type="button" class="m-chip" onmousedown="event.preventDefault();" onclick="(window.insertCaretTag||(window.parent&&window.parent.insertCaretTag))('[nghỉ 1s]')">⏳ Nghỉ 1s</button>
         </div>
 
         <div class="m-dropdown-row">
@@ -449,12 +482,9 @@ mobile_toolbar_html = f"""
                 <option value="[clears throat]">🗣️ [clears throat] - hèm hèm (hắng giọng)</option>
                 <option value="[smug]">😎 [smug] - biết ngay mà</option>
             </select>
-            <button type="button" class="m-insert-btn" onmousedown="event.preventDefault();" onclick="window.insertCaretDropdown()">➕ Chèn tại con trỏ</button>
+            <button type="button" class="m-insert-btn" onmousedown="event.preventDefault();" onclick="(window.insertCaretDropdown||(window.parent&&window.parent.insertCaretDropdown))()">➕ Chèn tại con trỏ</button>
         </div>
     </div>
-
-    <!-- Active dynamic injection triggering execution in React DOM -->
-    <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" style="display:none;" onload="if(!window.insertCaretTag){{var s=document.createElement('script');s.id='caret-script';s.text=decodeURIComponent('{encoded_caret_js}');document.head.appendChild(s);}}" onerror="this.onload()" />
 </div>
 """
 
@@ -468,6 +498,9 @@ with tab_tts:
 
             # Mobile-friendly Caret Toolbar
             st.html(mobile_toolbar_html)
+
+            # Caret Injection Engine via components.html
+            components.html(caret_injector_html, height=0)
 
             # Text Area
             st.text_area(
