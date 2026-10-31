@@ -449,14 +449,8 @@ def get_vieneu_engine(preferred_mode: Optional[str] = None):
     if _VIENEU_ENGINE is None:
         from vieneu import Vieneu
 
-        # Protect Streamlit Cloud (1GB RAM limit) from OOM kill
-        if preferred_mode:
-            target_mode = preferred_mode
-        elif is_low_memory_environment():
-            logger.info("⚡ Low-memory/Cloud environment detected (1GB RAM limit). Using v3nano to prevent OOM...")
-            target_mode = "v3nano"
-        else:
-            target_mode = "v3turbo"
+        # Mặc định sử dụng v3turbo 48kHz đồng nhất cho cả Local và Deploy/Cloud
+        target_mode = preferred_mode or "v3turbo"
 
         try:
             logger.info(f"Initializing VieNeu-TTS Engine ({target_mode})...")
