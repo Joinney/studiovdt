@@ -1,0 +1,14 @@
+services:
+  video-dubber:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video_dubber_studio
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+      - /app/__pycache__
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped

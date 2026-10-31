@@ -1,0 +1,14 @@
+# Core AI & Audio/Video Processing
+faster-whisper>=1.0.0
+edge-tts>=6.1.12
+vieneu>=3.8.0
+pydub>=0.25.1
+deep-translator>=1.11.4
+moviepy>=1.0.3
+numpy>=1.24.0
+
+# Web UI & CLI
+streamlit>=1.35.0
+rich>=13.7.0
+tqdm>=4.66.0
+click>=8.1.7
