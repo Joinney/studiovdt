@@ -245,6 +245,24 @@ def apply_txt_upload():
             pass
 
 
+def set_quick_voice(target_keywords):
+    if isinstance(target_keywords, str):
+        target_keywords = [target_keywords]
+    lang_code = st.session_state.get("tts_lang_select", "vi")
+    voices_dict = VOICES_CATALOG.get(lang_code, VOICES_CATALOG.get("vi", {}))
+    options = list(voices_dict.keys())
+    for kw in target_keywords:
+        matched = [v for v in options if kw in v]
+        if matched:
+            st.session_state["selected_voice_label"] = matched[0]
+            return
+
+
+def set_quick_tempo(val: int):
+    st.session_state["slider_speed_val"] = val
+    st.session_state["slider_speed_widget"] = val
+
+
 # 4. Global Dark Studio DAW CSS (Tông đen than chì & cam amber chuyên nghiệp)
 st.html(
     """
@@ -1401,31 +1419,39 @@ with col_studio:
             """
             components.html(preview_js, height=0)
 
-        # Quick Voice Suggestions Grid (2x2)
+        # Quick Voice Suggestions Grid (2x2) với on_click an toàn tuyệt đối
         st.markdown("<div style='font-size: 11px; color: #64748b; font-weight: 700; margin-bottom: 5px;'>Gợi ý giọng đọc thịnh hành (Bấm để đổi ngay):</div>", unsafe_allow_html=True)
         gv1, gv2 = st.columns(2)
         with gv1:
-            if st.button("🔥 Adam Review Phim\n\nKịch tính, hài hước, cà khịa", key="btn_adam", use_container_width=True):
-                target_v = [v for v in voice_options if "Adam" in v]
-                if target_v:
-                    st.session_state["selected_voice_label"] = target_v[0]
-                    st.rerun()
-            if st.button("👻 Thầy Bảy Kể Chuyện Ma\n\nRùng rợn, thì thào đêm khuya", key="btn_thaybay", use_container_width=True):
-                target_v = [v for v in voice_options if "Thiện Minh" in v]
-                if target_v:
-                    st.session_state["selected_voice_label"] = target_v[0]
-                    st.rerun()
+            st.button(
+                "🔥 Adam Review Phim\n\nKịch tính, hài hước, cà khịa",
+                key="btn_adam",
+                on_click=set_quick_voice,
+                args=(["Adam"],),
+                use_container_width=True,
+            )
+            st.button(
+                "👻 Thầy Bảy Kể Chuyện Ma\n\nRùng rợn, thì thào đêm khuya",
+                key="btn_thaybay",
+                on_click=set_quick_voice,
+                args=(["Thiện Minh", "Bảy"],),
+                use_container_width=True,
+            )
         with gv2:
-            if st.button("🎙️ Tuấn Anh Thời Sự VTV\n\nNam Bắc, trầm hùng, chuẩn mực", key="btn_tuananh", use_container_width=True):
-                target_v = [v for v in voice_options if "Hải Đăng" in v or "Tuấn Anh" in v]
-                if target_v:
-                    st.session_state["selected_voice_label"] = target_v[0]
-                    st.rerun()
-            if st.button("✨ Mỹ Linh Podcast Sài Gòn\n\nNgọt ngào, chữa lành tâm hồn", key="btn_mylinh", use_container_width=True):
-                target_v = [v for v in voice_options if "Thùy Dung" in v or "Mỹ Linh" in v]
-                if target_v:
-                    st.session_state["selected_voice_label"] = target_v[0]
-                    st.rerun()
+            st.button(
+                "🎙️ Tuấn Anh Thời Sự VTV\n\nNam Bắc, trầm hùng, chuẩn mực",
+                key="btn_tuananh",
+                on_click=set_quick_voice,
+                args=(["Hải Đăng", "Tuấn Anh"],),
+                use_container_width=True,
+            )
+            st.button(
+                "✨ Mỹ Linh Podcast Sài Gòn\n\nNgọt ngào, chữa lành tâm hồn",
+                key="btn_mylinh",
+                on_click=set_quick_voice,
+                args=(["Thùy Dung", "Mỹ Linh"],),
+                use_container_width=True,
+            )
 
         # Tempo Controls
         st.html(
@@ -1438,21 +1464,20 @@ with col_studio:
         )
         sp1, sp2, sp3, sp4 = st.columns(4)
         with sp1:
-            if st.button("0.8x", use_container_width=True):
-                st.session_state["slider_speed_val"] = -20
-                st.rerun()
+            st.button("0.8x", key="btn_tempo_08", on_click=set_quick_tempo, args=(-20,), use_container_width=True)
         with sp2:
-            if st.button("1.0x", use_container_width=True):
-                st.session_state["slider_speed_val"] = 0
-                st.rerun()
+            st.button("1.0x", key="btn_tempo_10", on_click=set_quick_tempo, args=(0,), use_container_width=True)
         with sp3:
-            if st.button("🔥 1.15x", use_container_width=True, type="primary" if st.session_state["slider_speed_val"] == 15 else "secondary"):
-                st.session_state["slider_speed_val"] = 15
-                st.rerun()
+            st.button(
+                "🔥 1.15x",
+                key="btn_tempo_115",
+                on_click=set_quick_tempo,
+                args=(15,),
+                use_container_width=True,
+                type="primary" if st.session_state.get("slider_speed_val", 15) == 15 else "secondary",
+            )
         with sp4:
-            if st.button("1.3x", use_container_width=True):
-                st.session_state["slider_speed_val"] = 30
-                st.rerun()
+            st.button("1.3x", key="btn_tempo_13", on_click=set_quick_tempo, args=(30,), use_container_width=True)
 
         current_speed = st.session_state.get("slider_speed_val", 15)
         tts_rate_val = st.slider(
