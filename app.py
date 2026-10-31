@@ -146,6 +146,51 @@ async def generate_single_tts_edge(text: str, voice: str, rate: str, volume: str
     return output_path
 
 
+def get_or_generate_voice_preview(voice_id: str, lang: str, voice_name: str) -> Path:
+    preview_dir = Path("./output/preview_samples")
+    preview_dir.mkdir(parents=True, exist_ok=True)
+    clean_slug = voice_id.replace("vieneu:", "").replace(":", "_").replace(" ", "_").replace("-", "_")
+    preview_path = preview_dir / f"preview_{clean_slug}.mp3"
+
+    if preview_path.exists() and preview_path.stat().st_size > 1000:
+        return preview_path
+
+    if voice_id.startswith("vieneu:"):
+        actual_voice = voice_id.replace("vieneu:", "")
+        demo_text = f"Xin chào, đây là giọng đọc {actual_voice} trên Studio VDT."
+        generate_vieneu_speech(
+            text=demo_text,
+            voice=actual_voice,
+            speed=1.0,
+            output_path=preview_path,
+        )
+    else:
+        if lang == "vi":
+            demo_text = f"Xin chào, đây là giọng đọc {voice_name} trên Studio VDT."
+        elif lang == "en":
+            demo_text = f"Hello, this is a sample preview of {voice_name} on Studio VDT."
+        elif lang == "zh":
+            demo_text = "你好，这是来自Studio VDT的语音样本。"
+        elif lang == "ja":
+            demo_text = "こんにちは、Studio VDTの音声サンプルです。"
+        elif lang == "ko":
+            demo_text = "안녕하세요, Studio VDT 음성 샘플입니다."
+        else:
+            demo_text = "Hello, this is an AI voice sample from Studio VDT."
+
+        asyncio.run(
+            generate_single_tts_edge(
+                text=demo_text,
+                voice=voice_id,
+                rate="+0%",
+                volume="+0%",
+                pitch="+0Hz",
+                output_path=preview_path,
+            )
+        )
+    return preview_path
+
+
 # Initialize session state
 if "tts_main_text" not in st.session_state:
     st.session_state["tts_main_text"] = (
@@ -564,12 +609,26 @@ with col_settings:
 
         voices_dict = VOICES_CATALOG.get(tts_lang, VOICES_CATALOG["vi"])
 
-        selected_voice_label = st.selectbox(
-            "Giọng đọc AI:",
-            options=list(voices_dict.keys()),
-            index=0,  # Adam
-        )
-        selected_voice_id = voices_dict[selected_voice_label]
+        c_v1, c_v2 = st.columns([0.7, 0.3])
+        with c_v1:
+            selected_voice_label = st.selectbox(
+                "Giọng đọc AI:",
+                options=list(voices_dict.keys()),
+                index=0,  # Adam
+            )
+            selected_voice_id = voices_dict[selected_voice_label]
+        with c_v2:
+            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+            btn_preview = st.button("🎧 Nghe thử", use_container_width=True, help="Bấm để nghe thử mẫu giọng này")
+
+        if btn_preview:
+            with st.spinner("⏳ Đang tải giọng nghe thử..."):
+                try:
+                    clean_name = selected_voice_label.split(" (")[0].replace("🔥 ", "").strip()
+                    sample_file = get_or_generate_voice_preview(selected_voice_id, tts_lang, clean_name)
+                    st.audio(str(sample_file), format="audio/mp3", autoplay=True)
+                except Exception as ex:
+                    st.warning(f"Không thể phát giọng thử: {ex}")
 
         st.markdown("**Tốc độ nói (Tempo):**")
         sp1, sp2, sp3 = st.columns(3)
