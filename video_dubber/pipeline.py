@@ -174,7 +174,7 @@ class VideoDubberPipeline:
             audio_path=mixed_audio_path,
             output_video_path=output_path,
             subtitle_path=srt_path if burn_subs and srt_path.exists() else None,
-            subtitle_font_size=getattr(self.config, "subtitle_font_size", 28),
+            subtitle_font_size=getattr(self.config, "subtitle_font_size", 42),
             subtitle_style=getattr(self.config, "subtitle_style", "white_outline"),
             subtitle_margin_v=getattr(self.config, "subtitle_margin_v", 35),
             logo_path=self.config.logo_path if getattr(self.config, "enable_logo", False) else None,

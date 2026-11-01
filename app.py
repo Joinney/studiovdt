@@ -2127,11 +2127,12 @@ with tab_dubbing:
                         )
                         sub_font_size = st.slider(
                             "Cỡ chữ phụ đề (Font Size):",
-                            min_value=16,
-                            max_value=48,
-                            value=st.session_state.get("dub_sub_font_size", 28),
-                            step=1,
-                            key="dub_sub_font_size"
+                            min_value=20,
+                            max_value=90,
+                            value=st.session_state.get("dub_sub_font_size", 42),
+                            step=2,
+                            key="dub_sub_font_size",
+                            help="Kéo tăng cỡ chữ để phụ đề to rõ nổi bật theo ý muốn (Khuyên dùng: 36 - 48 cho phim điện ảnh, 50 - 75 cho TikTok/Shorts/Facebook)"
                         )
                     with c_sb2:
                         sub_bottom_pct = st.slider(
@@ -2889,7 +2890,7 @@ with tab_dubbing:
                 logo_scale=float(st.session_state.get("dub_logo_scale", 18)) / 100.0,
                 logo_opacity=float(st.session_state.get("dub_logo_opacity", 90)) / 100.0,
                 burn_subtitles=st.session_state.get("dub_burn_subtitles", True),
-                subtitle_font_size=st.session_state.get("dub_sub_font_size", 28),
+                subtitle_font_size=st.session_state.get("dub_sub_font_size", 42),
                 subtitle_style=st.session_state.get("dub_sub_style_select", "white_outline"),
                 subtitle_margin_v=int(float(st.session_state.get("dub_sub_bottom_pct", 7)) * 7.5),
                 enable_floating_watermark=bool(st.session_state.get("dub_enable_float_wm", True)),
@@ -3070,7 +3071,7 @@ with tab_dubbing:
                                     audio_path=in_a,
                                     output_video_path=cur_v,
                                     subtitle_path=in_srt,
-                                    subtitle_font_size=st.session_state.get("dub_sub_font_size", 28),
+                                    subtitle_font_size=st.session_state.get("dub_sub_font_size", 42),
                                     subtitle_style=st.session_state.get("dub_sub_style_select", "white_outline"),
                                     subtitle_margin_v=int(float(st.session_state.get("dub_sub_bottom_pct", 7)) * 7.5),
                                     logo_path=logo_f,

@@ -48,7 +48,7 @@ def find_ffmpeg_binary() -> str:
 def srt_to_ass(
     srt_path: Union[str, Path],
     ass_path: Union[str, Path],
-    font_size: int = 28,
+    font_size: int = 42,
     style: str = "white_outline",
     margin_v: int = 35
 ) -> Path:
@@ -59,8 +59,11 @@ def srt_to_ass(
     srt_path = Path(srt_path)
     ass_path = Path(ass_path)
     
-    f_size = max(16, min(48, int(font_size)))
-    mv = max(6, min(240, int(margin_v)))
+    f_size = max(18, min(120, int(font_size)))
+    mv = max(6, min(360, int(margin_v)))
+    
+    outline_w = max(2.5, round(f_size * 0.08, 1))
+    shadow_d = max(1.0, round(f_size * 0.03, 1))
 
     if style == "black_box":
         # Pure White text on semi-transparent dark box background (Netflix / Cinema style)
@@ -68,7 +71,7 @@ def srt_to_ass(
         outline_color = "&H00000000"
         back_color = "&H85000000"
         border_style = 3
-        outline_width = 2.5
+        outline_width = max(2.0, round(f_size * 0.06, 1))
         shadow_depth = 0
     elif style == "yellow_outline":
         # Yellow text with black outline (TikTok / Reels style)
@@ -76,16 +79,16 @@ def srt_to_ass(
         outline_color = "&H00000000"
         back_color = "&H00000000"
         border_style = 1
-        outline_width = 3.0
-        shadow_depth = 1.0
+        outline_width = outline_w
+        shadow_depth = shadow_d
     else:
         # Default white_outline (Chuẩn điện ảnh: Chữ trắng viền đen sắc nét, nổi bật trên mọi cảnh phim)
         primary_color = "&H00FFFFFF"
         outline_color = "&H00000000"
         back_color = "&H00000000"
         border_style = 1
-        outline_width = 3.0
-        shadow_depth = 1.0
+        outline_width = outline_w
+        shadow_depth = shadow_d
 
     header = (
         "[Script Info]\n"
@@ -231,7 +234,8 @@ def create_sub_png(
     font_size: int,
     style: str,
     out_path: Path,
-    max_video_width: int = 1280
+    max_video_width: int = 1280,
+    video_height: int = 720
 ):
     """
     Renders multi-line wrapped subtitles with high contrast outline or black box.
@@ -243,9 +247,12 @@ def create_sub_png(
     if not clean_text:
         return out_path
 
-    # Tự động co giãn cỡ chữ theo độ phân giải video thực tế (1280, 1920, 2K, 4K)
-    scale_factor = max(0.85, min(2.5, max_video_width / 1280.0))
-    f_size = max(18, min(56, int(font_size * scale_factor)))
+    # Co giãn font size tỷ lệ chuẩn theo chiều cao video (chuẩn gốc 720p)
+    # 720p -> 1.0x; 1080p -> 1.5x; 2K -> 2.0x; 4K -> 3.0x
+    base_dim = max(video_height, int(max_video_width * 9 / 16))
+    scale_factor = max(0.9, base_dim / 720.0)
+    # Cho phép cỡ chữ to rõ thoải mái theo ý người dùng từ 22px đến 150px
+    f_size = max(22, min(150, int(font_size * scale_factor)))
     font = None
     for cand in [
         "arial.ttf", "Arial.ttf",
@@ -268,33 +275,35 @@ def create_sub_png(
     dummy = Image.new("RGBA", (10, 10))
     d_draw = ImageDraw.Draw(dummy)
 
-    # Estimate character width to wrap lines safely within 85% of video width
-    target_box_max_w = max(320, int(max_video_width * 0.85))
+    # Estimate character width to wrap lines safely within 88% of video width
+    target_box_max_w = max(360, int(max_video_width * 0.88))
     try:
         sample_bbox = d_draw.textbbox((0, 0), "Mẫu chữ tiếng Việt", font=font)
-        avg_char_w = max(8, (sample_bbox[2] - sample_bbox[0]) // 18)
+        avg_char_w = max(10, (sample_bbox[2] - sample_bbox[0]) // 18)
     except Exception:
-        avg_char_w = max(8, f_size // 2)
+        avg_char_w = max(10, f_size // 2)
 
     chars_per_line = max(16, min(50, (target_box_max_w - 40) // avg_char_w))
     lines = textwrap.wrap(clean_text, width=chars_per_line)
     if not lines:
         lines = [clean_text]
 
-    line_bboxes = []
+    stroke_w = max(2, int(f_size * 0.08))
+    pad_x = max(20, int(f_size * 0.4))
+    pad_y = max(12, int(f_size * 0.25))
     line_height = int(f_size * 1.35)
+
+    line_bboxes = []
     max_line_w = 0
     for ln in lines:
         try:
-            bb = d_draw.textbbox((0, 0), ln, font=font)
+            bb = d_draw.textbbox((0, 0), ln, font=font, stroke_width=stroke_w)
             w = bb[2] - bb[0]
         except Exception:
             w = len(ln) * avg_char_w
         max_line_w = max(max_line_w, w)
         line_bboxes.append(w)
 
-    pad_x = 16
-    pad_y = 10
     total_w = max_line_w + pad_x * 2
     total_h = line_height * len(lines) + pad_y * 2
 
@@ -303,7 +312,7 @@ def create_sub_png(
 
     if style == "black_box":
         # Rounded semi-transparent black background box with crisp white text
-        draw.rounded_rectangle([(0, 0), (total_w - 1, total_h - 1)], radius=6, fill=(0, 0, 0, 185))
+        draw.rounded_rectangle([(0, 0), (total_w - 1, total_h - 1)], radius=max(6, int(f_size * 0.2)), fill=(0, 0, 0, 195))
         for idx, (ln, lw) in enumerate(zip(lines, line_bboxes)):
             lx = pad_x + (max_line_w - lw) // 2
             ly = pad_y + idx * line_height
@@ -313,18 +322,16 @@ def create_sub_png(
         for idx, (ln, lw) in enumerate(zip(lines, line_bboxes)):
             lx = pad_x + (max_line_w - lw) // 2
             ly = pad_y + idx * line_height
-            for dx, dy in [(-3,-3), (-3,0), (-3,3), (0,-3), (0,3), (3,-3), (3,0), (3,3), (-2,-2), (2,2), (-2,2), (2,-2), (-1,-1), (1,1), (-1,1), (1,-1)]:
-                draw.text((lx + dx, ly + dy), ln, fill=(0, 0, 0, 255), font=font)
-            draw.text((lx, ly), ln, fill=txt_color, font=font)
+            draw.text((lx + stroke_w//2, ly + stroke_w//2), ln, fill=(0, 0, 0, 160), font=font)
+            draw.text((lx, ly), ln, fill=txt_color, font=font, stroke_width=stroke_w, stroke_fill=(0, 0, 0, 255))
     else:
         # Default: Pure white text with crisp deep black outline (Chuẩn điện ảnh)
         txt_color = (255, 255, 255, 255)
         for idx, (ln, lw) in enumerate(zip(lines, line_bboxes)):
             lx = pad_x + (max_line_w - lw) // 2
             ly = pad_y + idx * line_height
-            for dx, dy in [(-3,-3), (-3,0), (-3,3), (0,-3), (0,3), (3,-3), (3,0), (3,3), (-2,-2), (2,2), (-2,2), (2,-2), (-1,-1), (1,1), (-1,1), (1,-1)]:
-                draw.text((lx + dx, ly + dy), ln, fill=(0, 0, 0, 255), font=font)
-            draw.text((lx, ly), ln, fill=txt_color, font=font)
+            draw.text((lx + stroke_w//2, ly + stroke_w//2), ln, fill=(0, 0, 0, 160), font=font)
+            draw.text((lx, ly), ln, fill=txt_color, font=font, stroke_width=stroke_w, stroke_fill=(0, 0, 0, 255))
 
     img.save(str(out_path), format="PNG")
     return out_path
@@ -402,7 +409,7 @@ class VideoMerger:
         audio_path: Union[str, Path],
         output_video_path: Union[str, Path],
         subtitle_path: Optional[Union[str, Path]] = None,
-        subtitle_font_size: int = 28,
+        subtitle_font_size: int = 42,
         subtitle_style: str = "white_outline",
         subtitle_margin_v: int = 35,
         logo_path: Optional[Union[str, Path]] = None,
@@ -689,7 +696,8 @@ class VideoMerger:
                                 font_size=subtitle_font_size,
                                 style=subtitle_style,
                                 out_path=p_file,
-                                max_video_width=video.w
+                                max_video_width=video.w,
+                                video_height=video.h
                             )
                             s_clip = ImageClip(str(p_file), transparent=True)
                             if hasattr(s_clip, "with_start"):

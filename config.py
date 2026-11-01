@@ -170,7 +170,7 @@ class DubbingConfig:
     logo_scale: float = 0.18
     logo_opacity: float = 0.90
     burn_subtitles: bool = True
-    subtitle_font_size: int = 28
+    subtitle_font_size: int = 42
     subtitle_style: str = "white_outline"
     subtitle_margin_v: int = 35
     enable_floating_watermark: bool = False
