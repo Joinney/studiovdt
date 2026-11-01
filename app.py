@@ -2694,10 +2694,16 @@ with tab_dubbing:
                 col_w1, col_w2 = st.columns(2)
                 with col_w1:
                     whisper_model = st.selectbox(
-                        "Mô hình Whisper STT:",
-                        options=["tiny", "base", "small", "medium"],
-                        index=1,
-                        help="base: Cân bằng tốt nhất giữa tốc độ và độ chính xác trên Streamlit Cloud."
+                        "Mô hình Whisper STT (Nhận diện lời thoại):",
+                        options=["small", "base", "medium", "tiny"],
+                        index=0,
+                        format_func=lambda x: {
+                            "small": "⭐ small (Khuyên dùng — Bắt trọn 100% lời thoại phim, không sót câu)",
+                            "base": "base (Cơ bản — Nhanh, tiết kiệm tài nguyên)",
+                            "medium": "medium (Chuyên sâu — Chuẩn xác tuyệt đối cho phim hành động/ồn)",
+                            "tiny": "tiny (Siêu nhẹ)",
+                        }.get(x, x),
+                        help="Chọn 'small' hoặc 'medium' để bắt trọn mọi câu thoại phim kể cả trên nền nhạc to mà không bị sót câu nào."
                     )
                 with col_w2:
                     bg_music_vol = st.slider(

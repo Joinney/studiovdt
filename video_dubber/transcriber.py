@@ -90,8 +90,18 @@ class Transcriber:
             str(audio_path),
             language=whisper_lang,
             beam_size=5,
-            vad_filter=True,  # Filter out silence/noise
-            vad_parameters=dict(min_silence_duration_ms=500),
+            best_of=5,
+            temperature=[0.0, 0.2, 0.4],
+            condition_on_previous_text=False,  # Tránh lỗi bỏ sót lời thoại sau các đoạn nhạc/ngắt nghỉ
+            vad_filter=True,  # Lọc tạp âm với thông số nhạy cao để bắt trọn mọi câu thoại phim
+            vad_parameters=dict(
+                threshold=0.35,              # Tăng độ nhạy để không bị nuốt lời thoại trên nền nhạc phim
+                min_speech_duration_ms=250,   # Bắt cả các câu thoại ngắn, từ đơn, thán từ
+                max_speech_duration_s=10.0,   # Chia nhỏ đoạn thoại dài 10-20s thành các câu ngắn khít khẩu hình
+                min_silence_duration_ms=300,  # Ngắt câu linh hoạt ngay khi dứt tiếng
+                speech_pad_ms=250             # Đệm trước 250ms bắt trọn từ đầu tiên khi nhân vật vừa mở miệng
+            ),
+            word_timestamps=True,
         )
 
         detected_lang = info.language
@@ -104,10 +114,22 @@ class Transcriber:
             text = s.text.strip()
             if not text:
                 continue
+            
+            # Định vị mốc bắt đầu chuẩn xác theo từng từ (Word-level timestamps) để lồng tiếng khớp ngay miệng nhân vật
+            seg_start = round(s.start, 2)
+            seg_end = round(s.end, 2)
+            if hasattr(s, "words") and s.words:
+                w_start = s.words[0].start
+                w_end = s.words[-1].end
+                if w_start is not None and w_start >= 0:
+                    seg_start = round(w_start, 2)
+                if w_end is not None and w_end > seg_start:
+                    seg_end = round(w_end, 2)
+
             seg = Segment(
                 id=idx,
-                start=round(s.start, 2),
-                end=round(s.end, 2),
+                start=seg_start,
+                end=seg_end,
                 text=text,
             )
             segments.append(seg)

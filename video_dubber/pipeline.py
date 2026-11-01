@@ -138,34 +138,9 @@ class VideoDubberPipeline:
             output_file=dubbed_voice_path,
         )
 
-        # Đồng bộ mốc thời gian hiển thị phụ đề theo thời lượng giọng đọc thực tế
-        # Khi giọng đọc dứt câu, phụ đề sẽ biến mất sau 0.5s chứ không bị treo suốt đoạn im lặng
-        for idx, seg in enumerate(segments):
-            if seg.tts_audio_path and Path(seg.tts_audio_path).exists():
-                try:
-                    seg_clip = AudioSegment.from_file(seg.tts_audio_path)
-                    orig_dur = max(0.1, seg.end - seg.start)
-                    actual_dur = len(seg_clip) / 1000.0
-                    ratio = actual_dur / orig_dur
-                    if ratio > 1.05:
-                        spd = min(ratio, self.config.max_speed_factor)
-                        spoken_dur = actual_dur / spd
-                    elif ratio < 0.75:
-                        spd = max(ratio, self.config.min_speed_factor)
-                        spoken_dur = actual_dur / spd
-                    else:
-                        spoken_dur = actual_dur
-
-                    # Hết giọng đọc là phụ đề ẩn đi ngay lập tức, không để lại độ trễ
-                    s_end = round(seg.start + spoken_dur, 3)
-                    if idx + 1 < len(segments):
-                        next_start = segments[idx + 1].start
-                        if s_end > next_start:
-                            s_end = next_start
-                    seg.sub_end = s_end
-                except Exception:
-                    seg.sub_end = seg.end
-            else:
+        # Mốc phụ đề sub_end đã được đồng bộ chuẩn xác từng mili-giây từ AudioSynchronizer
+        for seg in segments:
+            if not hasattr(seg, "sub_end") or seg.sub_end is None:
                 seg.sub_end = seg.end
 
         export_srt(segments, srt_path, use_translated=True)

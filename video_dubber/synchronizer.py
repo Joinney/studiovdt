@@ -11,6 +11,21 @@ from .transcriber import Segment
 logger = logging.getLogger(__name__)
 
 
+def trim_leading_silence(sound: AudioSegment, silence_thresh: float = -42.0) -> AudioSegment:
+    """
+    Cắt bỏ khoảng lặng kỹ thuật số (150ms-300ms) ở đầu tệp sinh từ TTS.
+    Đảm bảo âm thanh phát âm NGAY LẬP TỨC khi nhân vật mở miệng, triệt tiêu hoàn toàn độ trễ tiếng so với video.
+    """
+    chunk_ms = 10
+    trim_ms = 0
+    max_scan = min(len(sound), 800)
+    for i in range(0, max_scan, chunk_ms):
+        if sound[i:i + chunk_ms].dBFS > silence_thresh:
+            trim_ms = max(0, i - 15)
+            break
+    return sound[trim_ms:] if trim_ms > 0 else sound
+
+
 def change_audio_speed(sound: AudioSegment, speed: float = 1.0) -> AudioSegment:
     """
     Adjust audio speed (tempo) cleanly without altering pitch or timbre.
@@ -66,6 +81,8 @@ class AudioSynchronizer:
 
             try:
                 clip = AudioSegment.from_file(seg.tts_audio_path)
+                # Cắt bỏ khoảng lặng đầu clip để giọng lồng tiếng phát ngay tức thì khớp khuôn miệng
+                clip = trim_leading_silence(clip)
             except Exception as e:
                 logger.warning(f"Could not read audio clip {seg.tts_audio_path}: {e}")
                 continue
