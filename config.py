@@ -3,7 +3,7 @@ Configuration and constants for Video Dubber & Text-to-Speech Studio
 """
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional, Union
 
 # Extensive Voices Catalog categorized by Language and Engine
 VOICES_CATALOG: Dict[str, Dict[str, str]] = {
@@ -163,6 +163,20 @@ class DubbingConfig:
     min_speed_factor: float = 0.75
     temp_dir: Path = field(default_factory=lambda: Path("./temp"))
     output_dir: Path = field(default_factory=lambda: Path("./output"))
+    enable_logo: bool = False
+    logo_path: Optional[Union[str, Path]] = None
+    logo_x_pct: float = 0.80
+    logo_y_pct: float = 0.05
+    logo_scale: float = 0.18
+    logo_opacity: float = 0.90
+    burn_subtitles: bool = True
+    subtitle_font_size: int = 26
+    subtitle_style: str = "black_box"
+    subtitle_margin_v: int = 30
+    enable_floating_watermark: bool = False
+    floating_watermark_text: str = "@gocphimcuon"
+    floating_watermark_font_size: int = 18
+    floating_watermark_opacity: float = 0.30
 
     def __post_init__(self):
         self.temp_dir.mkdir(parents=True, exist_ok=True)

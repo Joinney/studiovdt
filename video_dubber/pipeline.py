@@ -31,7 +31,8 @@ def export_srt(segments: list, srt_path: Path, use_translated: bool = True):
         for i, seg in enumerate(segments, 1):
             text = seg.translated_text if (use_translated and seg.translated_text) else seg.text
             start = format_srt_time(seg.start)
-            end = format_srt_time(seg.end)
+            end_val = getattr(seg, "sub_end", None) if getattr(seg, "sub_end", None) is not None else seg.end
+            end = format_srt_time(end_val)
             f.write(f"{i}\n{start} --> {end}\n{text}\n\n")
 
 
@@ -59,6 +60,7 @@ class VideoDubberPipeline:
         self.merger = VideoMerger(
             original_audio_volume=self.config.original_audio_volume
         )
+        self.last_segments = []
 
     def process(
         self,
@@ -112,6 +114,7 @@ class VideoDubberPipeline:
         notify(f"Dịch nội dung sang ngôn ngữ đích ({self.config.target_language})...", 0.45)
         self.translator.source_lang = detected_lang
         segments = self.translator.translate_segments(segments)
+        self.last_segments = segments
 
         # Save metadata and subtitle
         srt_path = output_path.with_suffix(".srt")
@@ -135,6 +138,44 @@ class VideoDubberPipeline:
             output_file=dubbed_voice_path,
         )
 
+        # Đồng bộ mốc thời gian hiển thị phụ đề theo thời lượng giọng đọc thực tế
+        # Khi giọng đọc dứt câu, phụ đề sẽ biến mất sau 0.5s chứ không bị treo suốt đoạn im lặng
+        for idx, seg in enumerate(segments):
+            if seg.tts_audio_path and Path(seg.tts_audio_path).exists():
+                try:
+                    seg_clip = AudioSegment.from_file(seg.tts_audio_path)
+                    orig_dur = max(0.1, seg.end - seg.start)
+                    actual_dur = len(seg_clip) / 1000.0
+                    ratio = actual_dur / orig_dur
+                    if ratio > 1.05:
+                        spd = min(ratio, self.config.max_speed_factor)
+                        spoken_dur = actual_dur / spd
+                    elif ratio < 0.75:
+                        spd = max(ratio, self.config.min_speed_factor)
+                        spoken_dur = actual_dur / spd
+                    else:
+                        spoken_dur = actual_dur
+
+                    # Hết giọng đọc là phụ đề ẩn đi ngay lập tức, không để lại độ trễ
+                    s_end = round(seg.start + spoken_dur, 3)
+                    if idx + 1 < len(segments):
+                        next_start = segments[idx + 1].start
+                        if s_end > next_start:
+                            s_end = next_start
+                    seg.sub_end = s_end
+                except Exception:
+                    seg.sub_end = seg.end
+            else:
+                seg.sub_end = seg.end
+
+        export_srt(segments, srt_path, use_translated=True)
+        self.last_segments = segments
+        try:
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump([seg.__dict__ for seg in segments], f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
         # Step 6: Audio Mixing & Video Merging
         notify("Hòa âm nhạc nền và ghép video lồng tiếng hoàn thiện...", 0.90)
         mixed_audio_path = work_dir / "mixed_final.wav"
@@ -142,12 +183,29 @@ class VideoDubberPipeline:
             original_audio_path=orig_audio_path,
             dubbed_audio_path=dubbed_voice_path,
             output_mixed_audio_path=mixed_audio_path,
+            segments=segments,
         )
+
+        burn_subs = getattr(self.config, "burn_subtitles", True)
+        enable_float_wm = getattr(self.config, "enable_floating_watermark", False)
+        float_wm_text = getattr(self.config, "floating_watermark_text", "@gocphimcuon") if enable_float_wm else None
 
         final_video = self.merger.merge_video(
             video_path=video_path,
             audio_path=mixed_audio_path,
             output_video_path=output_path,
+            subtitle_path=srt_path if burn_subs and srt_path.exists() else None,
+            subtitle_font_size=getattr(self.config, "subtitle_font_size", 26),
+            subtitle_style=getattr(self.config, "subtitle_style", "black_box"),
+            subtitle_margin_v=getattr(self.config, "subtitle_margin_v", 30),
+            logo_path=self.config.logo_path if getattr(self.config, "enable_logo", False) else None,
+            logo_x_pct=getattr(self.config, "logo_x_pct", 0.80),
+            logo_y_pct=getattr(self.config, "logo_y_pct", 0.05),
+            logo_scale=getattr(self.config, "logo_scale", 0.18),
+            logo_opacity=getattr(self.config, "logo_opacity", 0.90),
+            floating_watermark_text=float_wm_text,
+            floating_watermark_font_size=getattr(self.config, "floating_watermark_font_size", 18),
+            floating_watermark_opacity=getattr(self.config, "floating_watermark_opacity", 0.30),
         )
 
         notify("Hoàn thành lồng tiếng video!", 1.0)

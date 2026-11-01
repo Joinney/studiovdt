@@ -1930,7 +1930,7 @@ with tab_dubbing:
 
     with col_dub_left:
         with st.container(border=True):
-            st.markdown("##### 📁 Bước 1: Tải lên Video cần lồng tiếng")
+            st.markdown("##### 📁 Bước 1: Màn hình Studio — Tải lên & Xem trước Trực tiếp trên Video")
             uploaded_video = st.file_uploader(
                 "Chọn tệp Video (MP4, MKV, MOV, AVI)",
                 type=["mp4", "mkv", "mov", "avi"],
@@ -1941,6 +1941,709 @@ with tab_dubbing:
             if uploaded_video is not None:
                 st.video(uploaded_video)
                 st.caption(f"📹 Tệp: **{uploaded_video.name}** ({uploaded_video.size / (1024 * 1024):.2f} MB)")
+
+                # Thanh thông báo Studio Live Mode
+                st.html(
+                    """
+                    <div id="vdt-studio-status-banner" style="
+                        background: linear-gradient(90deg, rgba(249, 115, 22, 0.12), rgba(56, 189, 248, 0.12));
+                        border: 1px solid rgba(249, 115, 22, 0.35);
+                        border-radius: 8px;
+                        padding: 7px 12px;
+                        margin-top: 4px;
+                        margin-bottom: 8px;
+                        font-size: 11px;
+                        color: #cbd5e1;
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        flex-wrap: wrap;
+                        gap: 6px;
+                    ">
+                        <span style="display: flex; align-items: center; gap: 6px; font-weight: 700;">
+                            <span style="color: #f97316; font-size: 13px;">🎮 CHẾ ĐỘ XEM TRƯỚC TRÊN MẶT VIDEO:</span>
+                            Bấm giữ chuột vào Logo hoặc Phụ đề để kéo thả trực tiếp trên video!
+                        </span>
+                        <span id="vdt-live-coords-indicator" style="font-family: monospace; font-weight: 800; color: #38bdf8; background: #0c121e; padding: 1px 6px; border-radius: 4px;">
+                            📍 Sẵn sàng kéo thả
+                        </span>
+                    </div>
+                    """
+                )
+
+                # Khởi tạo mặc định cho Logo & Phụ đề nếu chưa có trong session
+                if "dub_enable_logo" not in st.session_state:
+                    st.session_state["dub_enable_logo"] = True
+                if "dub_burn_subtitles" not in st.session_state:
+                    st.session_state["dub_burn_subtitles"] = True
+                if "dub_enable_float_wm" not in st.session_state:
+                    st.session_state["dub_enable_float_wm"] = True
+                if "dub_float_wm_text" not in st.session_state:
+                    st.session_state["dub_float_wm_text"] = "@gocphimcuon"
+                if "dub_float_wm_size" not in st.session_state:
+                    st.session_state["dub_float_wm_size"] = 18
+                if "dub_float_wm_opacity" not in st.session_state:
+                    st.session_state["dub_float_wm_opacity"] = 30
+                if "dub_logo_x" not in st.session_state:
+                    st.session_state["dub_logo_x"] = 80
+                if "dub_logo_y" not in st.session_state:
+                    st.session_state["dub_logo_y"] = 5
+                if "dub_logo_scale" not in st.session_state:
+                    st.session_state["dub_logo_scale"] = 18
+                if "dub_logo_opacity" not in st.session_state:
+                    st.session_state["dub_logo_opacity"] = 90
+                if "dub_sub_bottom_pct" not in st.session_state:
+                    st.session_state["dub_sub_bottom_pct"] = 7
+
+                # Tabs điều khiển tinh chỉnh Logo & Phụ đề
+                tab_logo_ctrl, tab_sub_ctrl, tab_wm_ctrl = st.tabs([
+                    "🏷️ Tùy chỉnh Logo thương hiệu (Kéo thả)",
+                    "📝 Tùy chỉnh Phụ đề hiển thị (Kéo thả)",
+                    "🛡️ Chữ mờ chạy bảo vệ bản quyền (Moving Watermark)"
+                ])
+
+                with tab_logo_ctrl:
+                    enable_logo = st.checkbox(
+                        "✨ Kích hoạt chèn Logo / Watermark vào Video",
+                        value=st.session_state.get("dub_enable_logo", True),
+                        key="dub_enable_logo",
+                    )
+                    uploaded_logo = st.file_uploader(
+                        "Tải lên tệp Logo (PNG nền trong suốt, JPG, WebP):",
+                        type=["png", "jpg", "jpeg", "webp"],
+                        key="dub_logo_uploader"
+                    )
+
+                    logo_b64_data = ""
+                    logo_preview_mime = "image/png"
+                    if uploaded_logo is not None:
+                        raw_logo = uploaded_logo.getvalue()
+                        logo_ext = Path(uploaded_logo.name).suffix.lower()
+                        if "jpg" in logo_ext or "jpeg" in logo_ext:
+                            logo_preview_mime = "image/jpeg"
+                        elif "webp" in logo_ext:
+                            logo_preview_mime = "image/webp"
+                        logo_b64_data = base64.b64encode(raw_logo).decode("utf-8")
+                    elif Path("assets/author.png").exists():
+                        raw_logo = Path("assets/author.png").read_bytes()
+                        logo_b64_data = base64.b64encode(raw_logo).decode("utf-8")
+                        st.caption("ℹ️ Đang dùng Logo mẫu Studio VDT. Tải tệp logo của bạn lên ở trên để đổi.")
+
+                    logo_img_src = f"data:{logo_preview_mime};base64,{logo_b64_data}" if logo_b64_data else ""
+
+                    def set_logo_corner(cx: int, cy: int):
+                        st.session_state["dub_logo_x"] = cx
+                        st.session_state["dub_logo_y"] = cy
+
+                    st.markdown("<span style='font-size: 11px; font-weight: 700; color: #f97316;'>⚡ Định vị nhanh góc Logo:</span>", unsafe_allow_html=True)
+                    bp1, bp2, bp3, bp4, bp5 = st.columns(5)
+                    with bp1:
+                        st.button("↖️ Trên Trái", key="btn_pos_tl", on_click=set_logo_corner, args=(4, 4), use_container_width=True)
+                    with bp2:
+                        st.button("↗️ Trên Phải", key="btn_pos_tr", on_click=set_logo_corner, args=(80, 4), use_container_width=True)
+                    with bp3:
+                        st.button("↙️ Dưới Trái", key="btn_pos_bl", on_click=set_logo_corner, args=(4, 80), use_container_width=True)
+                    with bp4:
+                        st.button("↘️ Dưới Phải", key="btn_pos_br", on_click=set_logo_corner, args=(80, 80), use_container_width=True)
+                    with bp5:
+                        st.button("⏺️ Giữa", key="btn_pos_cc", on_click=set_logo_corner, args=(41, 41), use_container_width=True)
+
+                    col_lc1, col_lc2 = st.columns(2)
+                    with col_lc1:
+                        cur_logo_scale = st.slider("📐 Kích thước logo (% video):", min_value=6, max_value=45, value=st.session_state.get("dub_logo_scale", 18), step=1, key="dub_logo_scale", format="%d%%")
+                        cur_logo_opacity = st.slider("✨ Độ rõ nét (Opacity):", min_value=20, max_value=100, value=st.session_state.get("dub_logo_opacity", 90), step=5, key="dub_logo_opacity", format="%d%%")
+                    with col_lc2:
+                        cur_logo_x = st.slider("Tọa độ ngang X (%):", min_value=0, max_value=95, value=st.session_state.get("dub_logo_x", 80), step=1, key="dub_logo_x")
+                        cur_logo_y = st.slider("Tọa độ dọc Y (%):", min_value=0, max_value=95, value=st.session_state.get("dub_logo_y", 5), step=1, key="dub_logo_y")
+
+                # Tự động nạp hoặc tìm các câu thoại đã dịch từ video
+                v_safe_stem = re.sub(r'[^a-zA-Z0-9_\-]', '_', Path(uploaded_video.name).stem)
+                if "dub_preview_segments" not in st.session_state:
+                    st.session_state["dub_preview_segments"] = []
+
+                if not st.session_state["dub_preview_segments"]:
+                    # 1. Quét tìm tệp .srt tương ứng trong output
+                    matching_srts = sorted(list(Path("output").glob(f"{v_safe_stem}_dubbed_*.srt")), key=lambda p: p.stat().st_mtime, reverse=True)
+                    if matching_srts:
+                        try:
+                            srt_content = matching_srts[0].read_text(encoding="utf-8", errors="replace")
+                            parsed_segs = []
+                            for blk in re.split(r"\n\s*\n", srt_content.strip()):
+                                lines = [ln.strip() for ln in blk.split("\n") if ln.strip()]
+                                if len(lines) >= 2:
+                                    t_idx = 1 if "-->" in lines[1] else (0 if "-->" in lines[0] else -1)
+                                    if t_idx != -1:
+                                        tp = lines[t_idx].split("-->")
+                                        def parse_sec(ts):
+                                            ts = ts.strip().replace(",", ".")
+                                            hp, mp, sp = ts.split(":")
+                                            return int(hp)*3600 + int(mp)*60 + float(sp)
+                                        parsed_segs.append({
+                                            "start": parse_sec(tp[0]),
+                                            "end": parse_sec(tp[1]),
+                                            "text": " ".join(lines[t_idx+1:])
+                                        })
+                            if parsed_segs:
+                                st.session_state["dub_preview_segments"] = parsed_segs
+                        except Exception:
+                            pass
+
+                    # 2. Quét tìm trong temp segments.json
+                    if not st.session_state["dub_preview_segments"]:
+                        matching_jsons = sorted(list(Path("temp").glob(f"{v_safe_stem}_*/segments.json")), key=lambda p: p.stat().st_mtime, reverse=True)
+                        if matching_jsons:
+                            try:
+                                j_data = json.loads(matching_jsons[0].read_text(encoding="utf-8"))
+                                st.session_state["dub_preview_segments"] = [
+                                    {"start": s.get("start", 0), "end": s.get("end", 0), "text": s.get("translated_text") or s.get("text", "")}
+                                    for s in j_data if s.get("translated_text") or s.get("text")
+                                ]
+                            except Exception:
+                                pass
+
+                with tab_sub_ctrl:
+                    burn_subtitles = st.checkbox(
+                        "📺 Ghi thẳng phụ đề đã dịch lên Video (Hardsub)",
+                        value=st.session_state.get("dub_burn_subtitles", True),
+                        key="dub_burn_subtitles",
+                    )
+                    c_sb1, c_sb2 = st.columns(2)
+                    with c_sb1:
+                        sub_style = st.selectbox(
+                            "Kiểu hiển thị chữ:",
+                            options=["black_box", "white_outline", "yellow_outline"],
+                            format_func=lambda x: {
+                                "black_box": "⬛ Chữ trắng nền hộp đen mờ (Chuẩn Netflix / Điện ảnh)",
+                                "white_outline": "⚪ Chữ trắng viền đen (Chuẩn Phim truyện / TV)",
+                                "yellow_outline": "🟡 Chữ vàng viền đen (Chuẩn TikTok / Reels)",
+                            }.get(x, x),
+                            index=0,
+                            key="dub_sub_style_select"
+                        )
+                        sub_font_size = st.slider(
+                            "Cỡ chữ phụ đề (Font Size):",
+                            min_value=16,
+                            max_value=48,
+                            value=26,
+                            step=1,
+                            key="dub_sub_font_size"
+                        )
+                    with c_sb2:
+                        sub_bottom_pct = st.slider(
+                            "Độ cao cách đáy video (%):",
+                            min_value=3,
+                            max_value=40,
+                            value=st.session_state.get("dub_sub_bottom_pct", 7),
+                            step=1,
+                            key="dub_sub_bottom_pct",
+                            help="Kéo trực tiếp phụ đề trên mặt video hoặc dùng thanh trượt này"
+                        )
+
+                    avail_segs = st.session_state.get("dub_preview_segments", [])
+                    sample_sub_text = "Đây là phụ đề xem trước trên video của bạn (Kéo thả lên/xuống để chỉnh)"
+
+                    if avail_segs:
+                        st.info(f"🎙️ Đã đồng bộ {len(avail_segs)} câu thoại dịch từ video! Khi bấm Phát video, phụ đề sẽ tự động chạy theo đúng mốc giọng nói.")
+                        c_ps1, c_ps2 = st.columns([0.78, 0.22])
+                        with c_ps1:
+                            seg_labels = [f"[{s['start']:.1f}s - {s['end']:.1f}s] {s['text']}" for s in avail_segs]
+                            sel_idx = st.selectbox(
+                                "📜 Chọn câu thoại dịch từ video để xem vị trí chữ:",
+                                options=range(len(seg_labels)),
+                                format_func=lambda i: seg_labels[i],
+                                key="dub_sub_seg_choice"
+                            )
+                            sample_sub_text = avail_segs[sel_idx]["text"]
+                        with c_ps2:
+                            st.write("")
+                            if st.button("🔄 Nhận diện lại", key="btn_clear_sub_cache", use_container_width=True):
+                                st.session_state["dub_preview_segments"] = []
+                                st.rerun()
+                    else:
+                        c_in1, c_in2 = st.columns([0.72, 0.28])
+                        with c_in1:
+                            sample_sub_text = st.text_input(
+                                "Văn bản phụ đề xem trước trên video:",
+                                value="Đây là phụ đề xem trước trên video của bạn (Kéo thả lên/xuống để chỉnh)",
+                                key="dub_sub_sample_text"
+                            )
+                        with c_in2:
+                            st.write("")
+                            if st.button("⚡ Dịch trước từ Video", key="btn_quick_transcribe", help="Tự động nhận diện giọng nói và dịch phụ đề trước khi lồng tiếng", use_container_width=True):
+                                with st.spinner("🔍 Đang nhận diện giọng nói & dịch phụ đề từ video..."):
+                                    try:
+                                        from video_dubber.extractor import extract_audio
+                                        from video_dubber.transcriber import Transcriber
+                                        from video_dubber.translator import Translator
+
+                                        t_dir = Path("temp") / f"preview_{v_safe_stem}"
+                                        t_dir.mkdir(parents=True, exist_ok=True)
+                                        t_vid = t_dir / uploaded_video.name
+                                        t_vid.write_bytes(uploaded_video.getvalue())
+                                        t_aud = t_dir / "preview_audio.wav"
+                                        extract_audio(t_vid, t_aud)
+
+                                        transcriber = Transcriber(model_size="base", device="cpu", compute_type="int8")
+                                        t_segs, det_lang = transcriber.transcribe(t_aud)
+                                        translator = Translator(target_lang="vi", source_lang=det_lang)
+                                        t_segs = translator.translate_segments(t_segs)
+
+                                        st.session_state["dub_preview_segments"] = [
+                                            {"start": s.start, "end": s.end, "text": s.translated_text or s.text}
+                                            for s in t_segs
+                                        ]
+                                        st.success("✅ Đã trích xuất & dịch phụ đề từ video thành công!")
+                                        st.rerun()
+                                    except Exception as ex_p:
+                                        st.error(f"Lỗi trích xuất: {ex_p}")
+
+                with tab_wm_ctrl:
+                    enable_float_wm = st.checkbox(
+                        "🛡️ Kích hoạt chữ mờ chạy bảo vệ bản quyền trên Video",
+                        value=st.session_state.get("dub_enable_float_wm", True),
+                        key="dub_enable_float_wm",
+                        help="Chữ mờ trắng sẽ di chuyển lơ lửng liên tục xung quanh video để chống cắt ghép, reup"
+                    )
+                    c_w1, c_w2 = st.columns([0.7, 0.3])
+                    with c_w1:
+                        float_wm_text = st.text_input(
+                            "Nhập chữ chạy bản quyền (VD: @gocphimcuon, Tên Kênh):",
+                            value=st.session_state.get("dub_float_wm_text", "@gocphimcuon"),
+                            key="dub_float_wm_text"
+                        )
+                    with c_w2:
+                        float_wm_size = st.slider(
+                            "Cỡ chữ mờ:",
+                            min_value=12,
+                            max_value=36,
+                            value=st.session_state.get("dub_float_wm_size", 18),
+                            step=1,
+                            key="dub_float_wm_size"
+                        )
+                    c_w3, c_w4 = st.columns(2)
+                    with c_w3:
+                        float_wm_opacity = st.slider(
+                            "Độ mờ chữ (Faded White Opacity):",
+                            min_value=10,
+                            max_value=70,
+                            value=st.session_state.get("dub_float_wm_opacity", 30),
+                            step=5,
+                            format="%d%%",
+                            key="dub_float_wm_opacity",
+                            help="Khuyên dùng 25% - 35% để chữ mờ trắng thanh lịch, không gây vướng mắt người xem"
+                        )
+                    with c_w4:
+                        st.markdown("<span style='font-size: 11px; font-weight: 700; color: #38bdf8;'>🌊 Quỹ đạo di chuyển:</span>", unsafe_allow_html=True)
+                        st.info("Di chuyển lơ lửng liên tục xung quanh 4 góc & trung tâm video theo chu kỳ sóng mượt mà.")
+
+                # Computed Subtitle CSS cho hiển thị trực quan
+                if sub_style == "white_outline":
+                    computed_sub_css = f"font-size: {sub_font_size}px; font-weight: 800; color: #ffffff; text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 2px 0 #000, 0 -2px 0 #000, 2px 0 0 #000, -2px 0 0 #000; font-family: system-ui, -apple-system, sans-serif; line-height: 1.3;"
+                elif sub_style == "black_box":
+                    computed_sub_css = f"font-size: {sub_font_size}px; font-weight: 800; color: #ffffff; background: rgba(0, 0, 0, 0.82); padding: 5px 16px; border-radius: 6px; display: inline-block; font-family: system-ui, -apple-system, sans-serif; line-height: 1.35;"
+                else:
+                    computed_sub_css = f"font-size: {sub_font_size}px; font-weight: 800; color: #ffeb3b; text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 2px 0 #000, 0 -2px 0 #000, 2px 0 0 #000, -2px 0 0 #000; font-family: system-ui, -apple-system, sans-serif; line-height: 1.3;"
+
+                # Bộ Engine JavaScript: Gắn trực tiếp Logo & Phụ đề Kéo Thả lên Mặt Video
+                live_video_overlay_js = f"""
+                <!DOCTYPE html>
+                <html><head><meta charset="utf-8"></head><body>
+                <script>
+                (function() {{
+                    try {{
+                        var parentDoc = window.parent.document;
+                        var parentWin = window.parent;
+
+                        var hasLogo = {'true' if enable_logo and logo_img_src else 'false'};
+                        var hasSub = {'true' if burn_subtitles else 'false'};
+                        var hasFloatWm = {'true' if enable_float_wm and float_wm_text.strip() else 'false'};
+                        var floatWmText = "{float_wm_text.strip()}";
+                        var floatWmSize = {float_wm_size};
+                        var floatWmOpacity = {float_wm_opacity / 100.0};
+
+                        var logoSrc = "{logo_img_src}";
+                        var logoX = {cur_logo_x};
+                        var logoY = {cur_logo_y};
+                        var logoScale = {cur_logo_scale};
+                        var logoOpacity = {cur_logo_opacity / 100.0};
+
+                        var subBottomPct = {sub_bottom_pct};
+                        var subCss = "{computed_sub_css}";
+                        var subText = "{sample_sub_text}";
+                        var liveSegs = {json.dumps(st.session_state.get("dub_preview_segments", []), ensure_ascii=False)};
+
+                        var isDraggingLogo = false;
+                        var isDraggingSub = false;
+                        var startClientX = 0, startClientY = 0;
+                        var initLogoLeft = logoX, initLogoTop = logoY;
+                        var initSubBottom = subBottomPct;
+
+                        function injectOverlay() {{
+                            var videoElem = parentDoc.querySelector('[data-testid="stVideo"] video') ||
+                                            parentDoc.querySelector('video');
+                            if (!videoElem) return false;
+
+                            var videoWrap = videoElem.closest('[data-testid="stVideo"]') || videoElem.parentElement;
+                            if (!videoWrap) return false;
+
+                            videoWrap.style.position = 'relative';
+
+                            var stage = parentDoc.getElementById('vdt-onvideo-stage');
+                            if (!stage) {{
+                                stage = parentDoc.createElement('div');
+                                stage.id = 'vdt-onvideo-stage';
+                                videoWrap.appendChild(stage);
+                            }} else if (stage.parentElement !== videoWrap) {{
+                                videoWrap.appendChild(stage);
+                            }}
+
+                            stage.style.position = 'absolute';
+                            stage.style.pointerEvents = 'none';
+                            stage.style.zIndex = '30';
+                            stage.style.overflow = 'visible';
+                            stage.style.boxSizing = 'border-box';
+
+                            // Căn khớp vị trí và kích thước stage đúng từng pixel theo video player
+                            var vTop = videoElem.offsetTop || 0;
+                            var vLeft = videoElem.offsetLeft || 0;
+                            var vW = videoElem.offsetWidth || videoElem.clientWidth;
+                            var vH = videoElem.offsetHeight || videoElem.clientHeight;
+
+                            if (vW > 40 && vH > 40) {{
+                                stage.style.top = vTop + 'px';
+                                stage.style.left = vLeft + 'px';
+                                stage.style.width = vW + 'px';
+                                stage.style.height = vH + 'px';
+                            }} else {{
+                                stage.style.top = '0px';
+                                stage.style.left = '0px';
+                                stage.style.width = '100%';
+                                stage.style.height = '100%';
+                            }}
+
+                            // 1. Quản lý Logo Overlay trên mặt video
+                            var logoBox = parentDoc.getElementById('vdt-onvideo-logo');
+                            if (hasLogo && logoSrc) {{
+                                if (!logoBox) {{
+                                    logoBox = parentDoc.createElement('div');
+                                    logoBox.id = 'vdt-onvideo-logo';
+                                    stage.appendChild(logoBox);
+                                }} else if (logoBox.parentElement !== stage) {{
+                                    stage.appendChild(logoBox);
+                                }}
+
+                                logoBox.style.display = 'inline-flex';
+                                logoBox.style.flexDirection = 'column';
+                                logoBox.style.alignItems = 'center';
+                                logoBox.style.position = 'absolute';
+                                if (!isDraggingLogo) {{
+                                    logoBox.style.left = logoX + '%';
+                                    logoBox.style.top = logoY + '%';
+                                }}
+                                logoBox.style.width = logoScale + '%';
+                                logoBox.style.opacity = logoOpacity;
+                                logoBox.style.cursor = 'grab';
+                                logoBox.style.pointerEvents = 'auto';
+                                logoBox.style.zIndex = '40';
+                                logoBox.style.userSelect = 'none';
+                                logoBox.title = 'Bấm giữ chuột để kéo thả logo đến vị trí bất kỳ!';
+
+                                logoBox.innerHTML = '<div style="position: relative; display: inline-block; width: 100%;">' +
+                                                    '  <img src="' + logoSrc + '" style="width: 100%; height: auto; display: block; border: 2px dashed #f97316; border-radius: 6px; box-shadow: 0 0 12px rgba(249,115,22,0.85); background: rgba(0,0,0,0.3); pointer-events: none;" />' +
+                                                    '  <div style="position: absolute; top: -18px; left: 0; background: #f97316; color: #ffffff; font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 3px; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.5); pointer-events: none;">✋ KÉO THẢ LOGO</div>' +
+                                                    '</div>';
+                            }} else if (logoBox) {{
+                                logoBox.style.display = 'none';
+                            }}
+
+                            // 2. Quản lý Phụ đề Overlay trên mặt video
+                            var subBox = parentDoc.getElementById('vdt-onvideo-sub');
+                            if (hasSub) {{
+                                if (!subBox) {{
+                                    subBox = parentDoc.createElement('div');
+                                    subBox.id = 'vdt-onvideo-sub';
+                                    stage.appendChild(subBox);
+                                }} else if (subBox.parentElement !== stage) {{
+                                    stage.appendChild(subBox);
+                                }}
+
+                                subBox.style.display = 'block';
+                                subBox.style.position = 'absolute';
+                                if (!isDraggingSub) {{
+                                    subBox.style.bottom = subBottomPct + '%';
+                                }}
+                                subBox.style.left = '50%';
+                                subBox.style.transform = 'translateX(-50%)';
+                                subBox.style.width = '92%';
+                                subBox.style.maxWidth = '92%';
+                                subBox.style.textAlign = 'center';
+                                subBox.style.cursor = 'ns-resize';
+                                subBox.style.pointerEvents = 'auto';
+                                subBox.style.zIndex = '35';
+                                subBox.style.userSelect = 'none';
+                                subBox.title = 'Bấm giữ chuột để kéo phụ đề lên hoặc xuống trực tiếp trên video!';
+
+                                subBox.innerHTML = '<div style="display: inline-block; max-width: 96%; cursor: ns-resize;">' +
+                                                   '  <div style="background: rgba(56, 189, 248, 0.95); color: #ffffff; font-size: 9px; font-weight: 800; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.6); pointer-events: none;">↕️ KÉO LÊN / XUỐNG ĐỂ ĐỔI VỊ TRÍ PHỤ ĐỀ</div><br>' +
+                                                   '  <div class="vdt-sub-content" style="' + subCss + '; pointer-events: none; border: 1.5px dashed rgba(56, 189, 248, 0.6); border-radius: 6px; display: inline-block; padding: 6px 14px;">' + subText + '</div>' +
+                                                   '</div>';
+                            }} else if (subBox) {{
+                                subBox.style.display = 'none';
+                            }}
+
+                            // 3. Quản lý Chữ mờ chạy bảo vệ bản quyền (Moving Watermark)
+                            var wmBox = parentDoc.getElementById('vdt-onvideo-floating-wm');
+                            if (hasFloatWm && floatWmText) {{
+                                if (!wmBox) {{
+                                    wmBox = parentDoc.createElement('div');
+                                    wmBox.id = 'vdt-onvideo-floating-wm';
+                                    stage.appendChild(wmBox);
+                                }} else if (wmBox.parentElement !== stage) {{
+                                    stage.appendChild(wmBox);
+                                }}
+                                wmBox.style.display = 'block';
+                                wmBox.style.position = 'absolute';
+                                wmBox.style.pointerEvents = 'none';
+                                wmBox.style.zIndex = '28';
+                                wmBox.style.userSelect = 'none';
+                                wmBox.style.whiteSpace = 'nowrap';
+                                wmBox.style.fontSize = floatWmSize + 'px';
+                                wmBox.style.fontWeight = '700';
+                                wmBox.style.color = 'rgba(255, 255, 255, ' + floatWmOpacity + ')';
+                                wmBox.style.textShadow = '1px 1px 2px rgba(0, 0, 0, 0.45)';
+                                wmBox.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+                                wmBox.style.transition = 'left 0.25s linear, top 0.25s linear';
+                                wmBox.textContent = floatWmText;
+                            }} else if (wmBox) {{
+                                wmBox.style.display = 'none';
+                            }}
+
+                            return true;
+                        }}
+
+                        // Thực hiện gắn kết ngay và duy trì đồng bộ liên tục
+                        injectOverlay();
+                        if (parentWin.__vdtVideoHeartbeat) {{
+                            clearInterval(parentWin.__vdtVideoHeartbeat);
+                        }}
+                        parentWin.__vdtVideoHeartbeat = setInterval(function() {{
+                            injectOverlay();
+                        }}, 200);
+
+                        // Đồng bộ phụ đề khớp theo mốc giọng nói khi bấm phát video
+                        if (liveSegs && liveSegs.length > 0) {{
+                            var vElem = parentDoc.querySelector('[data-testid="stVideo"] video') || parentDoc.querySelector('video');
+                            if (vElem && !vElem.__vdtTimeUpdateAttached) {{
+                                vElem.__vdtTimeUpdateAttached = true;
+
+                                function syncSubVisibility() {{
+                                    if (isDraggingSub) return;
+                                    var ct = vElem.currentTime;
+                                    var matched = null;
+                                    for (var sIdx = 0; sIdx < liveSegs.length; sIdx++) {{
+                                        var segStart = liveSegs[sIdx].start;
+                                        var segEnd = liveSegs[sIdx].end;
+                                        if (ct >= segStart && ct <= segEnd) {{
+                                            matched = liveSegs[sIdx].text;
+                                            break;
+                                        }}
+                                    }}
+                                    var sDiv = parentDoc.querySelector('#vdt-onvideo-sub .vdt-sub-content');
+                                    var sBadge = parentDoc.querySelector('#vdt-onvideo-sub .vdt-sub-drag-badge');
+                                    var isPaused = vElem.paused;
+
+                                    if (sBadge) {{
+                                        sBadge.style.display = isPaused ? 'inline-block' : 'none';
+                                    }}
+
+                                    if (sDiv) {{
+                                        if (matched) {{
+                                            sDiv.style.visibility = 'visible';
+                                            sDiv.style.display = 'inline-block';
+                                            if (sDiv.textContent !== matched) {{
+                                                sDiv.textContent = matched;
+                                            }}
+                                        }} else {{
+                                            if (isPaused && ct === 0) {{
+                                                sDiv.style.visibility = 'visible';
+                                                sDiv.style.display = 'inline-block';
+                                                sDiv.textContent = subText;
+                                            }} else {{
+                                                // Hết giọng đọc là phụ đề ẩn đi ngay lập tức, màn hình sạch hoàn toàn
+                                                sDiv.style.visibility = 'hidden';
+                                                sDiv.style.display = 'none';
+                                            }}
+                                        }}
+                                    }}
+                                }}
+
+                                vElem.addEventListener('timeupdate', syncSubVisibility);
+                                vElem.addEventListener('play', syncSubVisibility);
+                                vElem.addEventListener('pause', syncSubVisibility);
+                                vElem.addEventListener('seeked', syncSubVisibility);
+                            }}
+                        }}
+
+                        // Quỹ đạo di chuyển lơ lửng xung quanh video cho chữ mờ bản quyền
+                        if (!parentWin.__vdtWmStartTime) {{
+                            parentWin.__vdtWmStartTime = Date.now();
+                        }}
+                        function animateWatermark() {{
+                            var wmB = parentDoc.getElementById('vdt-onvideo-floating-wm');
+                            if (hasFloatWm && wmB && wmB.style.display !== 'none') {{
+                                var elapsed = (Date.now() - parentWin.__vdtWmStartTime) / 1000.0;
+                                var pX = Math.round(42 + 34 * Math.sin(2 * Math.PI * elapsed / 14));
+                                var pY = Math.round(42 + 34 * Math.cos(2 * Math.PI * elapsed / 19));
+                                wmB.style.left = pX + '%';
+                                wmB.style.top = pY + '%';
+                            }}
+                            parentWin.__vdtWmTimer = setTimeout(animateWatermark, 250);
+                        }}
+                        if (parentWin.__vdtWmTimer) {{
+                            clearTimeout(parentWin.__vdtWmTimer);
+                        }}
+                        animateWatermark();
+
+                        function syncSlider(labelPart, val) {{
+                            var allSliders = parentDoc.querySelectorAll('[data-testid="stSlider"]');
+                            allSliders.forEach(function(s) {{
+                                if (s.textContent && s.textContent.indexOf(labelPart) !== -1) {{
+                                    var inp = s.querySelector('input[type="range"]') || s.querySelector('input');
+                                    if (inp && parseInt(inp.value, 10) !== val) {{
+                                        var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                                        setter.call(inp, val);
+                                        inp.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                        inp.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                    }}
+                                }}
+                            }});
+                        }}
+
+                        if (parentWin.__vdtVideoMouseDownHandler) {{
+                            parentDoc.removeEventListener('mousedown', parentWin.__vdtVideoMouseDownHandler, true);
+                            parentDoc.removeEventListener('mousemove', parentWin.__vdtVideoMouseMoveHandler, true);
+                            parentDoc.removeEventListener('mouseup', parentWin.__vdtVideoMouseUpHandler, true);
+                            parentWin.removeEventListener('mouseup', parentWin.__vdtVideoMouseUpHandler, true);
+                        }}
+
+                        parentWin.__vdtVideoMouseDownHandler = function(e) {{
+                            var logoHit = e.target.closest('#vdt-onvideo-logo');
+                            var subHit = e.target.closest('#vdt-onvideo-sub');
+                            if (!logoHit && !subHit) return;
+
+                            var stage = parentDoc.getElementById('vdt-onvideo-stage');
+                            if (!stage) return;
+
+                            if (logoHit) {{
+                                e.preventDefault();
+                                e.stopPropagation();
+                                isDraggingLogo = true;
+                                isDraggingSub = false;
+                                logoHit.style.cursor = 'grabbing';
+                                startClientX = e.clientX;
+                                startClientY = e.clientY;
+                                initLogoLeft = parseFloat(logoHit.style.left) || logoX;
+                                initLogoTop = parseFloat(logoHit.style.top) || logoY;
+                                return;
+                            }}
+
+                            if (subHit) {{
+                                e.preventDefault();
+                                e.stopPropagation();
+                                isDraggingSub = true;
+                                isDraggingLogo = false;
+                                subHit.style.cursor = 'ns-resize';
+                                startClientY = e.clientY;
+                                initSubBottom = parseFloat(subHit.style.bottom) || subBottomPct;
+                                return;
+                            }}
+                        }};
+
+                        parentWin.__vdtVideoMouseMoveHandler = function(e) {{
+                            if (!isDraggingLogo && !isDraggingSub) return;
+
+                            var stage = parentDoc.getElementById('vdt-onvideo-stage');
+                            var indicator = parentDoc.getElementById('vdt-live-coords-indicator');
+                            if (!stage) return;
+
+                            var rect = stage.getBoundingClientRect();
+                            var sW = rect.width || 1;
+                            var sH = rect.height || 1;
+
+                            if (isDraggingLogo) {{
+                                var dx = e.clientX - startClientX;
+                                var dy = e.clientY - startClientY;
+                                var newLeftPx = (initLogoLeft / 100 * sW) + dx;
+                                var newTopPx = (initLogoTop / 100 * sH) + dy;
+                                var pX = Math.max(0, Math.min(94, Math.round((newLeftPx / sW) * 100)));
+                                var pY = Math.max(0, Math.min(94, Math.round((newTopPx / sH) * 100)));
+
+                                var lBox = parentDoc.getElementById('vdt-onvideo-logo');
+                                if (lBox) {{
+                                    lBox.style.left = pX + '%';
+                                    lBox.style.top = pY + '%';
+                                }}
+                                if (indicator) {{
+                                    indicator.innerHTML = '📍 <span style="color:#f97316; font-weight:800;">Logo:</span> X=' + pX + '% | Y=' + pY + '%';
+                                }}
+                            }}
+
+                            if (isDraggingSub) {{
+                                var dySub = e.clientY - startClientY;
+                                var newBottomPx = (initSubBottom / 100 * sH) - dySub;
+                                var pBottom = Math.max(1, Math.min(50, Math.round((newBottomPx / sH) * 100)));
+
+                                var sBox = parentDoc.getElementById('vdt-onvideo-sub');
+                                if (sBox) {{
+                                    sBox.style.bottom = pBottom + '%';
+                                }}
+                                if (indicator) {{
+                                    indicator.innerHTML = '📍 <span style="color:#38bdf8; font-weight:800;">Phụ đề:</span> Cách đáy ' + pBottom + '%';
+                                }}
+                            }}
+                        }};
+
+                        parentWin.__vdtVideoMouseUpHandler = function(e) {{
+                            var indicator = parentDoc.getElementById('vdt-live-coords-indicator');
+                            if (isDraggingLogo) {{
+                                isDraggingLogo = false;
+                                var lBox = parentDoc.getElementById('vdt-onvideo-logo');
+                                if (lBox) {{
+                                    lBox.style.cursor = 'grab';
+                                    var fX = Math.round(parseFloat(lBox.style.left) || 0);
+                                    var fY = Math.round(parseFloat(lBox.style.top) || 0);
+                                    syncSlider('Tọa độ ngang X', fX);
+                                    syncSlider('Tọa độ dọc Y', fY);
+                                    if (indicator) indicator.innerHTML = '✅ <b style="color:#f97316">Đã lưu Logo:</b> X=' + fX + '% | Y=' + fY + '%';
+                                }}
+                            }}
+
+                            if (isDraggingSub) {{
+                                isDraggingSub = false;
+                                var sBox = parentDoc.getElementById('vdt-onvideo-sub');
+                                if (sBox) {{
+                                    sBox.style.cursor = 'ns-resize';
+                                    var fB = Math.round(parseFloat(sBox.style.bottom) || 0);
+                                    syncSlider('Độ cao cách đáy video', fB);
+                                    if (indicator) indicator.innerHTML = '✅ <b style="color:#38bdf8">Đã lưu Phụ đề:</b> Cách đáy ' + fB + '%';
+                                }}
+                            }}
+                        }};
+
+                        parentDoc.addEventListener('mousedown', parentWin.__vdtVideoMouseDownHandler, true);
+                        parentDoc.addEventListener('mousemove', parentWin.__vdtVideoMouseMoveHandler, true);
+                        parentDoc.addEventListener('mouseup', parentWin.__vdtVideoMouseUpHandler, true);
+                        parentWin.addEventListener('mouseup', parentWin.__vdtVideoMouseUpHandler, true);
+
+                    }} catch(err) {{
+                        console.error('Live Video Overlay Studio error:', err);
+                    }}
+                }})();
+                </script>
+                </body></html>
+                """
+                components.html(live_video_overlay_js, height=0)
+
             else:
                 st.info("💡 Kéo thả hoặc chọn tệp video bạn muốn chuyển ngữ & lồng tiếng.")
 
@@ -1985,6 +2688,7 @@ with tab_dubbing:
                 key="dub_voice_select"
             )
             dub_selected_voice_id = target_catalog[dub_selected_voice_name]
+            st.caption("✨ **Chuẩn chất giọng nhân vật:** Giữ nguyên 100% âm sắc sáng rõ, đúng cao độ bản quyền, không bị trầm đục và triệt tiêu hoàn toàn hiện tượng lẫn 2 giọng.")
 
             with st.expander("🛠️ Cấu hình Nâng cao (Mô hình Whisper & Nhạc nền)", expanded=False):
                 col_w1, col_w2 = st.columns(2)
@@ -2000,10 +2704,10 @@ with tab_dubbing:
                         "Âm lượng nhạc nền gốc (Ducking):",
                         min_value=0.0,
                         max_value=1.0,
-                        value=0.15,
-                        step=0.05,
+                        value=0.08,
+                        step=0.02,
                         format="%.2f",
-                        help="0.15 = 15% (giảm nhỏ nhạc nền gốc để nghe rõ giọng lồng tiếng mới)"
+                        help="0.08 = 8% (giữ tiếng động/nhạc nền phim nhẹ nhàng, tự động tắt hẳn khi có giọng nói để không bị lẫn tiếng)"
                     )
                 
                 col_s1, col_s2 = st.columns(2)
@@ -2036,7 +2740,25 @@ with tab_dubbing:
     dub_progress_slot = st.empty()
 
     if btn_start_dubbing and uploaded_video is not None:
+        # Xóa sạch kết quả video và phụ đề cũ khỏi session để đảm bảo kết quả tải về luôn là video mới nhất vừa xuất
+        st.session_state.pop("dubbed_video_path", None)
+        st.session_state.pop("dubbed_srt_path", None)
+        st.session_state.pop("dub_preview_segments", None)
+
         try:
+            # Hot reload toàn bộ modules để cập nhật merger, pipeline, config tức thì
+            import importlib
+            import config
+            import video_dubber.merger
+            import video_dubber.translator
+            import video_dubber.synchronizer
+            import video_dubber.pipeline
+            importlib.reload(config)
+            importlib.reload(video_dubber.merger)
+            importlib.reload(video_dubber.translator)
+            importlib.reload(video_dubber.synchronizer)
+            importlib.reload(video_dubber.pipeline)
+
             dub_progress_slot.progress(0, text="Đang chuẩn bị tệp video và khởi tạo pipeline...")
             
             temp_dir = Path("./temp")
@@ -2052,7 +2774,18 @@ with tab_dubbing:
 
             out_video_path = output_dir / f"{safe_stem}_dubbed_{dub_tgt_lang}_{timestamp}.mp4"
 
-            dub_config = DubbingConfig(
+            logo_file_path = None
+            if st.session_state.get("dub_enable_logo", True):
+                if st.session_state.get("dub_logo_uploader") is not None:
+                    u_logo = st.session_state["dub_logo_uploader"]
+                    logo_ext = Path(u_logo.name).suffix or ".png"
+                    logo_file_path = temp_dir / f"logo_{safe_stem}_{timestamp}{logo_ext}"
+                    with open(logo_file_path, "wb") as f_l:
+                        f_l.write(u_logo.getbuffer())
+                elif Path("assets/author.png").exists():
+                    logo_file_path = Path("assets/author.png")
+
+            dub_config = config.DubbingConfig(
                 whisper_model=whisper_model,
                 device="cpu",
                 compute_type=compute_type,
@@ -2063,13 +2796,21 @@ with tab_dubbing:
                 max_speed_factor=dub_speed_factor,
                 temp_dir=temp_dir,
                 output_dir=output_dir,
+                enable_logo=bool(logo_file_path is not None and Path(logo_file_path).exists()),
+                logo_path=logo_file_path,
+                logo_x_pct=float(st.session_state.get("dub_logo_x", 80)) / 100.0,
+                logo_y_pct=float(st.session_state.get("dub_logo_y", 5)) / 100.0,
+                logo_scale=float(st.session_state.get("dub_logo_scale", 18)) / 100.0,
+                logo_opacity=float(st.session_state.get("dub_logo_opacity", 90)) / 100.0,
+                burn_subtitles=st.session_state.get("dub_burn_subtitles", True),
+                subtitle_font_size=st.session_state.get("dub_sub_font_size", 26),
+                subtitle_style=st.session_state.get("dub_sub_style_select", "black_box"),
+                subtitle_margin_v=int(float(st.session_state.get("dub_sub_bottom_pct", 7)) * 7.5),
+                enable_floating_watermark=bool(st.session_state.get("dub_enable_float_wm", True)),
+                floating_watermark_text=st.session_state.get("dub_float_wm_text", "@gocphimcuon"),
+                floating_watermark_font_size=st.session_state.get("dub_float_wm_size", 18),
+                floating_watermark_opacity=float(st.session_state.get("dub_float_wm_opacity", 30)) / 100.0,
             )
-
-            import importlib
-            import video_dubber.translator
-            import video_dubber.pipeline
-            importlib.reload(video_dubber.translator)
-            importlib.reload(video_dubber.pipeline)
 
             pipeline = video_dubber.pipeline.VideoDubberPipeline(dub_config)
 
@@ -2088,6 +2829,11 @@ with tab_dubbing:
 
             st.session_state["dubbed_video_path"] = str(final_video_file)
             st.session_state["dubbed_srt_path"] = str(final_video_file.with_suffix(".srt"))
+            if hasattr(pipeline, "last_segments") and pipeline.last_segments:
+                st.session_state["dub_preview_segments"] = [
+                    {"start": s.start, "end": getattr(s, "sub_end", None) if getattr(s, "sub_end", None) is not None else s.end, "text": s.translated_text or s.text}
+                    for s in pipeline.last_segments
+                ]
             st.session_state["dubbed_video_title"] = f"{safe_stem}_dubbed_{dub_tgt_lang}"
             st.toast("🎉 Đã hoàn tất lồng tiếng video AI!", icon="🎬")
             st.rerun()
@@ -2104,11 +2850,146 @@ with tab_dubbing:
         c_res_v, c_res_info = st.columns([1.2, 0.8], gap="medium")
         
         with c_res_v:
+            # Chỉ phát video MP4 thuần đã có phụ đề cứng (hardsub), không truyền soft-sub track để tránh bị trùng đè chữ
             st.video(active_dubbed_video)
         
         with c_res_info:
             with st.container(border=True):
                 st.markdown("#### 📥 Tải xuống & Xuất bản")
+
+                btn_reburn = st.button(
+                    "🔥 ĐỐT LẠI PHỤ ĐỀ & CHỮ MỜ VÀO MP4 NGAY (Vài giây)",
+                    use_container_width=True,
+                    help="Ghi đè trực tiếp phụ đề và chữ mờ bản quyền vào video MP4 để tải về mà không cần dịch hay sinh giọng lại"
+                )
+                if btn_reburn:
+                    with st.spinner("⏳ Đang ghi đè phụ đề tiếng Việt và chữ mờ bản quyền vào video MP4..."):
+                        try:
+                            import importlib
+                            import re as re_mod
+                            import config
+                            import video_dubber.merger
+                            importlib.reload(config)
+                            importlib.reload(video_dubber.merger)
+
+                            cur_v = Path(active_dubbed_video)
+                            v_stem = cur_v.stem
+                            m_match = re_mod.search(r"^(.*)_dubbed_[a-zA-Z0-9]+_(\d{8}_\d{6})$", v_stem)
+                            ts_key = m_match.group(2) if m_match else ""
+                            orig_stem = f"{m_match.group(1)}_{ts_key}" if m_match else v_stem
+
+                            in_v = Path("temp") / f"{orig_stem}.mp4"
+                            in_a = Path("temp") / orig_stem / "mixed_final.wav"
+                            in_srt = Path(st.session_state.get("dubbed_srt_path", str(cur_v.with_suffix(".srt"))))
+
+                            if not in_v.exists() and ts_key:
+                                cand_v = list(Path("temp").glob(f"*{ts_key}*.mp4"))
+                                if cand_v:
+                                    in_v = cand_v[0]
+
+                            if not in_a.exists() and ts_key:
+                                cand_a = list(Path("temp").glob(f"*{ts_key}*/mixed_final.wav"))
+                                if cand_a:
+                                    in_a = cand_a[0]
+
+                            if in_v.exists() and in_a.exists() and in_srt.exists():
+                                # Đồng bộ mốc thời gian phụ đề theo thời lượng giọng đọc AI thực tế
+                                tts_seg_dir = Path("temp") / orig_stem / "tts_segments"
+                                orig_aud_file = Path("temp") / orig_stem / "original_audio.wav"
+                                if tts_seg_dir.exists() and in_srt.exists():
+                                    try:
+                                        import wave
+                                        import video_dubber.synchronizer
+                                        importlib.reload(video_dubber.synchronizer)
+                                        items = video_dubber.merger.parse_srt_file(in_srt)
+                                        new_srt_lines = []
+                                        updated_preview_segs = []
+                                        seg_objs = []
+                                        for idx, (s_start, s_end, s_text) in enumerate(items):
+                                            f_cand = tts_seg_dir / f"seg_{idx:04d}.wav"
+                                            if f_cand.exists():
+                                                try:
+                                                    with wave.open(str(f_cand), "rb") as wf:
+                                                        clip_d = wf.getnframes() / float(wf.getframerate())
+                                                    s_finish = round(s_start + clip_d, 3)
+                                                    if idx + 1 < len(items):
+                                                        next_st = items[idx + 1][0]
+                                                        if s_finish > next_st:
+                                                            s_finish = next_st
+                                                    s_end = s_finish
+                                                except Exception:
+                                                    pass
+                                            def fmt_t(sec):
+                                                ms = int(round((sec % 1) * 1000))
+                                                if ms >= 1000:
+                                                    ms = 999
+                                                s = int(sec)
+                                                h = s // 3600
+                                                m = (s % 3600) // 60
+                                                s = s % 60
+                                                return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+                                            new_srt_lines.append(f"{idx+1}\n{fmt_t(s_start)} --> {fmt_t(s_end)}\n{s_text}\n")
+                                            updated_preview_segs.append({"start": s_start, "end": s_end, "text": s_text})
+
+                                            from video_dubber.transcriber import Segment
+                                            seg_objs.append(Segment(
+                                                id=idx,
+                                                start=s_start,
+                                                end=s_end,
+                                                text=s_text,
+                                                translated_text=s_text,
+                                                tts_audio_path=str(f_cand)
+                                            ))
+
+                                        in_srt.write_text("\n".join(new_srt_lines), encoding="utf-8")
+                                        if updated_preview_segs:
+                                            st.session_state["dub_preview_segments"] = updated_preview_segs
+
+                                        # Tái tổng hợp luồng audio giọng đọc thuần khiết chuẩn 100% âm sắc nhân vật & triệt tiêu tiếng gốc
+                                        if orig_aud_file.exists() and seg_objs:
+                                            from pydub import AudioSegment
+                                            v_tot_dur = len(AudioSegment.from_file(str(orig_aud_file))) / 1000.0
+                                            syncer = video_dubber.synchronizer.AudioSynchronizer(max_speed_factor=dub_speed_factor)
+                                            dub_assem_path = Path("temp") / orig_stem / "dubbed_assembled.wav"
+                                            syncer.align_and_assemble(seg_objs, v_tot_dur, dub_assem_path)
+                                            
+                                            merg_mix = video_dubber.merger.VideoMerger(original_audio_volume=bg_music_vol)
+                                            merg_mix.mix_audios(
+                                                original_audio_path=orig_aud_file,
+                                                dubbed_audio_path=dub_assem_path,
+                                                output_mixed_audio_path=in_a,
+                                                segments=seg_objs,
+                                                mute_original_dialogue=True
+                                            )
+                                    except Exception as ex_re_audio:
+                                        logger.warning(f"Note during audio re-assembly: {ex_re_audio}")
+
+                                logo_f = Path("assets/author.png") if Path("assets/author.png").exists() else None
+                                merger_inst = video_dubber.merger.VideoMerger(original_audio_volume=bg_music_vol)
+                                merger_inst.merge_video(
+                                    video_path=in_v,
+                                    audio_path=in_a,
+                                    output_video_path=cur_v,
+                                    subtitle_path=in_srt,
+                                    subtitle_font_size=st.session_state.get("dub_sub_font_size", 26),
+                                    subtitle_style=st.session_state.get("dub_sub_style_select", "black_box"),
+                                    subtitle_margin_v=int(float(st.session_state.get("dub_sub_bottom_pct", 7)) * 7.5),
+                                    logo_path=logo_f if st.session_state.get("dub_enable_logo", True) else None,
+                                    logo_x_pct=float(st.session_state.get("dub_logo_x", 80)) / 100.0,
+                                    logo_y_pct=float(st.session_state.get("dub_logo_y", 5)) / 100.0,
+                                    logo_scale=float(st.session_state.get("dub_logo_scale", 18)) / 100.0,
+                                    logo_opacity=float(st.session_state.get("dub_logo_opacity", 90)) / 100.0,
+                                    floating_watermark_text=st.session_state.get("dub_float_wm_text", "@gocphimcuon") if st.session_state.get("dub_enable_float_wm", True) else None,
+                                    floating_watermark_font_size=st.session_state.get("dub_float_wm_size", 18),
+                                    floating_watermark_opacity=float(st.session_state.get("dub_float_wm_opacity", 30)) / 100.0,
+                                )
+                                st.toast("✅ Đã ghi đè phụ đề cứng và chữ mờ vào video thành công!", icon="🎬")
+                                st.rerun()
+                            else:
+                                st.error("Không tìm thấy tệp tạm để ghép nhanh. Vui lòng bấm '🚀 BẮT ĐẦU LỒNG TIẾNG VIDEO' để xuất mới.")
+                        except Exception as ex_reburn:
+                            st.error(f"Lỗi khi đốt lại phụ đề: {ex_reburn}")
+
                 v_bytes = Path(active_dubbed_video).read_bytes()
                 v_name = Path(active_dubbed_video).name
                 st.download_button(
@@ -2137,6 +3018,7 @@ with tab_dubbing:
                         <div style="color: #f8fafc; font-weight: 700; margin-bottom: 6px;">Chi tiết bản xuất:</div>
                         • <strong>Tên tệp:</strong> {v_name}<br>
                         • <strong>Dung lượng:</strong> {len(v_bytes)/(1024*1024):.2f} MB<br>
+                        • <strong>Phụ đề:</strong> Đã ghi trực tiếp vào video (Hardsub) & Sẵn sàng tệp .SRT rời<br>
                         • <strong>Trạng thái:</strong> Âm thanh & Hình ảnh đã đồng bộ hoàn hảo
                     </div>
                     """,

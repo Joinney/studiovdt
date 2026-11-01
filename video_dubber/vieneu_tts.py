@@ -464,36 +464,24 @@ def apply_acoustic_fx(
     elif "denoise" in mode or "ai" in mode:
         # AI DENOISE: Cắt lọc dải tần rác và làm nổi bật tần số trung âm của giọng nói
         try:
-            # Triệt tiêu ù nền tần số thấp dưới 110Hz
+            # Triệt tiêu ù nền tần số thấp dưới 80Hz
             try:
-                clean = sound.high_pass_filter(110)
-            except Exception:
-                clean = sound
-            # Triệt tiêu tiếng xì hiss điện tử trên 11500Hz
-            try:
-                clean = clean.low_pass_filter(11500)
+                sound = sound.high_pass_filter(80)
             except Exception:
                 pass
-            # Kích hoạt Vocal Clarity Boost (1800Hz - 4200Hz) giúp giọng đọc trong và rõ từng phụ âm
+            # Triệt tiêu tiếng xì hiss điện tử trên 12000Hz
             try:
-                clarity = clean.high_pass_filter(1800).low_pass_filter(4200).apply_gain(2.2)
-                sound = clean.overlay(clarity)
+                sound = sound.low_pass_filter(12000)
             except Exception:
-                sound = clean
+                pass
         except Exception as de_err:
             logger.warning(f"AI Denoise DSP note: {de_err}")
 
     else:
-        # STUDIO DRY: Chuẩn phòng thu tiêu âm mộc, trong trẻo, không vang
+        # STUDIO DRY: Chuẩn phòng thu tiêu âm mộc, trong trẻo, sáng rõ, giữ nguyên 100% âm sắc nhân vật
         try:
-            # Lọc rung mic cận âm dưới 85Hz
-            clean = sound.high_pass_filter(85)
-            # Tăng độ sáng tự nhiên cho dải cao (Air Band trên 4000Hz)
-            try:
-                sparkle = clean.high_pass_filter(4000).apply_gain(1.6)
-                sound = clean.overlay(sparkle)
-            except Exception:
-                sound = clean
+            # Lọc nhẹ tạp âm cận âm dưới 70Hz (chống rung mic)
+            sound = sound.high_pass_filter(70)
         except Exception as dr_err:
             logger.warning(f"Studio Dry DSP note: {dr_err}")
 
