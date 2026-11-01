@@ -48,9 +48,9 @@ def find_ffmpeg_binary() -> str:
 def srt_to_ass(
     srt_path: Union[str, Path],
     ass_path: Union[str, Path],
-    font_size: int = 26,
-    style: str = "black_box",
-    margin_v: int = 30
+    font_size: int = 28,
+    style: str = "white_outline",
+    margin_v: int = 35
 ) -> Path:
     """
     Converts standard SRT file to Advanced SubStation Alpha (.ass) format.
@@ -59,32 +59,33 @@ def srt_to_ass(
     srt_path = Path(srt_path)
     ass_path = Path(ass_path)
     
-    f_size = max(12, min(42, int(font_size)))
+    f_size = max(16, min(48, int(font_size)))
     mv = max(6, min(240, int(margin_v)))
 
-    if style == "white_outline":
-        primary_color = "&H00FFFFFF"
-        outline_color = "&H00000000"
-        back_color = "&H00000000"
-        border_style = 1
-        outline_width = 2.5
-        shadow_depth = 1.0
-    elif style == "black_box":
+    if style == "black_box":
         # Pure White text on semi-transparent dark box background (Netflix / Cinema style)
         primary_color = "&H00FFFFFF"
         outline_color = "&H00000000"
-        back_color = "&H90000000"
+        back_color = "&H85000000"
         border_style = 3
-        outline_width = 3.5
+        outline_width = 2.5
         shadow_depth = 0
-    else:
-        # Default yellow_outline (TikTok / Reels / Shorts standard)
+    elif style == "yellow_outline":
+        # Yellow text with black outline (TikTok / Reels style)
         primary_color = "&H0000FFFF"
         outline_color = "&H00000000"
         back_color = "&H00000000"
         border_style = 1
-        outline_width = 2.5
-        shadow_depth = 1.2
+        outline_width = 3.0
+        shadow_depth = 1.0
+    else:
+        # Default white_outline (Chuẩn điện ảnh: Chữ trắng viền đen sắc nét, nổi bật trên mọi cảnh phim)
+        primary_color = "&H00FFFFFF"
+        outline_color = "&H00000000"
+        back_color = "&H00000000"
+        border_style = 1
+        outline_width = 3.0
+        shadow_depth = 1.0
 
     header = (
         "[Script Info]\n"
@@ -242,7 +243,9 @@ def create_sub_png(
     if not clean_text:
         return out_path
 
-    f_size = max(14, min(42, int(font_size)))
+    # Tự động co giãn cỡ chữ theo độ phân giải video thực tế (1280, 1920, 2K, 4K)
+    scale_factor = max(0.85, min(2.5, max_video_width / 1280.0))
+    f_size = max(18, min(56, int(font_size * scale_factor)))
     font = None
     for cand in [
         "arial.ttf", "Arial.ttf",
@@ -300,18 +303,26 @@ def create_sub_png(
 
     if style == "black_box":
         # Rounded semi-transparent black background box with crisp white text
-        draw.rounded_rectangle([(0, 0), (total_w - 1, total_h - 1)], radius=8, fill=(0, 0, 0, 205))
+        draw.rounded_rectangle([(0, 0), (total_w - 1, total_h - 1)], radius=6, fill=(0, 0, 0, 185))
         for idx, (ln, lw) in enumerate(zip(lines, line_bboxes)):
             lx = pad_x + (max_line_w - lw) // 2
             ly = pad_y + idx * line_height
             draw.text((lx, ly), ln, fill=(255, 255, 255, 255), font=font)
-    else:
-        txt_color = (255, 255, 255, 255) if style == "white_outline" else (255, 235, 59, 255)
+    elif style == "yellow_outline":
+        txt_color = (255, 235, 59, 255)
         for idx, (ln, lw) in enumerate(zip(lines, line_bboxes)):
             lx = pad_x + (max_line_w - lw) // 2
             ly = pad_y + idx * line_height
-            # Heavy black outline (12 offset points) for maximum readability on any video background
-            for dx, dy in [(-2,-2), (-2,0), (-2,2), (0,-2), (0,2), (2,-2), (2,0), (2,2), (-1,-1), (1,1), (-1,1), (1,-1)]:
+            for dx, dy in [(-3,-3), (-3,0), (-3,3), (0,-3), (0,3), (3,-3), (3,0), (3,3), (-2,-2), (2,2), (-2,2), (2,-2), (-1,-1), (1,1), (-1,1), (1,-1)]:
+                draw.text((lx + dx, ly + dy), ln, fill=(0, 0, 0, 255), font=font)
+            draw.text((lx, ly), ln, fill=txt_color, font=font)
+    else:
+        # Default: Pure white text with crisp deep black outline (Chuẩn điện ảnh)
+        txt_color = (255, 255, 255, 255)
+        for idx, (ln, lw) in enumerate(zip(lines, line_bboxes)):
+            lx = pad_x + (max_line_w - lw) // 2
+            ly = pad_y + idx * line_height
+            for dx, dy in [(-3,-3), (-3,0), (-3,3), (0,-3), (0,3), (3,-3), (3,0), (3,3), (-2,-2), (2,2), (-2,2), (2,-2), (-1,-1), (1,1), (-1,1), (1,-1)]:
                 draw.text((lx + dx, ly + dy), ln, fill=(0, 0, 0, 255), font=font)
             draw.text((lx, ly), ln, fill=txt_color, font=font)
 
@@ -391,9 +402,9 @@ class VideoMerger:
         audio_path: Union[str, Path],
         output_video_path: Union[str, Path],
         subtitle_path: Optional[Union[str, Path]] = None,
-        subtitle_font_size: int = 26,
-        subtitle_style: str = "black_box",
-        subtitle_margin_v: int = 30,
+        subtitle_font_size: int = 28,
+        subtitle_style: str = "white_outline",
+        subtitle_margin_v: int = 35,
         logo_path: Optional[Union[str, Path]] = None,
         logo_x_pct: float = 0.80,
         logo_y_pct: float = 0.05,

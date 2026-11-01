@@ -1932,10 +1932,10 @@ with tab_dubbing:
         with st.container(border=True):
             st.markdown("##### 📁 Bước 1: Màn hình Studio — Tải lên & Xem trước Trực tiếp trên Video")
             uploaded_video = st.file_uploader(
-                "Chọn tệp Video (MP4, MKV, MOV, AVI)",
+                "Chọn tệp Video (MP4, MKV, MOV, AVI) — Hỗ trợ tệp lớn đến 2 GB (2048 MB):",
                 type=["mp4", "mkv", "mov", "avi"],
                 key="dub_video_file_uploader",
-                help="Hỗ trợ các định dạng video thông dụng"
+                help="Hệ thống đã nâng cấp giới hạn tải lên tối đa đến 2048 MB (2.0 GB). Thoải mái tải video Full HD, phim dài tập chất lượng cao."
             )
 
             if uploaded_video is not None:
@@ -2111,10 +2111,10 @@ with tab_dubbing:
                     with c_sb1:
                         sub_style = st.selectbox(
                             "Kiểu hiển thị chữ:",
-                            options=["black_box", "white_outline", "yellow_outline"],
+                            options=["white_outline", "black_box", "yellow_outline"],
                             format_func=lambda x: {
-                                "black_box": "⬛ Chữ trắng nền hộp đen mờ (Chuẩn Netflix / Điện ảnh)",
-                                "white_outline": "⚪ Chữ trắng viền đen (Chuẩn Phim truyện / TV)",
+                                "white_outline": "⚪ Chữ trắng viền đen sắc nét (Chuẩn Điện Ảnh / Phim Truyện)",
+                                "black_box": "⬛ Chữ trắng nền hộp đen mờ (Chuẩn Netflix)",
                                 "yellow_outline": "🟡 Chữ vàng viền đen (Chuẩn TikTok / Reels)",
                             }.get(x, x),
                             index=0,
@@ -2124,7 +2124,7 @@ with tab_dubbing:
                             "Cỡ chữ phụ đề (Font Size):",
                             min_value=16,
                             max_value=48,
-                            value=26,
+                            value=st.session_state.get("dub_sub_font_size", 28),
                             step=1,
                             key="dub_sub_font_size"
                         )
@@ -2237,12 +2237,12 @@ with tab_dubbing:
                         st.info("Di chuyển lơ lửng liên tục xung quanh 4 góc & trung tâm video theo chu kỳ sóng mượt mà.")
 
                 # Computed Subtitle CSS cho hiển thị trực quan
-                if sub_style == "white_outline":
-                    computed_sub_css = f"font-size: {sub_font_size}px; font-weight: 800; color: #ffffff; text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 2px 0 #000, 0 -2px 0 #000, 2px 0 0 #000, -2px 0 0 #000; font-family: system-ui, -apple-system, sans-serif; line-height: 1.3;"
-                elif sub_style == "black_box":
-                    computed_sub_css = f"font-size: {sub_font_size}px; font-weight: 800; color: #ffffff; background: rgba(0, 0, 0, 0.82); padding: 5px 16px; border-radius: 6px; display: inline-block; font-family: system-ui, -apple-system, sans-serif; line-height: 1.35;"
-                else:
+                if sub_style == "black_box":
+                    computed_sub_css = f"font-size: {sub_font_size}px; font-weight: 800; color: #ffffff; background: rgba(0, 0, 0, 0.78); padding: 4px 14px; border-radius: 6px; display: inline-block; font-family: system-ui, -apple-system, sans-serif; line-height: 1.35; box-shadow: 0 2px 8px rgba(0,0,0,0.6);"
+                elif sub_style == "yellow_outline":
                     computed_sub_css = f"font-size: {sub_font_size}px; font-weight: 800; color: #ffeb3b; text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 2px 0 #000, 0 -2px 0 #000, 2px 0 0 #000, -2px 0 0 #000; font-family: system-ui, -apple-system, sans-serif; line-height: 1.3;"
+                else: # white_outline chuẩn điện ảnh
+                    computed_sub_css = f"font-size: {sub_font_size}px; font-weight: 800; color: #ffffff; text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 2px 0 #000, 0 -2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 0 6px rgba(0,0,0,0.9); font-family: system-ui, -apple-system, sans-serif; line-height: 1.3;"
 
                 # Bộ Engine JavaScript: Gắn trực tiếp Logo & Phụ đề Kéo Thả lên Mặt Video
                 live_video_overlay_js = f"""
@@ -2279,10 +2279,21 @@ with tab_dubbing:
                         var initSubBottom = subBottomPct;
 
                         function injectOverlay() {{
-                            var videoElem = parentDoc.querySelector('[data-testid="stVideo"] video') ||
-                                            parentDoc.querySelector('video');
-                            if (!videoElem) return false;
+                            var allVideos = parentDoc.querySelectorAll('[data-testid="stVideo"] video, video');
+                            if (!allVideos || allVideos.length === 0) return false;
 
+                            // Tuyệt đối không gắn overlay lên video kết quả (Step 4) để không bao giờ bị đè 2 tầng chữ
+                            if (allVideos.length > 1) {{
+                                for (var vi = 1; vi < allVideos.length; vi++) {{
+                                    var rWrap = allVideos[vi].closest('[data-testid="stVideo"]') || allVideos[vi].parentElement;
+                                    if (rWrap) {{
+                                        var badStage = rWrap.querySelector('#vdt-onvideo-stage');
+                                        if (badStage) badStage.remove();
+                                    }}
+                                }}
+                            }}
+
+                            var videoElem = allVideos[0];
                             var videoWrap = videoElem.closest('[data-testid="stVideo"]') || videoElem.parentElement;
                             if (!videoWrap) return false;
 
@@ -2367,7 +2378,6 @@ with tab_dubbing:
                                     stage.appendChild(subBox);
                                 }}
 
-                                subBox.style.display = 'block';
                                 subBox.style.position = 'absolute';
                                 if (!isDraggingSub) {{
                                     subBox.style.bottom = subBottomPct + '%';
@@ -2383,10 +2393,26 @@ with tab_dubbing:
                                 subBox.style.userSelect = 'none';
                                 subBox.title = 'Bấm giữ chuột để kéo phụ đề lên hoặc xuống trực tiếp trên video!';
 
-                                subBox.innerHTML = '<div style="display: inline-block; max-width: 96%; cursor: ns-resize;">' +
-                                                   '  <div style="background: rgba(56, 189, 248, 0.95); color: #ffffff; font-size: 9px; font-weight: 800; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.6); pointer-events: none;">↕️ KÉO LÊN / XUỐNG ĐỂ ĐỔI VỊ TRÍ PHỤ ĐỀ</div><br>' +
-                                                   '  <div class="vdt-sub-content" style="' + subCss + '; pointer-events: none; border: 1.5px dashed rgba(56, 189, 248, 0.6); border-radius: 6px; display: inline-block; padding: 6px 14px;">' + subText + '</div>' +
-                                                   '</div>';
+                                var contentEl = subBox.querySelector('.vdt-sub-content');
+                                if (!contentEl) {{
+                                    subBox.innerHTML = '<div style="display: inline-block; max-width: 96%; cursor: ns-resize;">' +
+                                                       '  <div class="vdt-sub-drag-badge" style="background: rgba(56, 189, 248, 0.95); color: #ffffff; font-size: 9px; font-weight: 800; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.6); pointer-events: none;">↕️ KÉO LÊN / XUỐNG ĐỂ ĐỔI VỊ TRÍ PHỤ ĐỀ</div><br>' +
+                                                       '  <div class="vdt-sub-content" style="' + subCss + '; pointer-events: none; border: 1.5px dashed rgba(56, 189, 248, 0.6); border-radius: 6px; display: inline-block; padding: 6px 14px;">' + subText + '</div>' +
+                                                       '</div>';
+                                }} else {{
+                                    contentEl.style.cssText = subCss + '; pointer-events: none; border: 1.5px dashed rgba(56, 189, 248, 0.6); border-radius: 6px; display: inline-block; padding: 6px 14px;';
+                                    // Chỉ hiện mẫu khi video đang dừng ở giây 0
+                                    if (videoElem.paused && videoElem.currentTime === 0) {{
+                                        subBox.style.display = 'block';
+                                        contentEl.style.visibility = 'visible';
+                                        contentEl.style.display = 'inline-block';
+                                        var sb = subBox.querySelector('.vdt-sub-drag-badge');
+                                        if (sb) sb.style.display = 'inline-block';
+                                        if (contentEl.textContent !== subText) {{
+                                            contentEl.textContent = subText;
+                                        }}
+                                    }}
+                                }}
                             }} else if (subBox) {{
                                 subBox.style.display = 'none';
                             }}
@@ -2431,15 +2457,15 @@ with tab_dubbing:
                         }}, 200);
 
                         // Đồng bộ phụ đề khớp theo mốc giọng nói khi bấm phát video
-                        if (liveSegs && liveSegs.length > 0) {{
-                            var vElem = parentDoc.querySelector('[data-testid="stVideo"] video') || parentDoc.querySelector('video');
-                            if (vElem && !vElem.__vdtTimeUpdateAttached) {{
-                                vElem.__vdtTimeUpdateAttached = true;
+                        var vElem = parentDoc.querySelector('[data-testid="stVideo"] video') || parentDoc.querySelector('video');
+                        if (vElem && !vElem.__vdtTimeUpdateAttached) {{
+                            vElem.__vdtTimeUpdateAttached = true;
 
-                                function syncSubVisibility() {{
-                                    if (isDraggingSub) return;
-                                    var ct = vElem.currentTime;
-                                    var matched = null;
+                            function syncSubVisibility() {{
+                                if (isDraggingSub) return;
+                                var ct = vElem.currentTime;
+                                var matched = null;
+                                if (liveSegs && liveSegs.length > 0) {{
                                     for (var sIdx = 0; sIdx < liveSegs.length; sIdx++) {{
                                         var segStart = liveSegs[sIdx].start;
                                         var segEnd = liveSegs[sIdx].end;
@@ -2448,40 +2474,46 @@ with tab_dubbing:
                                             break;
                                         }}
                                     }}
-                                    var sDiv = parentDoc.querySelector('#vdt-onvideo-sub .vdt-sub-content');
-                                    var sBadge = parentDoc.querySelector('#vdt-onvideo-sub .vdt-sub-drag-badge');
-                                    var isPaused = vElem.paused;
+                                }}
+                                var subBox = parentDoc.getElementById('vdt-onvideo-sub');
+                                var sDiv = parentDoc.querySelector('#vdt-onvideo-sub .vdt-sub-content');
+                                var sBadge = parentDoc.querySelector('#vdt-onvideo-sub .vdt-sub-drag-badge');
+                                var isPaused = vElem.paused;
 
-                                    if (sBadge) {{
-                                        sBadge.style.display = isPaused ? 'inline-block' : 'none';
-                                    }}
+                                if (sBadge) {{
+                                    sBadge.style.display = (isPaused && ct === 0) ? 'inline-block' : 'none';
+                                }}
 
-                                    if (sDiv) {{
-                                        if (matched) {{
+                                if (subBox && sDiv) {{
+                                    if (matched) {{
+                                        // ĐANG CÓ GIỌNG NÓI: Hiện chữ phụ đề chuẩn xác
+                                        subBox.style.display = 'block';
+                                        sDiv.style.visibility = 'visible';
+                                        sDiv.style.display = 'inline-block';
+                                        if (sDiv.textContent !== matched) {{
+                                            sDiv.textContent = matched;
+                                        }}
+                                    }} else {{
+                                        if (isPaused && ct === 0) {{
+                                            // Dừng ở mốc đầu: hiện mẫu xem trước
+                                            subBox.style.display = 'block';
                                             sDiv.style.visibility = 'visible';
                                             sDiv.style.display = 'inline-block';
-                                            if (sDiv.textContent !== matched) {{
-                                                sDiv.textContent = matched;
-                                            }}
+                                            sDiv.textContent = subText;
                                         }} else {{
-                                            if (isPaused && ct === 0) {{
-                                                sDiv.style.visibility = 'visible';
-                                                sDiv.style.display = 'inline-block';
-                                                sDiv.textContent = subText;
-                                            }} else {{
-                                                // Hết giọng đọc là phụ đề ẩn đi ngay lập tức, màn hình sạch hoàn toàn
-                                                sDiv.style.visibility = 'hidden';
-                                                sDiv.style.display = 'none';
-                                            }}
+                                            // HẾT GIỌNG ĐỌC: ẨN NGAY LẬP TỨC (Màn hình sạch 100%)
+                                            subBox.style.display = 'none';
+                                            sDiv.style.visibility = 'hidden';
+                                            sDiv.style.display = 'none';
                                         }}
                                     }}
                                 }}
-
-                                vElem.addEventListener('timeupdate', syncSubVisibility);
-                                vElem.addEventListener('play', syncSubVisibility);
-                                vElem.addEventListener('pause', syncSubVisibility);
-                                vElem.addEventListener('seeked', syncSubVisibility);
                             }}
+
+                            vElem.addEventListener('timeupdate', syncSubVisibility);
+                            vElem.addEventListener('play', syncSubVisibility);
+                            vElem.addEventListener('pause', syncSubVisibility);
+                            vElem.addEventListener('seeked', syncSubVisibility);
                         }}
 
                         // Quỹ đạo di chuyển lơ lửng xung quanh video cho chữ mờ bản quyền
@@ -2809,8 +2841,8 @@ with tab_dubbing:
                 logo_scale=float(st.session_state.get("dub_logo_scale", 18)) / 100.0,
                 logo_opacity=float(st.session_state.get("dub_logo_opacity", 90)) / 100.0,
                 burn_subtitles=st.session_state.get("dub_burn_subtitles", True),
-                subtitle_font_size=st.session_state.get("dub_sub_font_size", 26),
-                subtitle_style=st.session_state.get("dub_sub_style_select", "black_box"),
+                subtitle_font_size=st.session_state.get("dub_sub_font_size", 28),
+                subtitle_style=st.session_state.get("dub_sub_style_select", "white_outline"),
                 subtitle_margin_v=int(float(st.session_state.get("dub_sub_bottom_pct", 7)) * 7.5),
                 enable_floating_watermark=bool(st.session_state.get("dub_enable_float_wm", True)),
                 floating_watermark_text=st.session_state.get("dub_float_wm_text", "@gocphimcuon"),
@@ -2889,7 +2921,7 @@ with tab_dubbing:
                             in_srt = Path(st.session_state.get("dubbed_srt_path", str(cur_v.with_suffix(".srt"))))
 
                             if not in_v.exists() and ts_key:
-                                cand_v = list(Path("temp").glob(f"*{ts_key}*.mp4"))
+                                cand_v = [p for p in Path("temp").glob(f"*{ts_key}*.mp4") if "_dubbed_" not in p.name]
                                 if cand_v:
                                     in_v = cand_v[0]
 
@@ -2977,8 +3009,8 @@ with tab_dubbing:
                                     audio_path=in_a,
                                     output_video_path=cur_v,
                                     subtitle_path=in_srt,
-                                    subtitle_font_size=st.session_state.get("dub_sub_font_size", 26),
-                                    subtitle_style=st.session_state.get("dub_sub_style_select", "black_box"),
+                                    subtitle_font_size=st.session_state.get("dub_sub_font_size", 28),
+                                    subtitle_style=st.session_state.get("dub_sub_style_select", "white_outline"),
                                     subtitle_margin_v=int(float(st.session_state.get("dub_sub_bottom_pct", 7)) * 7.5),
                                     logo_path=logo_f if st.session_state.get("dub_enable_logo", True) else None,
                                     logo_x_pct=float(st.session_state.get("dub_logo_x", 80)) / 100.0,
