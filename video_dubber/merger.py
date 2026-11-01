@@ -413,11 +413,12 @@ class VideoMerger:
         floating_watermark_text: Optional[str] = None,
         floating_watermark_font_size: int = 18,
         floating_watermark_opacity: float = 0.30,
+        outro_video_path: Optional[Union[str, Path]] = None,
     ) -> Path:
         """
         Merges final mixed audio into the original video container,
         with optional burned-in subtitles (hardsub), optional logo overlay,
-        and optional continuous floating copyright watermark.
+        optional continuous floating copyright watermark, and optional outro video at the end.
         """
         import uuid
         import shutil
@@ -428,6 +429,7 @@ class VideoMerger:
 
         has_logo = logo_path is not None and Path(logo_path).exists()
         has_sub = subtitle_path is not None and Path(subtitle_path).exists()
+        has_outro = outro_video_path is not None and Path(outro_video_path).exists()
 
         x_pct = max(0.0, min(0.95, float(logo_x_pct)))
         y_pct = max(0.0, min(0.95, float(logo_y_pct)))
@@ -436,7 +438,7 @@ class VideoMerger:
 
         logger.info(
             f"Merging final audio into {video_path.name} -> {output_video_path.name} "
-            f"(has_logo={has_logo}, has_sub={has_sub}, floating_wm={floating_watermark_text})..."
+            f"(has_logo={has_logo}, has_sub={has_sub}, floating_wm={floating_watermark_text}, has_outro={has_outro})..."
         )
 
         has_floating_wm = bool(floating_watermark_text and floating_watermark_text.strip())
@@ -482,6 +484,7 @@ class VideoMerger:
             ffmpeg_succeeded = False
             try:
                 ffmpeg_bin = find_ffmpeg_binary()
+                intermediate_out = output_video_path.with_name(f"pre_outro_{uuid.uuid4().hex[:6]}.mp4") if has_outro else output_video_path
                 cmd = [ffmpeg_bin, "-y", "-i", str(video_path), "-i", str(audio_path)]
                 next_idx = 2
 
@@ -545,7 +548,7 @@ class VideoMerger:
                         "-c:a", "aac",
                         "-b:a", "192k",
                         "-shortest",
-                        str(output_video_path),
+                        str(intermediate_out),
                     ])
                 else:
                     cmd.extend([
@@ -555,7 +558,7 @@ class VideoMerger:
                         "-map", "0:v:0",
                         "-map", "1:a:0",
                         "-shortest",
-                        str(output_video_path),
+                        str(intermediate_out),
                     ])
 
                 res = subprocess.run(
@@ -564,6 +567,14 @@ class VideoMerger:
                     stderr=subprocess.PIPE,
                     check=True
                 )
+
+                if has_outro and outro_video_path and Path(outro_video_path).exists():
+                    self.append_outro(intermediate_out, outro_video_path, output_video_path, ffmpeg_bin=ffmpeg_bin)
+                    try:
+                        intermediate_out.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+
                 logger.info("Video and audio merged successfully using FFmpeg CLI.")
                 ffmpeg_succeeded = True
                 return output_video_path
@@ -730,6 +741,68 @@ class VideoMerger:
                 else:
                     final_video = video
 
+                # 4. Tự động nối video Outro (Màn hình kết thúc endgpc.mp4) vào cuối video
+                outro_clip_obj = None
+                if has_outro and outro_video_path and Path(outro_video_path).exists():
+                    try:
+                        logger.info(f"Nối video kết thúc Outro: {Path(outro_video_path).name} vào sau video lồng tiếng...")
+                        outro_clip_obj = VideoFileClip(str(outro_video_path))
+                        target_w, target_h = video.size
+                        ow = getattr(outro_clip_obj, "w", None) or (outro_clip_obj.size[0] if hasattr(outro_clip_obj, "size") else target_w)
+                        oh = getattr(outro_clip_obj, "h", None) or (outro_clip_obj.size[1] if hasattr(outro_clip_obj, "size") else target_h)
+                        scale_fit = min(target_w / float(ow), target_h / float(oh))
+                        new_ow = max(2, int(ow * scale_fit))
+                        new_oh = max(2, int(oh * scale_fit))
+
+                        if hasattr(outro_clip_obj, "resized"):
+                            scaled_outro = outro_clip_obj.resized((new_ow, new_oh))
+                        elif hasattr(outro_clip_obj, "resize"):
+                            scaled_outro = outro_clip_obj.resize((new_ow, new_oh))
+                        else:
+                            scaled_outro = outro_clip_obj
+
+                        if (new_ow, new_oh) != (target_w, target_h):
+                            pos_x = (target_w - new_ow) // 2
+                            pos_y = (target_h - new_oh) // 2
+                            if hasattr(scaled_outro, "with_position"):
+                                pos_outro = scaled_outro.with_position((pos_x, pos_y))
+                            elif hasattr(scaled_outro, "set_pos"):
+                                pos_outro = scaled_outro.set_pos((pos_x, pos_y))
+                            else:
+                                pos_outro = scaled_outro
+                            fitted_outro = CompositeVideoClip([pos_outro], size=(target_w, target_h))
+                        else:
+                            fitted_outro = scaled_outro
+
+                        if hasattr(fitted_outro, "with_fps"):
+                            fitted_outro = fitted_outro.with_fps(base_fps)
+                        elif hasattr(fitted_outro, "set_fps"):
+                            fitted_outro = fitted_outro.set_fps(base_fps)
+
+                        if getattr(fitted_outro, "audio", None) is None and getattr(final_video, "audio", None) is not None:
+                            try:
+                                from moviepy.audio.AudioClip import AudioClip
+                                silent_a = AudioClip(lambda t: [0.0, 0.0], duration=fitted_outro.duration, fps=44100)
+                                if hasattr(fitted_outro, "with_audio"):
+                                    fitted_outro = fitted_outro.with_audio(silent_a)
+                                elif hasattr(fitted_outro, "set_audio"):
+                                    fitted_outro = fitted_outro.set_audio(silent_a)
+                            except Exception:
+                                pass
+
+                        try:
+                            from moviepy import concatenate_videoclips
+                        except ImportError:
+                            try:
+                                from moviepy.editor import concatenate_videoclips
+                            except ImportError:
+                                from moviepy.video.compositing.concatenate import concatenate_videoclips
+
+                        final_video = concatenate_videoclips([final_video, fitted_outro], method="compose")
+                        logger.info(f"Đã ghép video kết thúc Outro '{Path(outro_video_path).name}' thành công.")
+                    except Exception as ex_m_outro:
+                        logger.warning(f"Lưu ý khi ghép Outro bằng MoviePy: {ex_m_outro}")
+
                 final_video.write_videofile(
                     str(output_video_path),
                     codec="libx264",
@@ -741,8 +814,13 @@ class VideoMerger:
                 )
                 video.close()
                 new_audio.close()
+                if outro_clip_obj:
+                    try:
+                        outro_clip_obj.close()
+                    except Exception:
+                        pass
                 final_video.close()
-                logger.info("Video, audio, subtitles and moving watermark merged successfully using MoviePy.")
+                logger.info("Video, audio, subtitles, watermark and outro merged successfully using MoviePy.")
                 return output_video_path
             except Exception as e:
                 logger.error(f"Failed to merge video with MoviePy: {e}")
@@ -764,3 +842,133 @@ class VideoMerger:
                     shutil.rmtree(sub_temp_dir, ignore_errors=True)
                 except Exception:
                     pass
+
+    @staticmethod
+    def append_outro(
+        main_video_path: Union[str, Path],
+        outro_video_path: Union[str, Path],
+        final_output_path: Union[str, Path],
+        ffmpeg_bin: Optional[str] = None
+    ) -> Path:
+        """
+        Appends outro_video_path to the end of main_video_path.
+        Automatically handles resolution differences, aspect ratio fitting, framerate, and audio tracks.
+        """
+        import shutil
+        import subprocess
+        main_video_path = Path(main_video_path)
+        outro_video_path = Path(outro_video_path)
+        final_output_path = Path(final_output_path)
+        final_output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        logger.info(f"Appending outro video '{outro_video_path.name}' to '{main_video_path.name}' -> '{final_output_path.name}'...")
+
+        try:
+            try:
+                from moviepy import VideoFileClip, CompositeVideoClip, concatenate_videoclips
+            except ImportError:
+                try:
+                    from moviepy.editor import VideoFileClip, CompositeVideoClip, concatenate_videoclips
+                except ImportError:
+                    from moviepy.video.io.VideoFileClip import VideoFileClip
+                    from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
+                    from moviepy.video.compositing.concatenate import concatenate_videoclips
+
+            main_clip = VideoFileClip(str(main_video_path))
+            outro_clip = VideoFileClip(str(outro_video_path))
+            
+            target_w, target_h = main_clip.size
+            base_fps = getattr(main_clip, "fps", None) or 25
+            if not isinstance(base_fps, (int, float)) or base_fps <= 0:
+                base_fps = 25
+
+            ow = getattr(outro_clip, "w", None) or (outro_clip.size[0] if hasattr(outro_clip, "size") else target_w)
+            oh = getattr(outro_clip, "h", None) or (outro_clip.size[1] if hasattr(outro_clip, "size") else target_h)
+
+            scale_fit = min(target_w / float(ow), target_h / float(oh))
+            new_ow = max(2, int(ow * scale_fit))
+            new_oh = max(2, int(oh * scale_fit))
+
+            if hasattr(outro_clip, "resized"):
+                scaled_outro = outro_clip.resized((new_ow, new_oh))
+            elif hasattr(outro_clip, "resize"):
+                scaled_outro = outro_clip.resize((new_ow, new_oh))
+            else:
+                scaled_outro = outro_clip
+
+            if (new_ow, new_oh) != (target_w, target_h):
+                pos_x = (target_w - new_ow) // 2
+                pos_y = (target_h - new_oh) // 2
+                if hasattr(scaled_outro, "with_position"):
+                    pos_outro = scaled_outro.with_position((pos_x, pos_y))
+                elif hasattr(scaled_outro, "set_pos"):
+                    pos_outro = scaled_outro.set_pos((pos_x, pos_y))
+                else:
+                    pos_outro = scaled_outro
+                fitted_outro = CompositeVideoClip([pos_outro], size=(target_w, target_h))
+            else:
+                fitted_outro = scaled_outro
+
+            if hasattr(fitted_outro, "with_fps"):
+                fitted_outro = fitted_outro.with_fps(base_fps)
+            elif hasattr(fitted_outro, "set_fps"):
+                fitted_outro = fitted_outro.set_fps(base_fps)
+
+            if getattr(fitted_outro, "audio", None) is None and getattr(main_clip, "audio", None) is not None:
+                try:
+                    from moviepy.audio.AudioClip import AudioClip
+                    silent_audio = AudioClip(lambda t: [0.0, 0.0], duration=fitted_outro.duration, fps=44100)
+                    if hasattr(fitted_outro, "with_audio"):
+                        fitted_outro = fitted_outro.with_audio(silent_audio)
+                    elif hasattr(fitted_outro, "set_audio"):
+                        fitted_outro = fitted_outro.set_audio(silent_audio)
+                except Exception:
+                    pass
+
+            final_clip = concatenate_videoclips([main_clip, fitted_outro], method="compose")
+            final_clip.write_videofile(
+                str(final_output_path),
+                codec="libx264",
+                audio_codec="aac",
+                fps=base_fps,
+                preset="fast",
+                ffmpeg_params=["-pix_fmt", "yuv420p"],
+                logger=None,
+            )
+            main_clip.close()
+            outro_clip.close()
+            final_clip.close()
+            logger.info("Outro video concatenated successfully using MoviePy.")
+            return final_output_path
+        except Exception as ex_moviepy:
+            logger.warning(f"MoviePy outro concatenation notice ({ex_moviepy}), attempting FFmpeg...")
+
+        if ffmpeg_bin:
+            try:
+                cmd_cat = [
+                    ffmpeg_bin, "-y",
+                    "-i", str(main_video_path),
+                    "-i", str(outro_video_path),
+                    "-filter_complex",
+                    "[0:v]setsar=1[v0];"
+                    "[1:v]scale=w=main_w:h=main_h:force_original_aspect_ratio=decrease,"
+                    "pad=main_w:main_h:(ow-iw)/2:(oh-ih)/2,setsar=1[v1];"
+                    "[v0][0:a][v1][1:a]concat=n=2:v=1:a=1[v_cat][a_cat]",
+                    "-map", "[v_cat]",
+                    "-map", "[a_cat]",
+                    "-c:v", "libx264",
+                    "-pix_fmt", "yuv420p",
+                    "-preset", "fast",
+                    "-c:a", "aac",
+                    "-b:a", "192k",
+                    str(final_output_path),
+                ]
+                subprocess.run(cmd_cat, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                logger.info("Outro video concatenated successfully using FFmpeg CLI.")
+                return final_output_path
+            except Exception as ex_ff:
+                logger.warning(f"FFmpeg outro concatenation failed: {ex_ff}")
+
+        if str(main_video_path) != str(final_output_path):
+            shutil.copy2(str(main_video_path), str(final_output_path))
+        return final_output_path

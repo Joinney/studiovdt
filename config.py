@@ -177,7 +177,11 @@ class DubbingConfig:
     floating_watermark_text: str = "@gocphimcuon"
     floating_watermark_font_size: int = 18
     floating_watermark_opacity: float = 0.30
+    enable_outro: bool = True
+    outro_video_path: Optional[Union[str, Path]] = None
 
     def __post_init__(self):
         self.temp_dir.mkdir(parents=True, exist_ok=True)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        if self.outro_video_path is None and Path("assets/endgpc.mp4").exists():
+            self.outro_video_path = Path("assets/endgpc.mp4")

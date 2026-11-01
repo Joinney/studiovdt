@@ -164,6 +164,10 @@ class VideoDubberPipeline:
         burn_subs = getattr(self.config, "burn_subtitles", True)
         enable_float_wm = getattr(self.config, "enable_floating_watermark", False)
         float_wm_text = getattr(self.config, "floating_watermark_text", "@gocphimcuon") if enable_float_wm else None
+        enable_outro = getattr(self.config, "enable_outro", True)
+        outro_path = getattr(self.config, "outro_video_path", None)
+        if enable_outro and not outro_path and Path("assets/endgpc.mp4").exists():
+            outro_path = Path("assets/endgpc.mp4")
 
         final_video = self.merger.merge_video(
             video_path=video_path,
@@ -181,6 +185,7 @@ class VideoDubberPipeline:
             floating_watermark_text=float_wm_text,
             floating_watermark_font_size=getattr(self.config, "floating_watermark_font_size", 18),
             floating_watermark_opacity=getattr(self.config, "floating_watermark_opacity", 0.30),
+            outro_video_path=outro_path if enable_outro else None,
         )
 
         notify("Hoàn thành lồng tiếng video!", 1.0)

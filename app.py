@@ -1995,11 +1995,12 @@ with tab_dubbing:
                 if "dub_sub_bottom_pct" not in st.session_state:
                     st.session_state["dub_sub_bottom_pct"] = 7
 
-                # Tabs điều khiển tinh chỉnh Logo & Phụ đề
-                tab_logo_ctrl, tab_sub_ctrl, tab_wm_ctrl = st.tabs([
+                # Tabs điều khiển tinh chỉnh Logo, Phụ đề, Chữ mờ & Video kết thúc Outro
+                tab_logo_ctrl, tab_sub_ctrl, tab_wm_ctrl, tab_outro_ctrl = st.tabs([
                     "🏷️ Tùy chỉnh Logo thương hiệu (Kéo thả)",
                     "📝 Tùy chỉnh Phụ đề hiển thị (Kéo thả)",
-                    "🛡️ Chữ mờ chạy bảo vệ bản quyền (Moving Watermark)"
+                    "🛡️ Chữ mờ chạy bảo vệ bản quyền (Moving Watermark)",
+                    "🎬 Video kết thúc (Outro / endgpc)"
                 ])
 
                 with tab_logo_ctrl:
@@ -2024,6 +2025,10 @@ with tab_dubbing:
                         elif "webp" in logo_ext:
                             logo_preview_mime = "image/webp"
                         logo_b64_data = base64.b64encode(raw_logo).decode("utf-8")
+                    elif Path("assets/gocphimcuon1.png").exists():
+                        raw_logo = Path("assets/gocphimcuon1.png").read_bytes()
+                        logo_b64_data = base64.b64encode(raw_logo).decode("utf-8")
+                        st.caption("ℹ️ Đang dùng Logo Góc Phim Cuốn (assets/gocphimcuon1.png). Tải tệp mới ở trên nếu muốn đổi.")
                     elif Path("assets/author.png").exists():
                         raw_logo = Path("assets/author.png").read_bytes()
                         logo_b64_data = base64.b64encode(raw_logo).decode("utf-8")
@@ -2235,6 +2240,36 @@ with tab_dubbing:
                     with c_w4:
                         st.markdown("<span style='font-size: 11px; font-weight: 700; color: #38bdf8;'>🌊 Quỹ đạo di chuyển:</span>", unsafe_allow_html=True)
                         st.info("Di chuyển lơ lửng liên tục xung quanh 4 góc & trung tâm video theo chu kỳ sóng mượt mà.")
+
+                with tab_outro_ctrl:
+                    default_outro_file = Path("assets/endgpc.mp4") if Path("assets/endgpc.mp4").exists() else None
+                    enable_outro = st.checkbox(
+                        "🎬 Ghép Video Kết Thúc (Outro / endgpc) vào cuối video",
+                        value=st.session_state.get("dub_enable_outro", bool(default_outro_file is not None)),
+                        key="dub_enable_outro",
+                        help="Tự động nối video outro (assets/endgpc.mp4 kêu gọi follow, kết thúc kênh Góc Phim Cuốn) vào ngay sau khi hết video lồng tiếng."
+                    )
+                    c_ot1, c_ot2 = st.columns([0.62, 0.38])
+                    with c_ot1:
+                        if default_outro_file and default_outro_file.exists():
+                            st.success(f"🎬 Video Outro mặc định: **`assets/{default_outro_file.name}`** ({default_outro_file.stat().st_size / (1024*1024):.2f} MB)")
+                        else:
+                            st.info("Chưa tìm thấy video assets/endgpc.mp4. Bạn có thể tải video kết thúc lên bên dưới.")
+
+                        uploaded_custom_outro = st.file_uploader(
+                            "Tải lên video Outro thay thế (Tùy chọn):",
+                            type=["mp4", "mov", "mkv", "avi"],
+                            key="dub_custom_outro_upload",
+                            help="Nếu tải tệp lên ở đây, hệ thống sẽ dùng tệp này thay cho assets/endgpc.mp4"
+                        )
+                    with c_ot2:
+                        st.markdown("<span style='font-size: 11px; font-weight: 700; color: #38bdf8;'>👁️ Xem trước Video Outro kết thúc:</span>", unsafe_allow_html=True)
+                        if uploaded_custom_outro is not None:
+                            st.video(uploaded_custom_outro)
+                        elif default_outro_file and default_outro_file.exists():
+                            st.video(str(default_outro_file))
+                        else:
+                            st.caption("Chưa có video kết thúc")
 
                 # Computed Subtitle CSS cho hiển thị trực quan
                 if sub_style == "black_box":
@@ -2820,8 +2855,21 @@ with tab_dubbing:
                     logo_file_path = temp_dir / f"logo_{safe_stem}_{timestamp}{logo_ext}"
                     with open(logo_file_path, "wb") as f_l:
                         f_l.write(u_logo.getbuffer())
+                elif Path("assets/gocphimcuon1.png").exists():
+                    logo_file_path = Path("assets/gocphimcuon1.png")
                 elif Path("assets/author.png").exists():
                     logo_file_path = Path("assets/author.png")
+
+            outro_file_path = None
+            if st.session_state.get("dub_enable_outro", True):
+                if st.session_state.get("dub_custom_outro_upload") is not None:
+                    u_outro = st.session_state["dub_custom_outro_upload"]
+                    o_ext = Path(u_outro.name).suffix or ".mp4"
+                    outro_file_path = temp_dir / f"outro_{safe_stem}_{timestamp}{o_ext}"
+                    with open(outro_file_path, "wb") as f_o:
+                        f_o.write(u_outro.getbuffer())
+                elif Path("assets/endgpc.mp4").exists():
+                    outro_file_path = Path("assets/endgpc.mp4")
 
             dub_config = config.DubbingConfig(
                 whisper_model=whisper_model,
@@ -2848,6 +2896,8 @@ with tab_dubbing:
                 floating_watermark_text=st.session_state.get("dub_float_wm_text", "@gocphimcuon"),
                 floating_watermark_font_size=st.session_state.get("dub_float_wm_size", 18),
                 floating_watermark_opacity=float(st.session_state.get("dub_float_wm_opacity", 30)) / 100.0,
+                enable_outro=bool(outro_file_path is not None and Path(outro_file_path).exists()),
+                outro_video_path=outro_file_path,
             )
 
             pipeline = video_dubber.pipeline.VideoDubberPipeline(dub_config)
@@ -3002,7 +3052,18 @@ with tab_dubbing:
                                     except Exception as ex_re_audio:
                                         logger.warning(f"Note during audio re-assembly: {ex_re_audio}")
 
-                                logo_f = Path("assets/author.png") if Path("assets/author.png").exists() else None
+                                logo_f = None
+                                if st.session_state.get("dub_enable_logo", True):
+                                    if Path("assets/gocphimcuon1.png").exists():
+                                        logo_f = Path("assets/gocphimcuon1.png")
+                                    elif Path("assets/author.png").exists():
+                                        logo_f = Path("assets/author.png")
+
+                                outro_f = None
+                                if st.session_state.get("dub_enable_outro", True):
+                                    if Path("assets/endgpc.mp4").exists():
+                                        outro_f = Path("assets/endgpc.mp4")
+
                                 merger_inst = video_dubber.merger.VideoMerger(original_audio_volume=bg_music_vol)
                                 merger_inst.merge_video(
                                     video_path=in_v,
@@ -3012,7 +3073,7 @@ with tab_dubbing:
                                     subtitle_font_size=st.session_state.get("dub_sub_font_size", 28),
                                     subtitle_style=st.session_state.get("dub_sub_style_select", "white_outline"),
                                     subtitle_margin_v=int(float(st.session_state.get("dub_sub_bottom_pct", 7)) * 7.5),
-                                    logo_path=logo_f if st.session_state.get("dub_enable_logo", True) else None,
+                                    logo_path=logo_f,
                                     logo_x_pct=float(st.session_state.get("dub_logo_x", 80)) / 100.0,
                                     logo_y_pct=float(st.session_state.get("dub_logo_y", 5)) / 100.0,
                                     logo_scale=float(st.session_state.get("dub_logo_scale", 18)) / 100.0,
@@ -3020,6 +3081,7 @@ with tab_dubbing:
                                     floating_watermark_text=st.session_state.get("dub_float_wm_text", "@gocphimcuon") if st.session_state.get("dub_enable_float_wm", True) else None,
                                     floating_watermark_font_size=st.session_state.get("dub_float_wm_size", 18),
                                     floating_watermark_opacity=float(st.session_state.get("dub_float_wm_opacity", 30)) / 100.0,
+                                    outro_video_path=outro_f,
                                 )
                                 st.toast("✅ Đã ghi đè phụ đề cứng và chữ mờ vào video thành công!", icon="🎬")
                                 st.rerun()

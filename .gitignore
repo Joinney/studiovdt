@@ -14,6 +14,7 @@ ENV/
 temp/
 output/
 *.mp4
+!assets/*.mp4
 *.wav
 *.mp3
 *.srt
