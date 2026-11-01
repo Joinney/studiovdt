@@ -12,9 +12,12 @@ from pathlib import Path
 import re
 import time
 import urllib.parse
+import logging
 import streamlit as st
 import streamlit.components.v1 as components
 import edge_tts
+
+logger = logging.getLogger("studiovdt")
 
 from config import DEFAULT_VOICES, LANGUAGE_NAMES, VOICES_CATALOG, DubbingConfig
 from video_dubber.pipeline import VideoDubberPipeline
@@ -144,15 +147,25 @@ async def generate_single_tts_edge(text: str, voice: str, rate: str, volume: str
 def get_or_generate_voice_preview(voice_id: str, lang: str, voice_name: str) -> Path:
     preview_dir = Path("./output/preview_samples")
     preview_dir.mkdir(parents=True, exist_ok=True)
+    import unicodedata
     clean_slug = voice_id.replace("vieneu:", "").replace(":", "_").replace(" ", "_").replace("-", "_")
-    preview_path = preview_dir / f"preview_{clean_slug}.mp3"
+    safe_ascii = unicodedata.normalize('NFKD', clean_slug).encode('ascii', 'ignore').decode('ascii')
+    safe_ascii = re.sub(r'[^\w\-_\.]', '_', safe_ascii).strip('_')
+    if not safe_ascii:
+        safe_ascii = "preview_voice"
+    preview_path = preview_dir / f"preview_{safe_ascii}.mp3"
 
-    if preview_path.exists() and preview_path.stat().st_size > 1000:
-        return preview_path
+    if preview_path.exists():
+        if preview_path.stat().st_size > 1000:
+            return preview_path
+        try:
+            preview_path.unlink(missing_ok=True)
+        except Exception:
+            pass
 
     if voice_id.startswith("vieneu:"):
-        actual_voice = voice_id.replace("vieneu:", "")
-        demo_text = f"Xin chào, đây là giọng đọc {actual_voice} trên Studio VDT."
+        actual_voice = voice_id.replace("vieneu:", "").strip()
+        demo_text = f"Xin chào, đây là giọng đọc {voice_name} trên Studio VDT."
         generate_vieneu_speech(
             text=demo_text,
             voice=actual_voice,
@@ -165,7 +178,7 @@ def get_or_generate_voice_preview(voice_id: str, lang: str, voice_name: str) -> 
         elif lang == "en":
             demo_text = f"Hello, this is a sample preview of {voice_name} on Studio VDT."
         else:
-            demo_text = "Hello, this is an AI voice sample from Studio VDT."
+            demo_text = f"Hello, this is an AI voice sample from Studio VDT."
 
         asyncio.run(
             generate_single_tts_edge(
@@ -1561,67 +1574,74 @@ with tab_tts:
                         var parentDoc = window.parent.document;
                         var parentWin = window.parent;
 
-                        if (!parentWin.__vdtPreviewBound) {{
-                            parentWin.__vdtPreviewBound = true;
-                            parentDoc.addEventListener('click', function(e) {{
-                                var btn = e.target.closest('#vdt-btn-preview-sample');
-                                if (!btn) return;
-                                e.preventDefault();
-                                e.stopPropagation();
+                        // Hủy listener cũ để không bao giờ bị đè hoặc trỏ vào closure của render trước
+                        if (parentWin.__vdtPreviewClickHandler) {{
+                            parentDoc.removeEventListener('click', parentWin.__vdtPreviewClickHandler, true);
+                        }}
 
-                                var prevAudio = parentDoc.getElementById('vdt-preview-audio-core');
+                        parentWin.__vdtPreviewClickHandler = function(e) {{
+                            var btn = e.target.closest('#vdt-btn-preview-sample');
+                            if (!btn) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            var prevAudio = parentDoc.getElementById('vdt-preview-audio-core');
+                            var prevIcon = parentDoc.getElementById('vdt-preview-icon');
+                            var prevLbl = parentDoc.getElementById('vdt-preview-lbl');
+                            var masterAudio = parentDoc.getElementById('daw-core-audio');
+
+                            if (!prevAudio || !prevAudio.src || prevAudio.src === '' || prevAudio.src.endsWith('/')) {{
+                                console.warn("Preview audio not ready.");
+                                if (prevLbl) prevLbl.textContent = "Chưa có mẫu";
+                                return;
+                            }}
+
+                            if (prevAudio.paused) {{
+                                if (masterAudio && !masterAudio.paused) {{
+                                    if (parentWin.__vdtDoPause) {{
+                                        parentWin.__vdtDoPause();
+                                    }} else {{
+                                        masterAudio.pause();
+                                    }}
+                                }}
+                                prevAudio.currentTime = 0;
+                                prevAudio.play().then(function() {{
+                                    if (prevIcon) prevIcon.textContent = "⏸";
+                                    if (prevLbl) prevLbl.textContent = "Đang phát...";
+                                    btn.style.borderColor = "#f97316";
+                                    btn.style.background = "#182030";
+                                }}).catch(function(err) {{
+                                    console.log("Preview error:", err);
+                                }});
+                            }} else {{
+                                prevAudio.pause();
+                                if (prevIcon) prevIcon.textContent = "🎧";
+                                if (prevLbl) prevLbl.textContent = "Nghe thử mẫu";
+                                btn.style.borderColor = "#283347";
+                                btn.style.background = "#0d111a";
+                            }}
+                        }};
+
+                        parentDoc.addEventListener('click', parentWin.__vdtPreviewClickHandler, true);
+
+                        var prevAudio = parentDoc.getElementById('vdt-preview-audio-core');
+                        if (prevAudio) {{
+                            function resetPreviewBtn() {{
                                 var prevIcon = parentDoc.getElementById('vdt-preview-icon');
                                 var prevLbl = parentDoc.getElementById('vdt-preview-lbl');
-                                var masterAudio = parentDoc.getElementById('daw-core-audio');
-
-                                if (!prevAudio) return;
-
-                                if (prevAudio.paused) {{
-                                    if (masterAudio && !masterAudio.paused) {{
-                                        if (parentWin.__vdtDoPause) {{
-                                            parentWin.__vdtDoPause();
-                                        }} else {{
-                                            masterAudio.pause();
-                                        }}
-                                    }}
-                                    prevAudio.currentTime = 0;
-                                    prevAudio.play().then(function() {{
-                                        if (prevIcon) prevIcon.textContent = "⏸";
-                                        if (prevLbl) prevLbl.textContent = "Đang phát...";
-                                        btn.style.borderColor = "#f97316";
-                                        btn.style.background = "#182030";
-                                    }}).catch(function(err) {{
-                                        console.log("Preview error:", err);
-                                    }});
-                                }} else {{
-                                    prevAudio.pause();
-                                    if (prevIcon) prevIcon.textContent = "🎧";
-                                    if (prevLbl) prevLbl.textContent = "Nghe thử mẫu";
+                                var btn = parentDoc.getElementById('vdt-btn-preview-sample');
+                                if (prevIcon) prevIcon.textContent = "🎧";
+                                if (prevLbl) prevLbl.textContent = "Nghe thử mẫu";
+                                if (btn) {{
                                     btn.style.borderColor = "#283347";
                                     btn.style.background = "#0d111a";
                                 }}
-                            }});
-                        }}
-
-                        setInterval(function() {{
-                            var prevAudio = parentDoc.getElementById('vdt-preview-audio-core');
-                            if (prevAudio && !prevAudio.__vdtHooked) {{
-                                prevAudio.__vdtHooked = true;
-                                function resetBtn() {{
-                                    var prevIcon = parentDoc.getElementById('vdt-preview-icon');
-                                    var prevLbl = parentDoc.getElementById('vdt-preview-lbl');
-                                    var btn = parentDoc.getElementById('vdt-btn-preview-sample');
-                                    if (prevIcon) prevIcon.textContent = "🎧";
-                                    if (prevLbl) prevLbl.textContent = "Nghe thử mẫu";
-                                    if (btn) {{
-                                        btn.style.borderColor = "#283347";
-                                        btn.style.background = "#0d111a";
-                                    }}
-                                }}
-                                prevAudio.addEventListener('ended', resetBtn);
-                                prevAudio.addEventListener('pause', resetBtn);
                             }}
-                        }}, 250);
+                            prevAudio.onended = resetPreviewBtn;
+                            prevAudio.onpause = function() {{
+                                if (prevAudio.paused) resetPreviewBtn();
+                            }};
+                        }}
 
                     }} catch(e) {{
                         console.error("Preview script error:", e);
@@ -2260,6 +2280,13 @@ if active_audio_path and Path(active_audio_path).exists():
             var srtDataB64 = "{srt_b64}";
             var baseFilename = "{track_title}";
 
+            // Luôn đồng bộ dữ liệu bản thu mới nhất lên parentWin để các nút tải và controller không bao giờ dính file cũ
+            parentWin.__vdtCurrentTrack = {{
+                audioB64: audioDataB64,
+                srtB64: srtDataB64,
+                baseFilename: baseFilename
+            }};
+
             var isLooping = false;
             var animId = null;
             var isScrubbing = false;
@@ -2396,7 +2423,7 @@ if active_audio_path and Path(active_audio_path).exists():
                 }});
             }}
 
-            // Đăng ký toàn cục lên parentWin để các module khác (như preview) có thể gọi
+            // Đăng ký toàn cục lên parentWin để preview hoặc các component khác có thể gọi
             parentWin.__vdtDoPlay = doPlay;
             parentWin.__vdtDoPause = doPause;
             parentWin.__vdtUpdateLoang = function() {{
@@ -2404,12 +2431,16 @@ if active_audio_path and Path(active_audio_path).exists():
                 if (a) updateLoangAndProgress(a.currentTime, a.duration || 0);
             }};
 
-            // HÀM TẢI FILE BLOB 100% HOẠT ĐỘNG TRỰC TIẾP TRÊN TRÌNH DUYỆT
+            // HÀM TẢI FILE BLOB 100% HOẠT ĐỘNG TRỰC TIẾP TRÊN TRÌNH DUYỆT (TỰ GIẢI PHÓNG BỘ NHỚ)
             function triggerBlobDownload(b64Data, filename, mimeType) {{
                 try {{
+                    if (!b64Data || b64Data.length < 10) {{
+                        console.error("No file data available to download.");
+                        return;
+                    }}
                     var byteCharacters = atob(b64Data);
                     var byteArrays = [];
-                    var sliceSize = 1024;
+                    var sliceSize = 1024 * 4;
                     for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {{
                         var slice = byteCharacters.slice(offset, offset + sliceSize);
                         var byteNumbers = new Array(slice.length);
@@ -2418,7 +2449,7 @@ if active_audio_path and Path(active_audio_path).exists():
                         }}
                         byteArrays.push(new Uint8Array(byteNumbers));
                     }}
-                    var blob = new Blob(byteArrays, {{ type: mimeType }});
+                    var blob = new (parentWin.Blob || Blob)(byteArrays, {{ type: mimeType }});
                     var blobUrl = (parentWin.URL || window.URL).createObjectURL(blob);
                     var link = parentDoc.createElement('a');
                     link.style.display = 'none';
@@ -2431,7 +2462,7 @@ if active_audio_path and Path(active_audio_path).exists():
                             link.parentNode.removeChild(link);
                         }}
                         (parentWin.URL || window.URL).revokeObjectURL(blobUrl);
-                    }}, 2000);
+                    }}, 3000);
                 }} catch(err) {{
                     console.error("Blob download failed, trying dataURI fallback:", err);
                     var fallbackLink = parentDoc.createElement('a');
@@ -2446,92 +2477,100 @@ if active_audio_path and Path(active_audio_path).exists():
                 }}
             }}
 
-            // SỰ KIỆN DELEGATION TRÊN parentDoc: KHÔNG BAO GIỜ BỊ MẤT SỰ KIỆN HOẶC BỊ LOCK
-            if (!parentDoc.__vdtDawDelegated) {{
-                parentDoc.__vdtDawDelegated = true;
-                parentDoc.addEventListener('click', function(e) {{
-                    var audio = getLiveAudio();
-
-                    // 1. Nút Phát / Tạm dừng
-                    if (e.target.closest('#daw-btn-play')) {{
-                        e.preventDefault();
-                        if (audio) {{
-                            if (audio.paused) {{
-                                doPlay();
-                            }} else {{
-                                doPause();
-                            }}
-                        }}
-                        return;
-                    }}
-
-                    // 2. Nút Lùi 5s
-                    if (e.target.closest('#daw-btn-prev')) {{
-                        e.preventDefault();
-                        if (audio) {{
-                            audio.currentTime = Math.max(0, audio.currentTime - 5);
-                            updateLoangAndProgress(audio.currentTime, audio.duration || 0);
-                        }}
-                        return;
-                    }}
-
-                    // 3. Nút Tiến 5s
-                    if (e.target.closest('#daw-btn-next')) {{
-                        e.preventDefault();
-                        if (audio) {{
-                            audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 5);
-                            updateLoangAndProgress(audio.currentTime, audio.duration || 0);
-                        }}
-                        return;
-                    }}
-
-                    // 4. Nút Lặp lại
-                    var loopBtn = e.target.closest('#daw-btn-loop');
-                    if (loopBtn && audio) {{
-                        e.preventDefault();
-                        isLooping = !isLooping;
-                        audio.loop = isLooping;
-                        loopBtn.style.color = isLooping ? "#f97316" : "#64748b";
-                        return;
-                    }}
-
-                    // 5. Nút Thu nhỏ / Phóng to Dock
-                    var toggleBtn = e.target.closest('#daw-btn-toggle-size');
-                    if (toggleBtn) {{
-                        e.preventDefault();
-                        var dockBar = parentDoc.getElementById('daw-dock-fixed-bar');
-                        if (dockBar) {{
-                            var isCollapsed = dockBar.classList.toggle('daw-dock-collapsed');
-                            toggleBtn.textContent = isCollapsed ? '🔼' : '🔽';
-                            toggleBtn.title = isCollapsed ? 'Mở rộng toàn màn hình' : 'Thu nhỏ thanh phát';
-                        }}
-                        return;
-                    }}
-
-                    // 6. Nút Tải SRT
-                    if (e.target.closest('#daw-btn-dl-srt')) {{
-                        e.preventDefault();
-                        triggerBlobDownload(srtDataB64, baseFilename + ".srt", "text/plain;charset=utf-8");
-                        return;
-                    }}
-
-                    // 7. Nút Tải MP3
-                    if (e.target.closest('#daw-btn-dl-mp3')) {{
-                        e.preventDefault();
-                        triggerBlobDownload(audioDataB64, baseFilename + ".mp3", "audio/mp3");
-                        return;
-                    }}
-
-                    // 8. Nút Tải WAV
-                    if (e.target.closest('#daw-btn-dl-wav')) {{
-                        e.preventDefault();
-                        triggerBlobDownload(audioDataB64, baseFilename + "_Master48kHz.wav", "audio/wav");
-                        return;
-                    }}
-                }});
+            // GỠ BỎ LISTENER CŨ ĐỂ KHÔNG BAO GIỜ BỊ DÍNH CLOSURE HOẶC DETACHED IFRAME
+            if (parentWin.__vdtDawClickHandler) {{
+                parentDoc.removeEventListener('click', parentWin.__vdtDawClickHandler, true);
             }}
 
-            // Xử lý tua & sướt chuột (Scrubbing / Dragging) với Delegation
+            parentWin.__vdtDawClickHandler = function(e) {{
+                var audio = getLiveAudio();
+                var curTrack = parentWin.__vdtCurrentTrack || {{
+                    audioB64: audioDataB64,
+                    srtB64: srtDataB64,
+                    baseFilename: baseFilename
+                }};
+
+                // 1. Nút Phát / Tạm dừng
+                if (e.target.closest('#daw-btn-play')) {{
+                    e.preventDefault();
+                    if (audio) {{
+                        if (audio.paused) {{
+                            doPlay();
+                        }} else {{
+                            doPause();
+                        }}
+                    }}
+                    return;
+                }}
+
+                // 2. Nút Lùi 5s
+                if (e.target.closest('#daw-btn-prev')) {{
+                    e.preventDefault();
+                    if (audio) {{
+                        audio.currentTime = Math.max(0, audio.currentTime - 5);
+                        updateLoangAndProgress(audio.currentTime, audio.duration || 0);
+                    }}
+                    return;
+                }}
+
+                // 3. Nút Tiến 5s
+                if (e.target.closest('#daw-btn-next')) {{
+                    e.preventDefault();
+                    if (audio) {{
+                        audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 5);
+                        updateLoangAndProgress(audio.currentTime, audio.duration || 0);
+                    }}
+                    return;
+                }}
+
+                // 4. Nút Lặp lại
+                var loopBtn = e.target.closest('#daw-btn-loop');
+                if (loopBtn && audio) {{
+                    e.preventDefault();
+                    isLooping = !isLooping;
+                    audio.loop = isLooping;
+                    loopBtn.style.color = isLooping ? "#f97316" : "#64748b";
+                    return;
+                }}
+
+                // 5. Nút Thu nhỏ / Phóng to Dock
+                var toggleBtn = e.target.closest('#daw-btn-toggle-size');
+                if (toggleBtn) {{
+                    e.preventDefault();
+                    var dockBar = parentDoc.getElementById('daw-dock-fixed-bar');
+                    if (dockBar) {{
+                        var isCollapsed = dockBar.classList.toggle('daw-dock-collapsed');
+                        toggleBtn.textContent = isCollapsed ? '🔼' : '🔽';
+                        toggleBtn.title = isCollapsed ? 'Mở rộng toàn màn hình' : 'Thu nhỏ thanh phát';
+                    }}
+                    return;
+                }}
+
+                // 6. Nút Tải SRT (Luôn lấy dữ liệu track mới nhất)
+                if (e.target.closest('#daw-btn-dl-srt')) {{
+                    e.preventDefault();
+                    triggerBlobDownload(curTrack.srtB64, curTrack.baseFilename + ".srt", "text/plain;charset=utf-8");
+                    return;
+                }}
+
+                // 7. Nút Tải MP3 (Luôn lấy dữ liệu track mới nhất)
+                if (e.target.closest('#daw-btn-dl-mp3')) {{
+                    e.preventDefault();
+                    triggerBlobDownload(curTrack.audioB64, curTrack.baseFilename + ".mp3", "audio/mp3");
+                    return;
+                }}
+
+                // 8. Nút Tải WAV Master 48kHz (Luôn lấy dữ liệu track mới nhất)
+                if (e.target.closest('#daw-btn-dl-wav')) {{
+                    e.preventDefault();
+                    triggerBlobDownload(curTrack.audioB64, curTrack.baseFilename + "_Master48kHz.wav", "audio/wav");
+                    return;
+                }}
+            }};
+
+            parentDoc.addEventListener('click', parentWin.__vdtDawClickHandler, true);
+
+            // Xử lý tua & sướt chuột (Scrubbing / Dragging)
             function handleScrub(e) {{
                 var scrub = parentDoc.getElementById('daw-waveform-scrub');
                 var audio = getLiveAudio();
@@ -2546,74 +2585,60 @@ if active_audio_path and Path(active_audio_path).exists():
                 }}
             }}
 
-            if (!parentDoc.__vdtScrubDelegated) {{
-                parentDoc.__vdtScrubDelegated = true;
-                parentDoc.addEventListener('mousedown', function(e) {{
-                    if (e.target.closest('#daw-waveform-scrub')) {{
-                        isScrubbing = true;
-                        handleScrub(e);
-                    }}
-                }});
-                parentDoc.addEventListener('mousemove', function(e) {{
-                    if (isScrubbing) {{
-                        handleScrub(e);
-                    }}
-                }});
-                parentDoc.addEventListener('mouseup', function(e) {{
-                    if (isScrubbing) {{
-                        isScrubbing = false;
-                    }}
-                }});
-                parentDoc.addEventListener('touchstart', function(e) {{
-                    if (e.target.closest('#daw-waveform-scrub')) {{
-                        isScrubbing = true;
-                        handleScrub(e);
-                    }}
-                }}, {{ passive: true }});
-                parentDoc.addEventListener('touchmove', function(e) {{
-                    if (isScrubbing) {{
-                        handleScrub(e);
-                    }}
-                }}, {{ passive: true }});
-                parentDoc.addEventListener('touchend', function(e) {{
-                    isScrubbing = false;
-                }});
+            if (parentWin.__vdtScrubDownHandler) {{
+                parentDoc.removeEventListener('mousedown', parentWin.__vdtScrubDownHandler, true);
+                parentDoc.removeEventListener('mousemove', parentWin.__vdtScrubMoveHandler, true);
+                parentDoc.removeEventListener('mouseup', parentWin.__vdtScrubUpHandler, true);
             }}
 
-            // Heartbeat kiểm tra và gắn hooks vào live audio element
-            setInterval(function() {{
-                var audio = getLiveAudio();
-                if (audio && !audio.__vdtHooked) {{
-                    audio.__vdtHooked = true;
-                    audio.addEventListener('loadedmetadata', function() {{
-                        updateLoangAndProgress(audio.currentTime, audio.duration);
-                    }});
-                    audio.addEventListener('timeupdate', function() {{
-                        if (audio.paused && !isScrubbing) {{
-                            updateLoangAndProgress(audio.currentTime, audio.duration);
-                        }}
-                    }});
-                    audio.addEventListener('ended', function() {{
-                        doPause();
-                        audio.currentTime = 0;
-                        updateLoangAndProgress(0, audio.duration);
-                        var statusBadge = parentDoc.getElementById('daw-badge-status');
-                        if (statusBadge) statusBadge.textContent = "READY";
-                    }});
-                    if (audio.getAttribute('data-autoplay') === 'true') {{
-                        audio.removeAttribute('data-autoplay');
-                        setTimeout(doPlay, 400);
-                    }}
+            parentWin.__vdtScrubDownHandler = function(e) {{
+                if (e.target.closest('#daw-waveform-scrub')) {{
+                    isScrubbing = true;
+                    handleScrub(e);
                 }}
-            }}, 200);
+            }};
+            parentWin.__vdtScrubMoveHandler = function(e) {{
+                if (isScrubbing) {{
+                    handleScrub(e);
+                }}
+            }};
+            parentWin.__vdtScrubUpHandler = function(e) {{
+                if (isScrubbing) {{
+                    isScrubbing = false;
+                }}
+            }};
 
-            // Khởi tạo trạng thái ban đầu
-            var initAudio = getLiveAudio();
-            if (initAudio) {{
-                updateLoangAndProgress(0, initAudio.duration || 0);
-                if (initAudio.getAttribute('data-autoplay') === 'true') {{
-                    initAudio.removeAttribute('data-autoplay');
-                    setTimeout(doPlay, 400);
+            parentDoc.addEventListener('mousedown', parentWin.__vdtScrubDownHandler, true);
+            parentDoc.addEventListener('mousemove', parentWin.__vdtScrubMoveHandler, true);
+            parentDoc.addEventListener('mouseup', parentWin.__vdtScrubUpHandler, true);
+
+            // Tái khởi tạo Live Audio Element: Luôn load lại buffer âm thanh mới
+            var liveAudio = getLiveAudio();
+            if (liveAudio) {{
+                liveAudio.pause();
+                liveAudio.load();
+                liveAudio.currentTime = 0;
+                updateLoangAndProgress(0, liveAudio.duration || 0);
+
+                liveAudio.onloadedmetadata = function() {{
+                    updateLoangAndProgress(liveAudio.currentTime, liveAudio.duration || 0);
+                }};
+                liveAudio.ontimeupdate = function() {{
+                    if (liveAudio.paused && !isScrubbing) {{
+                        updateLoangAndProgress(liveAudio.currentTime, liveAudio.duration || 0);
+                    }}
+                }};
+                liveAudio.onended = function() {{
+                    doPause();
+                    liveAudio.currentTime = 0;
+                    updateLoangAndProgress(0, liveAudio.duration || 0);
+                    var statusBadge = parentDoc.getElementById('daw-badge-status');
+                    if (statusBadge) statusBadge.textContent = "READY";
+                }};
+
+                if (liveAudio.getAttribute('data-autoplay') === 'true') {{
+                    liveAudio.removeAttribute('data-autoplay');
+                    setTimeout(doPlay, 350);
                 }}
             }}
 
