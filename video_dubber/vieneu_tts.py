@@ -479,8 +479,16 @@ def get_vieneu_engine(preferred_mode: Optional[str] = None):
     if _VIENEU_ENGINE is None:
         from vieneu import Vieneu
 
-        # Mặc định sử dụng v3turbo 48kHz đồng nhất cho cả Local và Deploy/Cloud
-        target_mode = preferred_mode or "v3turbo"
+        # Tự động phát hiện môi trường:
+        # Trên Streamlit Cloud (giới hạn 1GB RAM) -> bắt buộc dùng v3nano để không bị OOM / crash process
+        # Trên máy Local (RAM > 2.5GB) -> dùng v3turbo 48kHz chất lượng cao nhất
+        if preferred_mode:
+            target_mode = preferred_mode
+        elif is_low_memory_environment():
+            target_mode = "v3nano"
+            logger.info("⚡ Streamlit Cloud / Low-memory container detected. Auto-routing to v3nano to guarantee 100% stability without OOM.")
+        else:
+            target_mode = "v3turbo"
 
         try:
             logger.info(f"Initializing VieNeu-TTS Engine ({target_mode})...")
