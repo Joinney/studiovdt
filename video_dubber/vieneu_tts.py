@@ -166,18 +166,22 @@ def change_tempo(sound: AudioSegment, speed: float = 1.0) -> AudioSegment:
         return sound._spawn(sound.raw_data, overrides={"frame_rate": new_frame_rate}).set_frame_rate(sound.frame_rate)
 
 
-def _load_all_voices_into_engine(engine):
+def _load_all_voices_into_engine(engine, is_nano: Optional[bool] = None):
     """
     Ensures ALL 35+ preset voices from VieNeu repository assets exist in engine._preset_voices.
     Guarantees voice availability whether running on Streamlit Cloud, Docker, or Local.
     """
     try:
-        candidate_paths = [
+        turbo_paths = [
             Path(__file__).parent / "assets" / "voices_v3_turbo.json",
+        ]
+        nano_paths = [
+            Path(__file__).parent / "assets" / "voices_v3_nano.json",
         ]
         try:
             import vieneu
-            candidate_paths.append(Path(vieneu.__file__).parent / "assets" / "voices_v3_turbo.json")
+            turbo_paths.append(Path(vieneu.__file__).parent / "assets" / "voices_v3_turbo.json")
+            nano_paths.append(Path(vieneu.__file__).parent / "assets" / "voices_v3_nano.json")
         except Exception:
             pass
 
@@ -188,42 +192,87 @@ def _load_all_voices_into_engine(engine):
             adam_codes = engine._preset_voices["Adam"].get("codes")
             adam_style = engine._preset_voices["Adam"].get("style")
 
-        is_nano = hasattr(engine, "SAMPLE_RATE") and getattr(engine, "SAMPLE_RATE", 48000) == 24000
+        # Robust nano mode detection
+        if is_nano is None:
+            if hasattr(engine, "mode") and "nano" in str(engine.mode).lower():
+                is_nano = True
+            elif hasattr(engine, "_engine") and "nano" in str(engine._engine.__class__.__name__).lower():
+                is_nano = True
+            elif "nano" in str(engine.__class__.__name__).lower():
+                is_nano = True
+            elif adam_style is not None and not isinstance(adam_style, str):
+                is_nano = True
+            elif hasattr(engine, "SAMPLE_RATE") and getattr(engine, "SAMPLE_RATE", 48000) == 24000:
+                is_nano = True
+            else:
+                is_nano = False
 
-        for turbo_path in candidate_paths:
+        # 1. In nano mode, load native nano presets first
+        if is_nano:
+            for np_path in nano_paths:
+                if np_path.exists():
+                    try:
+                        data_nano = json.loads(np_path.read_text(encoding="utf-8"))
+                        presets_nano = data_nano.get("presets", {})
+                        if "Adam" in presets_nano and adam_style is None:
+                            adam_style = np.asarray(presets_nano["Adam"]["style"], dtype=np.float32)
+
+                        for name, v in presets_nano.items():
+                            if hasattr(engine, "_preset_voices") and name not in engine._preset_voices:
+                                emb = np.asarray(v["speaker_emb"], dtype=np.float32) if "speaker_emb" in v else None
+                                st_arr = np.asarray(v["style"], dtype=np.float32) if "style" in v else None
+                                engine._preset_voices[name] = {
+                                    "description": v.get("description", ""),
+                                    "gender": v.get("gender", "male"),
+                                    "style": st_arr if st_arr is not None else adam_style,
+                                    "codes": st_arr if st_arr is not None else adam_style,
+                                    "speaker_emb": emb,
+                                    "podcast": True,
+                                }
+                    except Exception as ex_n:
+                        logger.warning(f"Error loading nano presets: {ex_n}")
+                    break
+
+        # 2. Load turbo presets (adapting to float32 style array in nano mode)
+        for turbo_path in turbo_paths:
             if turbo_path.exists():
                 data_turbo = json.loads(turbo_path.read_text(encoding="utf-8"))
                 presets_turbo = data_turbo.get("presets", {})
+
+                nano_fallback_style = None
+                if is_nano:
+                    if isinstance(adam_style, np.ndarray):
+                        nano_fallback_style = adam_style
+                    elif isinstance(adam_style, list):
+                        nano_fallback_style = np.asarray(adam_style, dtype=np.float32)
+                    else:
+                        nano_fallback_style = np.zeros((50, 256), dtype=np.float32)
 
                 for name, v in presets_turbo.items():
                     if hasattr(engine, "_preset_voices") and name not in engine._preset_voices:
                         emb = np.asarray(v["speaker_emb"], dtype=np.float32) if "speaker_emb" in v else None
 
-                        raw_codes = v.get("codes")
-                        if raw_codes is not None and isinstance(raw_codes, list) and len(raw_codes) > 0 and isinstance(raw_codes[0], list):
-                            try:
-                                codes = np.asarray(raw_codes, dtype=np.int64)
-                            except Exception:
-                                codes = adam_codes
-                        else:
-                            codes = adam_codes
-
                         if is_nano:
-                            # In nano mode, style is float array [50, 256]
-                            if isinstance(adam_style, np.ndarray):
-                                style = adam_style
-                            else:
-                                style = np.zeros((50, 256), dtype=np.float32)
+                            # In nano mode, style MUST be float array [50, 256], NEVER string 'tu_nhien'!
                             engine._preset_voices[name] = {
                                 "description": v.get("description", ""),
                                 "gender": v.get("gender", "male"),
-                                "style": style,
-                                "codes": style,
+                                "style": nano_fallback_style,
+                                "codes": nano_fallback_style,
                                 "speaker_emb": emb,
                                 "podcast": True,
                             }
                         else:
                             # In turbo mode, style is string label (e.g. "tu_nhien"), codes is int64 array
+                            raw_codes = v.get("codes")
+                            if raw_codes is not None and isinstance(raw_codes, list) and len(raw_codes) > 0 and isinstance(raw_codes[0], list):
+                                try:
+                                    codes = np.asarray(raw_codes, dtype=np.int64)
+                                except Exception:
+                                    codes = adam_codes
+                            else:
+                                codes = adam_codes
+
                             style_str = v.get("style", "tu_nhien") if isinstance(v.get("style"), str) else "tu_nhien"
                             engine._preset_voices[name] = {
                                 "description": v.get("description", ""),
@@ -235,7 +284,7 @@ def _load_all_voices_into_engine(engine):
                             }
                 break
 
-        logger.info(f"✅ Registered {len(getattr(engine, '_preset_voices', {}))} total preset voices in VieNeu Engine!")
+        logger.info(f"✅ Registered {len(getattr(engine, '_preset_voices', {}))} total preset voices in VieNeu Engine (is_nano={is_nano})!")
     except Exception as e:
         logger.warning(f"Error while registering all voices: {e}")
 
@@ -495,13 +544,13 @@ def get_vieneu_engine(preferred_mode: Optional[str] = None):
             if target_mode == "v3turbo":
                 _patch_vieneu_fetch()
             _VIENEU_ENGINE = Vieneu(mode=target_mode)
-            _load_all_voices_into_engine(_VIENEU_ENGINE)
+            _load_all_voices_into_engine(_VIENEU_ENGINE, is_nano=(target_mode == "v3nano"))
             logger.info(f"✅ VieNeu-TTS {target_mode} initialized successfully!")
         except Exception as e:
             logger.warning(f"Could not initialize {target_mode} ({e}). Falling back to v3nano 24kHz...")
             try:
                 _VIENEU_ENGINE = Vieneu(mode="v3nano")
-                _load_all_voices_into_engine(_VIENEU_ENGINE)
+                _load_all_voices_into_engine(_VIENEU_ENGINE, is_nano=True)
                 logger.info("✅ VieNeu-TTS Nano 24kHz initialized as fallback.")
             except Exception as e2:
                 logger.warning(f"Default initialization fallback: {e2}")
