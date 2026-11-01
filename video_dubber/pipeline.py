@@ -121,7 +121,8 @@ class VideoDubberPipeline:
             json.dump([seg.__dict__ for seg in segments], f, ensure_ascii=False, indent=2)
 
         # Step 4: TTS Generation
-        notify("Sinh giọng đọc AI lồng tiếng mới (Edge-TTS)...", 0.65)
+        engine_label = "VieNeu Neural" if "vieneu" in self.config.tts_voice.lower() else "Edge-TTS"
+        notify(f"Sinh giọng đọc AI lồng tiếng mới ({engine_label})...", 0.65)
         tts_dir = work_dir / "tts_segments"
         segments = self.tts.generate_speech(segments, tts_dir)
 

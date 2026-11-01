@@ -43,11 +43,14 @@ class Transcriber:
     def _load_model(self):
         if self._model is None:
             from faster_whisper import WhisperModel
-            import torch
 
             resolved_device = self.device
             if resolved_device == "auto":
-                resolved_device = "cuda" if torch.cuda.is_available() else "cpu"
+                try:
+                    import ctranslate2
+                    resolved_device = "cuda" if ctranslate2.get_cuda_device_count() > 0 else "cpu"
+                except Exception:
+                    resolved_device = "cpu"
 
             resolved_compute = self.compute_type
             if resolved_compute == "default":

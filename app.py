@@ -292,6 +292,37 @@ st.html(
         max-width: 1420px !important;
     }
 
+    /* Pro DAW Studio Tabs Navigation */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px !important;
+        background-color: #0e121c !important;
+        padding: 6px !important;
+        border-radius: 12px !important;
+        border: 1.5px solid #1e2638 !important;
+        margin-bottom: 16px !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 44px !important;
+        color: #94a3b8 !important;
+        font-weight: 800 !important;
+        font-size: 13.5px !important;
+        border-radius: 8px !important;
+        padding: 0 20px !important;
+        border: none !important;
+        background: transparent !important;
+        transition: all 0.2s ease !important;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #f1f5f9 !important;
+        background: rgba(255, 255, 255, 0.04) !important;
+    }
+    .stTabs [aria-selected="true"] {
+        background: #171d2b !important;
+        color: #f97316 !important;
+        border: 1.5px solid #f97316 !important;
+        box-shadow: 0 0 16px rgba(249, 115, 22, 0.2) !important;
+    }
+
     /* Clear containment on Streamlit wrapper containers so position: fixed is 100% viewport-relative */
     div[data-testid="stAppViewBlockContainer"],
     div[data-testid="stAppViewContainer"],
@@ -1090,762 +1121,1008 @@ components.html(caret_injector_html, height=0)
 # ==============================================================================
 # MAIN WORKSPACE: TWO PRO DAW COLUMNS (Khớp hoàn toàn giao diện người dùng yêu cầu)
 # ==============================================================================
-col_script, col_studio = st.columns([1.1, 0.9], gap="medium")
+tab_tts, tab_dubbing = st.tabs([
+    "🎙️ PHÒNG THU GIỌNG ĐỌC AI (TTS STUDIO)",
+    "🎬 LỒNG TIẾNG VIDEO AI TỰ ĐỘNG (AI VIDEO DUBBING)",
+])
+
+with tab_tts:
+    col_script, col_studio = st.columns([1.1, 0.9], gap="medium")
 
 
-# ------------------------------------------------------------------------------
-# COLUMN 1: BƯỚC 1: TRÌNH SOẠN THẢO KỊCH BẢN ĐA CẢM XÚC
-# ------------------------------------------------------------------------------
-with col_script:
-    with st.container(border=True):
-        # Header Row
-        st.html(
-            """
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="background: #171c28; border: 1.5px solid #283147; color: #f8fafc; border-radius: 50%; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 15px;">01</div>
-                    <div>
-                        <div style="font-size: 1.05rem; font-weight: 800; color: #ffffff; letter-spacing: 0.3px;">BƯỚC 1: TRÌNH SOẠN THẢO KỊCH BẢN ĐA CẢM XÚC</div>
-                        <div style="font-size: 0.78rem; color: #94a3b8;">Smart Emotion Scriptwriter • Gắn nhãn cảm xúc & nhịp ngắt chuẩn xác theo vị trí con trỏ</div>
-                    </div>
-                </div>
-                <div class="step-header-actions" style="display: flex; gap: 6px;">
-                    <button type="button" id="btn-action-split" style="background: #151a26; border: 1px solid #232b3c; border-radius: 6px; color: #cbd5e1; padding: 4px 9px; font-size: 11px; font-weight: 600; cursor: pointer;">✂️ Tách câu tự động</button>
-                    <button type="button" id="btn-action-clear" style="background: #151a26; border: 1px solid #232b3c; border-radius: 6px; color: #cbd5e1; padding: 4px 9px; font-size: 11px; font-weight: 600; cursor: pointer;">🔄 Làm trống</button>
-                    <button type="button" class="btn-copy-emotion-table" style="background: linear-gradient(135deg, #f97316, #ea580c); border: 1px solid #fb923c; border-radius: 6px; color: #ffffff; padding: 4px 9px; font-size: 11px; font-weight: 700; cursor: pointer;">✨ Kịch bản mẫu / Copy AI</button>
-                </div>
-            </div>
-            """
-        )
-
-        # Neon Emotion Tags Panel
-        st.html(
-            """
-            <div style="background: #0d1018; border: 1px solid #1c2333; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
-                    <span style="font-size: 11.5px; font-weight: 800; color: #cbd5e1; display: flex; align-items: center; gap: 5px;">
-                        🎯 BẤM CHÈN THẺ CẢM XÚC TẠI CON TRỎ:
-                    </span>
-                    <span style="font-size: 10.5px; color: #64748b; font-weight: 600;">VieNeu Neural Markup v4.2</span>
-                </div>
-
-                <style>
-                    .neon-tag-chip {
-                        background: #141926;
-                        border: 1px solid #222a3d;
-                        color: #e2e8f0;
-                        border-radius: 6px;
-                        padding: 3px 8px;
-                        font-size: 11.5px;
-                        font-weight: 600;
-                        cursor: pointer;
-                        transition: all 0.12s ease;
-                        user-select: none;
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 3px;
-                    }
-                    .neon-tag-chip:hover {
-                        background: #1d2538 !important;
-                        border-color: #f97316 !important;
-                        color: #ffffff !important;
-                    }
-                    .neon-row {
-                        display: flex;
-                        align-items: center;
-                        gap: 5px;
-                        margin-bottom: 5px;
-                        flex-wrap: wrap;
-                    }
-                    .neon-row-sub {
-                        margin-left: 130px;
-                    }
-                    .neon-cat {
-                        font-size: 10px;
-                        font-weight: 800;
-                        color: #64748b;
-                        background: #111420;
-                        border: 1px solid #1c2233;
-                        padding: 2px 7px;
-                        border-radius: 4px;
-                        min-width: 125px;
-                        text-align: center;
-                    }
-                </style>
-
-                <!-- Row 1: Vui nhộn / Cười -->
-                <div class="neon-row">
-                    <span class="neon-cat">VUI NHỘN / CƯỜI:</span>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[cười]">😄 [Cười]</button>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[laughing]">😆 [Cười to]</button>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[snickers]">😏 [Cười đểu]</button>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[chuckles]">🤣 [Haha]</button>
-                </div>
-
-                <!-- Row 2: Trầm / Bi thương -->
-                <div class="neon-row">
-                    <span class="neon-cat">TRẦM / BI THƯƠNG:</span>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[sighs]">😮‍💨 [Thở dài]</button>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[crying]">😭 [Khóc]</button>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[clears throat]">🗣️ [Hắng giọng]</button>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[sneezes]">🤧 [Hắt hơi]</button>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[hesitant]">🤐 [Nấc]</button>
-                </div>
-
-                <!-- Row 3: Kịch tính / Căng thẳng -->
-                <div class="neon-row">
-                    <span class="neon-cat">KỊCH TÍNH / CĂNG THẲNG:</span>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[shocked]">😱 [Sốc]</button>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[angry]">😡 [Tức giận]</button>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[whispering]">🤫 [Thì thầm]</button>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[shouting]">📢 [Hét to]</button>
-                </div>
-
-                <!-- Row 3b: Phụ kịch tính -->
-                <div class="neon-row neon-row-sub">
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[panicked]">🏃 [Chết rồi!]</button>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[thinking]">🤔 [Hmm...]</button>
-                </div>
-
-                <!-- Row 4: Nhịp điệu ngắt nghỉ -->
-                <div class="neon-row" style="margin-bottom: 0;">
-                    <span class="neon-cat">NHỊP ĐIỆU NGẮT NGHỈ:</span>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[nghỉ 0.3s]">⏱️ [Nghỉ 0.3s]</button>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[nghỉ 0.5s]">⏸️ [Nghỉ 0.5s]</button>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[nghỉ 1s]">⏳ [Nghỉ 1.0s]</button>
-                    <button type="button" class="m-chip neon-tag-chip" data-tag="[nghỉ 2s]">🛑 [Nghỉ 2.0s]</button>
-                </div>
-
-                <!-- Dropdown Đầy Đủ 55+ Mã Biểu Cảm & Nút Chèn Tại Con Trỏ -->
-                <div class="caret-select-container" style="display: flex; gap: 8px; align-items: center; margin-top: 10px; padding-top: 9px; border-top: 1px solid #1c2333; flex-wrap: wrap;">
-                    <div style="flex-grow: 1; min-width: 250px;">
-                        <select id="caretSelectTag" style="width: 100%; background: #141926; color: #ffffff; border: 1.5px solid #283147; border-radius: 6px; padding: 6px 10px; font-size: 12px; outline: none; cursor: pointer;">
-                            <option value="[crying]">😭 [crying] - hu hu (khóc)</option>
-                            <option value="[coughs]">😷 [coughs] - khụ khụ (ho)</option>
-                            <option value="[lip smacks]">😋 [lip smacks] - chẹp chẹp</option>
-                            <option value="[annoyed]">😤 [annoyed] - chậc (khó chịu)</option>
-                            <option value="[screaming]">😱 [screaming] - áaaaa (kêu la)</option>
-                            <option value="[yelling]">📢 [yelling] - Êeeee (gọi to)</option>
-                            <option value="[affirmative]">👌 [affirmative] - ừ hứ (đồng tình)</option>
-                            <option value="[realization]">💡 [realization] - ôooo (nhận ra)</option>
-                            <option value="[giggles]">🤭 [giggles] - hí hí hí (cười khúc khích)</option>
-                            <option value="[thinking]">🤔 [thinking] - hmmm (suy nghĩ)</option>
-                            <option value="[gasps]">😮 [gasps] - hự (thở gấp)</option>
-                            <option value="[excited]">🤩 [excited] - wowww (hào hứng)</option>
-                            <option value="[relieved]">😌 [relieved] - phùuu (thở phào)</option>
-                            <option value="[confused]">🤨 [confused] - hả? (bối rối)</option>
-                            <option value="[agreeing]">👍 [agreeing] - đúng rồi</option>
-                            <option value="[cheering]">🎉 [cheering] - yeahhhh (cổ vũ)</option>
-                            <option value="[groans]">😩 [groans] - ôi trời ơi...</option>
-                            <option value="[embarrassed]">😳 [embarrassed] - ôi ngại quá</option>
-                            <option value="[angry]">😡 [angry] - tức quá!</option>
-                            <option value="[curious]">🧐 [curious] - ủa? (tò mò)</option>
-                            <option value="[sarcastic]">😏 [sarcastic] - ghê chưa (mỉa mai)</option>
-                            <option value="[happy]">😄 [happy] - vui quá</option>
-                            <option value="[celebrating]">🥳 [celebrating] - yooooo (ăn mừng)</option>
-                            <option value="[pleading]">🥺 [pleading] - làm ơn đi</option>
-                            <option value="[confident]">😎 [confident] - chắc chắn luôn</option>
-                            <option value="[grunts]">💪 [grunts] - hự! Cố lên</option>
-                            <option value="[snickers]">😼 [snickers] - khì khì (cười đểu)</option>
-                            <option value="[panicked]">🏃 [panicked] - chết chết chết!</option>
-                            <option value="[sneezes]">🤧 [sneezes] - ách xì</option>
-                            <option value="[hesitant]">🤐 [hesitant] - ừm... (ngập ngừng)</option>
-                            <option value="[chuckles]">😆 [chuckles] - he he he</option>
-                            <option value="[cười]">😄 [cười] - tiếng cười tự nhiên</option>
-                            <option value="[shouting]">🗣️ [shouting] - gôôôôô</option>
-                            <option value="[sighs]">😮‍💨 [sighs] - haizzz (thở dài)</option>
-                            <option value="[surprised]">😲 [surprised] - á há (ngạc nhiên)</option>
-                            <option value="[awkward laugh]">😅 [awkward laugh] - hơ hơ hơ (gượng)</option>
-                            <option value="[laughing]">😂 [laughing] - hahaha (cười to)</option>
-                            <option value="[yawns]">🥱 [yawns] - ngáppp (ngáp)</option>
-                            <option value="[whispering]">🤫 [whispering] - psst... (thì thầm)</option>
-                            <option value="[shocked]">😱 [shocked] - trời ơi! (sốc)</option>
-                            <option value="[amazed]">✨ [amazed] - ôi wow (kinh ngạc)</option>
-                            <option value="[frustrated]">😫 [frustrated] - trời đất ơi</option>
-                            <option value="[doubtful]">🤨 [doubtful] - thật không vậy?</option>
-                            <option value="[disagreeing]">🙅 [disagreeing] - không đâu</option>
-                            <option value="[applause]">👏 [applause] - bốp bốp bốp (vỗ tay)</option>
-                            <option value="[nervous laugh]">😬 [nervous laugh] - hơ hơ...</option>
-                            <option value="[disappointed]">😞 [disappointed] - ôi thôi rồi</option>
-                            <option value="[worried]">😟 [worried] - chết rồi (lo lắng)</option>
-                            <option value="[teasing]">😜 [teasing] - ê nhaaa (trêu chọc)</option>
-                            <option value="[proud]">🦁 [proud] - tuyệt vời (tự hào)</option>
-                            <option value="[sad]">😢 [sad] - buồn ghê</option>
-                            <option value="[apologetic]">🙏 [apologetic] - anh xin lỗi nhé</option>
-                            <option value="[determined]">🔥 [determined] - nhất định rồi</option>
-                            <option value="[excited gasp]">😮‍💨 [excited gasp] - ôiiii không</option>
-                            <option value="[clears throat]">🗣️ [clears throat] - hèm hèm (hắng giọng)</option>
-                            <option value="[smug]">😎 [smug] - biết ngay mà</option>
-                            <option value="[nghỉ 0.3s]">⏱️ [nghỉ 0.3s] - Ngắt 0.3s</option>
-                            <option value="[nghỉ 0.5s]">⏸️ [nghỉ 0.5s] - Ngắt 0.5s</option>
-                            <option value="[nghỉ 1s]">⏳ [nghỉ 1s] - Ngắt 1.0s</option>
-                            <option value="[nghỉ 2s]">🛑 [nghỉ 2s] - Ngắt 2.0s</option>
-                        </select>
-                    </div>
-                    <button type="button" id="caretDropdownBtn" style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; border: 1px solid #fb923c; border-radius: 6px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 0 10px rgba(249, 115, 22, 0.4);">
-                        ➕ Chèn tại vị trí con trỏ chuột
-                    </button>
-                </div>
-            </div>
-            """
-        )
-
-        # Editor Header
-        st.html(
-            """
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 11.5px; padding: 0 2px;">
-                <span style="color: #f97316; font-weight: 700;">● KỊCH BẢN ĐANG XỬ LÝ (LIVE SYNTAX MODE) <span style="color: #64748b;">| Review Phim Thánh Adam #01</span></span>
-                <div style="display: flex; gap: 6px;">
-                    <button type="button" id="btn-action-format" style="background: #141926; border: 1px solid #232b3d; border-radius: 4px; color: #cbd5e1; font-size: 11px; padding: 2px 7px; cursor: pointer;">Format Tags</button>
-                    <span style="background: #171d2b; border: 1px solid #29344c; color: #cbd5e1; font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 700;">AI Script Rewriter</span>
-                </div>
-            </div>
-            """
-        )
-
-        # Text Area
-        current_text = st.text_area(
-            "Kịch bản lời thoại:",
-            key="tts_main_text",
-            height=130,
-            label_visibility="collapsed",
-            placeholder="Nhập hoặc dán kịch bản tại đây...",
-        )
-
-        # Dynamic Stats Counter Bar
-        initial_words = len([w for w in current_text.strip().split() if w]) if current_text.strip() else 0
-        initial_chars = len(current_text)
-        initial_tags = len(re.findall(r"\[[^\]]+\]", current_text))
-        initial_duration = f"00:{(initial_words / 2.7):04.1f}s"
-
-        st.html(
-            f"""
-            <div style="display: flex; justify-content: space-between; align-items: center; background: #0c0e16; border: 1px solid #1a2030; border-radius: 6px; padding: 5px 12px; margin-top: 5px; margin-bottom: 12px; font-size: 11.5px; color: #94a3b8; flex-wrap: wrap; gap: 6px;">
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <span id="daw-stat-words" style="color: #e2e8f0;">Từ: <strong style="color: #f97316;">{initial_words} từ</strong></span>
-                    <span>•</span>
-                    <span id="daw-stat-chars" style="color: #e2e8f0;">Ký tự: <strong style="color: #f97316;">{initial_chars} ký tự</strong></span>
-                    <span>•</span>
-                    <span id="daw-stat-duration" style="color: #cbd5e1;">⏱️ Thời lượng dự kiến: {initial_duration}</span>
-                    <span>•</span>
-                    <span style="color: #64748b;">Tỷ lệ cảm xúc: 100% Khớp</span>
-                </div>
-                <div style="background: #161b27; border: 1px solid #242c3f; border-radius: 4px; padding: 1px 7px; font-size: 11px;">
-                    <strong id="daw-stat-tags" style="color: #cbd5e1;">{initial_tags} Tags Phát hiện</strong>
-                </div>
-            </div>
-            """
-        )
-
-        # Bottom Script Tools: Preset Dropdown & TXT File Upload
-        c_preset, c_upload = st.columns([1.1, 0.9])
-        with c_preset:
-            st.markdown("<span style='font-size: 11.5px; color: #f97316; font-weight: 700;'>🔥 Preset Kịch Bản Hot Triệu View:</span>", unsafe_allow_html=True)
-            st.selectbox(
-                "Preset:",
-                options=list(sample_options.keys()),
-                index=0,
-                key="sample_preset_choice",
-                on_change=apply_sample_preset,
-                label_visibility="collapsed",
-            )
-        with c_upload:
-            st.markdown("<span style='font-size: 11.5px; color: #f97316; font-weight: 700;'>📁 Tải Kịch Bản (TXT / SRT / DOCX):</span>", unsafe_allow_html=True)
-            st.file_uploader(
-                "File kịch bản:",
-                type=["txt"],
-                key="txt_upload",
-                on_change=apply_txt_upload,
-                label_visibility="collapsed",
-            )
-
-        # Full 55+ Emotion Table Expander
-        with st.expander("📊 Xem & Sao chép đầy đủ 55+ Bảng mã lệnh cảm xúc (Dùng cho ChatGPT / AI)", expanded=False):
-            st.markdown(
-                """
-                💡 **Mẹo:** Bấm nút **"📋 Copy Bảng cho Chat AI"** để sao chép toàn bộ bảng và prompt gửi sang ChatGPT / Claude nhờ AI viết kịch bản chèn sẵn cảm xúc!
-                """
-            )
-            st.code(EMOTION_PROMPT_TEMPLATE, language="markdown")
-            st.markdown(
-                "<div style='font-size: 12px; color: #64748b; margin-top: 6px;'>👇 <i>Bấm vào mã lệnh bất kỳ trong bảng để chèn nhanh vào kịch bản:</i></div>",
-                unsafe_allow_html=True,
-            )
-            st.markdown(emotion_table_html, unsafe_allow_html=True)
-
-
-# ------------------------------------------------------------------------------
-# COLUMN 2: BƯỚC 2: PHỐI GIỌNG & MÔ PHÒNG PHÒNG THU
-# ------------------------------------------------------------------------------
-with col_studio:
-    with st.container(border=True):
-        # Header Row
-        st.html(
-            """
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="background: #171c28; border: 1.5px solid #283147; color: #f8fafc; border-radius: 50%; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 15px;">02</div>
-                    <div>
-                        <div style="font-size: 1.05rem; font-weight: 800; color: #ffffff; letter-spacing: 0.3px;">BƯỚC 2: PHỐI GIỌNG & MÔ PHÒNG PHÒNG THU</div>
-                        <div style="font-size: 0.78rem; color: #94a3b8;">Acoustic Engine • Điều biến tần số & Giả lập buồng thu chuyên nghiệp</div>
-                    </div>
-                </div>
-            </div>
-            """
-        )
-
-        # Language Header & Selector
-        col_lang_t1, col_lang_t2 = st.columns([0.7, 0.3])
-        with col_lang_t1:
-            st.markdown("<span style='font-size: 11.5px; color: #cbd5e1; font-weight: 600;'>Ngôn ngữ & Phương ngữ VieNeu:</span>", unsafe_allow_html=True)
-        with col_lang_t2:
-            st.markdown("<div style='text-align: right; font-size: 11px; color: #f97316; font-weight: 700;'>● AI Đa vùng miền</div>", unsafe_allow_html=True)
-
-        tts_lang = st.selectbox(
-            "Ngôn ngữ:",
-            options=list(LANGUAGE_NAMES.keys()),
-            index=0,
-            format_func=lambda code: f"🇻🇳 {LANGUAGE_NAMES.get(code, code)} (Miền Bắc Chuẩn - Hà Nội Thanh Lịch)" if code == "vi" else LANGUAGE_NAMES.get(code, code),
-            key="tts_lang_select",
-            label_visibility="collapsed",
-        )
-
-        voices_dict = VOICES_CATALOG.get(tts_lang, VOICES_CATALOG["vi"])
-        voice_options = list(voices_dict.keys())
-
-        # Ensure session state has a valid selection
-        if "selected_voice_label" not in st.session_state or st.session_state["selected_voice_label"] not in voice_options:
-            st.session_state["selected_voice_label"] = voice_options[0]
-
-        # Dropdown chọn giọng đầy đủ 31+ giọng (Chọn giọng bất kỳ để nghe thử)
-        st.markdown("<span style='font-size: 11.5px; color: #f97316; font-weight: 700;'>🎙️ Danh sách toàn bộ 31+ giọng đọc AI (Chọn nhân vật bất kỳ để nghe thử):</span>", unsafe_allow_html=True)
-        selected_voice_label = st.selectbox(
-            "Danh sách giọng:",
-            options=voice_options,
-            key="selected_voice_label",
-            label_visibility="collapsed",
-        )
-        selected_voice_id = voices_dict[selected_voice_label]
-
-        # Trích xuất thông tin động của giọng đang chọn để hiển thị lên thẻ Nghe Thử
-        clean_name = selected_voice_label.split(" (")[0].replace("🔥 ", "").strip()
-        if " (" in selected_voice_label:
-            raw_desc = selected_voice_label.split(" (")[1].rstrip(")")
-        else:
-            raw_desc = "VieNeu Voice Talent • Chuẩn Studio 48kHz"
-
-        if "Adam" in clean_name:
-            v_badge = "HOT REVIEW"
-        elif "Hải Đăng" in clean_name or "Tuấn Anh" in clean_name:
-            v_badge = "THỜI SỰ VTV"
-        elif "Thiện Minh" in clean_name or "Bảy" in clean_name:
-            v_badge = "KỂ CHUYỆN"
-        elif "Thùy Dung" in clean_name or "Mỹ Linh" in clean_name or "Trúc Ly" in clean_name:
-            v_badge = "PODCAST TỰ NHIÊN"
-        elif "🔥" in selected_voice_label:
-            v_badge = "HOT TALENT"
-        else:
-            v_badge = "VIENEU PRO"
-
-        # Thẻ Showcase động: Tự động đổi theo giọng đang chọn trong danh sách 31+ giọng
-        c_feat1, c_feat2 = st.columns([0.65, 0.35])
-        with c_feat1:
+    # ------------------------------------------------------------------------------
+    # COLUMN 1: BƯỚC 1: TRÌNH SOẠN THẢO KỊCH BẢN ĐA CẢM XÚC
+    # ------------------------------------------------------------------------------
+    with col_script:
+        with st.container(border=True):
+            # Header Row
             st.html(
-                f"""
-                <div style="background: #0d1018; border: 1.5px solid #f97316; border-radius: 10px; padding: 10px 12px; margin-top: 4px; margin-bottom: 8px; box-shadow: 0 0 16px rgba(249, 115, 22, 0.15);">
+                """
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <div style="width: 38px; height: 38px; border-radius: 50%; background: #1a2030; border: 1.5px solid #f97316; color: #f97316; display: flex; align-items: center; justify-content: center; font-size: 18px;">
-                            🎙️
-                        </div>
+                        <div style="background: #171c28; border: 1.5px solid #283147; color: #f8fafc; border-radius: 50%; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 15px;">01</div>
                         <div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span style="font-size: 1.05rem; font-weight: 800; color: #ffffff;">{clean_name}</span>
-                                <span style="background: #f97316; color: #ffffff; font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 3px;">{v_badge}</span>
-                            </div>
-                            <div style="font-size: 0.74rem; color: #cbd5e1;">{raw_desc}</div>
+                            <div style="font-size: 1.05rem; font-weight: 800; color: #ffffff; letter-spacing: 0.3px;">BƯỚC 1: TRÌNH SOẠN THẢO KỊCH BẢN ĐA CẢM XÚC</div>
+                            <div style="font-size: 0.78rem; color: #94a3b8;">Smart Emotion Scriptwriter • Gắn nhãn cảm xúc & nhịp ngắt chuẩn xác theo vị trí con trỏ</div>
                         </div>
                     </div>
-                    <div style="display: flex; gap: 6px; margin-top: 6px; font-size: 10.5px;">
-                        <span style="background: #141926; color: #94a3b8; border: 1px solid #222a3d; padding: 1px 6px; border-radius: 4px;">Master Acoustic 48kHz Stereo</span>
-                        <span style="background: #141926; color: #10b981; border: 1px solid #222a3d; padding: 1px 6px; border-radius: 4px;">Độ biểu cảm: Cực mạnh (10/10)</span>
+                    <div class="step-header-actions" style="display: flex; gap: 6px;">
+                        <button type="button" id="btn-action-split" style="background: #151a26; border: 1px solid #232b3c; border-radius: 6px; color: #cbd5e1; padding: 4px 9px; font-size: 11px; font-weight: 600; cursor: pointer;">✂️ Tách câu tự động</button>
+                        <button type="button" id="btn-action-clear" style="background: #151a26; border: 1px solid #232b3c; border-radius: 6px; color: #cbd5e1; padding: 4px 9px; font-size: 11px; font-weight: 600; cursor: pointer;">🔄 Làm trống</button>
+                        <button type="button" class="btn-copy-emotion-table" style="background: linear-gradient(135deg, #f97316, #ea580c); border: 1px solid #fb923c; border-radius: 6px; color: #ffffff; padding: 4px 9px; font-size: 11px; font-weight: 700; cursor: pointer;">✨ Kịch bản mẫu / Copy AI</button>
                     </div>
                 </div>
                 """
             )
-        # Tạo dữ liệu base64 mẫu giọng nghe thử client-side độc lập 100%
-        sample_audio_uri = ""
-        try:
-            sample_file = get_or_generate_voice_preview(selected_voice_id, tts_lang, clean_name)
-            if sample_file.exists() and sample_file.stat().st_size > 100:
-                s_b64 = base64.b64encode(sample_file.read_bytes()).decode("utf-8")
-                sample_audio_uri = f"data:audio/mp3;base64,{s_b64}"
-        except Exception:
-            pass
 
-        with c_feat2:
-            st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
+            # Neon Emotion Tags Panel
             st.html(
-                f"""
-                <audio id="vdt-preview-audio-core" src="{sample_audio_uri}" preload="auto"></audio>
-                <button type="button" id="vdt-btn-preview-sample" style="
-                    width: 100%;
-                    height: 72px;
-                    background: #0d111a;
-                    border: 1.5px solid #283347;
-                    border-radius: 9px;
-                    padding: 8px 6px;
-                    cursor: pointer;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 3px;
-                    transition: all 0.15s ease;
-                    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-                " title="Bấm để phát hoặc dừng nghe thử mẫu giọng {clean_name}">
-                    <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 800; color: #f97316;">
-                        <span id="vdt-preview-icon" style="font-size: 16px;">🎧</span>
-                        <span id="vdt-preview-lbl">Nghe thử mẫu</span>
+                """
+                <div style="background: #0d1018; border: 1px solid #1c2333; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                        <span style="font-size: 11.5px; font-weight: 800; color: #cbd5e1; display: flex; align-items: center; gap: 5px;">
+                            🎯 BẤM CHÈN THẺ CẢM XÚC TẠI CON TRỎ:
+                        </span>
+                        <span style="font-size: 10.5px; color: #64748b; font-weight: 600;">VieNeu Neural Markup v4.2</span>
                     </div>
-                    <div style="font-size: 10.5px; color: #cbd5e1; font-weight: 700; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                        {clean_name}
+
+                    <style>
+                        .neon-tag-chip {
+                            background: #141926;
+                            border: 1px solid #222a3d;
+                            color: #e2e8f0;
+                            border-radius: 6px;
+                            padding: 3px 8px;
+                            font-size: 11.5px;
+                            font-weight: 600;
+                            cursor: pointer;
+                            transition: all 0.12s ease;
+                            user-select: none;
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 3px;
+                        }
+                        .neon-tag-chip:hover {
+                            background: #1d2538 !important;
+                            border-color: #f97316 !important;
+                            color: #ffffff !important;
+                        }
+                        .neon-row {
+                            display: flex;
+                            align-items: center;
+                            gap: 5px;
+                            margin-bottom: 5px;
+                            flex-wrap: wrap;
+                        }
+                        .neon-row-sub {
+                            margin-left: 130px;
+                        }
+                        .neon-cat {
+                            font-size: 10px;
+                            font-weight: 800;
+                            color: #64748b;
+                            background: #111420;
+                            border: 1px solid #1c2233;
+                            padding: 2px 7px;
+                            border-radius: 4px;
+                            min-width: 125px;
+                            text-align: center;
+                        }
+                    </style>
+
+                    <!-- Row 1: Vui nhộn / Cười -->
+                    <div class="neon-row">
+                        <span class="neon-cat">VUI NHỘN / CƯỜI:</span>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[cười]">😄 [Cười]</button>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[laughing]">😆 [Cười to]</button>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[snickers]">😏 [Cười đểu]</button>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[chuckles]">🤣 [Haha]</button>
                     </div>
-                    <div style="font-size: 9px; color: #64748b; font-weight: 600;">(Độc lập • 0% ảnh hưởng thanh dưới)</div>
-                </button>
+
+                    <!-- Row 2: Trầm / Bi thương -->
+                    <div class="neon-row">
+                        <span class="neon-cat">TRẦM / BI THƯƠNG:</span>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[sighs]">😮‍💨 [Thở dài]</button>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[crying]">😭 [Khóc]</button>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[clears throat]">🗣️ [Hắng giọng]</button>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[sneezes]">🤧 [Hắt hơi]</button>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[hesitant]">🤐 [Nấc]</button>
+                    </div>
+
+                    <!-- Row 3: Kịch tính / Căng thẳng -->
+                    <div class="neon-row">
+                        <span class="neon-cat">KỊCH TÍNH / CĂNG THẲNG:</span>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[shocked]">😱 [Sốc]</button>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[angry]">😡 [Tức giận]</button>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[whispering]">🤫 [Thì thầm]</button>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[shouting]">📢 [Hét to]</button>
+                    </div>
+
+                    <!-- Row 3b: Phụ kịch tính -->
+                    <div class="neon-row neon-row-sub">
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[panicked]">🏃 [Chết rồi!]</button>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[thinking]">🤔 [Hmm...]</button>
+                    </div>
+
+                    <!-- Row 4: Nhịp điệu ngắt nghỉ -->
+                    <div class="neon-row" style="margin-bottom: 0;">
+                        <span class="neon-cat">NHỊP ĐIỆU NGẮT NGHỈ:</span>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[nghỉ 0.3s]">⏱️ [Nghỉ 0.3s]</button>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[nghỉ 0.5s]">⏸️ [Nghỉ 0.5s]</button>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[nghỉ 1s]">⏳ [Nghỉ 1.0s]</button>
+                        <button type="button" class="m-chip neon-tag-chip" data-tag="[nghỉ 2s]">🛑 [Nghỉ 2.0s]</button>
+                    </div>
+
+                    <!-- Dropdown Đầy Đủ 55+ Mã Biểu Cảm & Nút Chèn Tại Con Trỏ -->
+                    <div class="caret-select-container" style="display: flex; gap: 8px; align-items: center; margin-top: 10px; padding-top: 9px; border-top: 1px solid #1c2333; flex-wrap: wrap;">
+                        <div style="flex-grow: 1; min-width: 250px;">
+                            <select id="caretSelectTag" style="width: 100%; background: #141926; color: #ffffff; border: 1.5px solid #283147; border-radius: 6px; padding: 6px 10px; font-size: 12px; outline: none; cursor: pointer;">
+                                <option value="[crying]">😭 [crying] - hu hu (khóc)</option>
+                                <option value="[coughs]">😷 [coughs] - khụ khụ (ho)</option>
+                                <option value="[lip smacks]">😋 [lip smacks] - chẹp chẹp</option>
+                                <option value="[annoyed]">😤 [annoyed] - chậc (khó chịu)</option>
+                                <option value="[screaming]">😱 [screaming] - áaaaa (kêu la)</option>
+                                <option value="[yelling]">📢 [yelling] - Êeeee (gọi to)</option>
+                                <option value="[affirmative]">👌 [affirmative] - ừ hứ (đồng tình)</option>
+                                <option value="[realization]">💡 [realization] - ôooo (nhận ra)</option>
+                                <option value="[giggles]">🤭 [giggles] - hí hí hí (cười khúc khích)</option>
+                                <option value="[thinking]">🤔 [thinking] - hmmm (suy nghĩ)</option>
+                                <option value="[gasps]">😮 [gasps] - hự (thở gấp)</option>
+                                <option value="[excited]">🤩 [excited] - wowww (hào hứng)</option>
+                                <option value="[relieved]">😌 [relieved] - phùuu (thở phào)</option>
+                                <option value="[confused]">🤨 [confused] - hả? (bối rối)</option>
+                                <option value="[agreeing]">👍 [agreeing] - đúng rồi</option>
+                                <option value="[cheering]">🎉 [cheering] - yeahhhh (cổ vũ)</option>
+                                <option value="[groans]">😩 [groans] - ôi trời ơi...</option>
+                                <option value="[embarrassed]">😳 [embarrassed] - ôi ngại quá</option>
+                                <option value="[angry]">😡 [angry] - tức quá!</option>
+                                <option value="[curious]">🧐 [curious] - ủa? (tò mò)</option>
+                                <option value="[sarcastic]">😏 [sarcastic] - ghê chưa (mỉa mai)</option>
+                                <option value="[happy]">😄 [happy] - vui quá</option>
+                                <option value="[celebrating]">🥳 [celebrating] - yooooo (ăn mừng)</option>
+                                <option value="[pleading]">🥺 [pleading] - làm ơn đi</option>
+                                <option value="[confident]">😎 [confident] - chắc chắn luôn</option>
+                                <option value="[grunts]">💪 [grunts] - hự! Cố lên</option>
+                                <option value="[snickers]">😼 [snickers] - khì khì (cười đểu)</option>
+                                <option value="[panicked]">🏃 [panicked] - chết chết chết!</option>
+                                <option value="[sneezes]">🤧 [sneezes] - ách xì</option>
+                                <option value="[hesitant]">🤐 [hesitant] - ừm... (ngập ngừng)</option>
+                                <option value="[chuckles]">😆 [chuckles] - he he he</option>
+                                <option value="[cười]">😄 [cười] - tiếng cười tự nhiên</option>
+                                <option value="[shouting]">🗣️ [shouting] - gôôôôô</option>
+                                <option value="[sighs]">😮‍💨 [sighs] - haizzz (thở dài)</option>
+                                <option value="[surprised]">😲 [surprised] - á há (ngạc nhiên)</option>
+                                <option value="[awkward laugh]">😅 [awkward laugh] - hơ hơ hơ (gượng)</option>
+                                <option value="[laughing]">😂 [laughing] - hahaha (cười to)</option>
+                                <option value="[yawns]">🥱 [yawns] - ngáppp (ngáp)</option>
+                                <option value="[whispering]">🤫 [whispering] - psst... (thì thầm)</option>
+                                <option value="[shocked]">😱 [shocked] - trời ơi! (sốc)</option>
+                                <option value="[amazed]">✨ [amazed] - ôi wow (kinh ngạc)</option>
+                                <option value="[frustrated]">😫 [frustrated] - trời đất ơi</option>
+                                <option value="[doubtful]">🤨 [doubtful] - thật không vậy?</option>
+                                <option value="[disagreeing]">🙅 [disagreeing] - không đâu</option>
+                                <option value="[applause]">👏 [applause] - bốp bốp bốp (vỗ tay)</option>
+                                <option value="[nervous laugh]">😬 [nervous laugh] - hơ hơ...</option>
+                                <option value="[disappointed]">😞 [disappointed] - ôi thôi rồi</option>
+                                <option value="[worried]">😟 [worried] - chết rồi (lo lắng)</option>
+                                <option value="[teasing]">😜 [teasing] - ê nhaaa (trêu chọc)</option>
+                                <option value="[proud]">🦁 [proud] - tuyệt vời (tự hào)</option>
+                                <option value="[sad]">😢 [sad] - buồn ghê</option>
+                                <option value="[apologetic]">🙏 [apologetic] - anh xin lỗi nhé</option>
+                                <option value="[determined]">🔥 [determined] - nhất định rồi</option>
+                                <option value="[excited gasp]">😮‍💨 [excited gasp] - ôiiii không</option>
+                                <option value="[clears throat]">🗣️ [clears throat] - hèm hèm (hắng giọng)</option>
+                                <option value="[smug]">😎 [smug] - biết ngay mà</option>
+                                <option value="[nghỉ 0.3s]">⏱️ [nghỉ 0.3s] - Ngắt 0.3s</option>
+                                <option value="[nghỉ 0.5s]">⏸️ [nghỉ 0.5s] - Ngắt 0.5s</option>
+                                <option value="[nghỉ 1s]">⏳ [nghỉ 1s] - Ngắt 1.0s</option>
+                                <option value="[nghỉ 2s]">🛑 [nghỉ 2s] - Ngắt 2.0s</option>
+                            </select>
+                        </div>
+                        <button type="button" id="caretDropdownBtn" style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; border: 1px solid #fb923c; border-radius: 6px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 0 10px rgba(249, 115, 22, 0.4);">
+                            ➕ Chèn tại vị trí con trỏ chuột
+                        </button>
+                    </div>
+                </div>
                 """
             )
-            # Controller script cho mẫu nghe thử: Hoàn toàn không reload Streamlit
-            preview_js = f"""
-            <!DOCTYPE html>
-            <html><head><meta charset="utf-8"></head><body>
-            <script>
-            (function() {{
-                try {{
-                    var parentDoc = window.parent.document;
-                    var parentWin = window.parent;
 
-                    if (!parentWin.__vdtPreviewBound) {{
-                        parentWin.__vdtPreviewBound = true;
-                        parentDoc.addEventListener('click', function(e) {{
-                            var btn = e.target.closest('#vdt-btn-preview-sample');
-                            if (!btn) return;
-                            e.preventDefault();
-                            e.stopPropagation();
+            # Editor Header
+            st.html(
+                """
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 11.5px; padding: 0 2px;">
+                    <span style="color: #f97316; font-weight: 700;">● KỊCH BẢN ĐANG XỬ LÝ (LIVE SYNTAX MODE) <span style="color: #64748b;">| Review Phim Thánh Adam #01</span></span>
+                    <div style="display: flex; gap: 6px;">
+                        <button type="button" id="btn-action-format" style="background: #141926; border: 1px solid #232b3d; border-radius: 4px; color: #cbd5e1; font-size: 11px; padding: 2px 7px; cursor: pointer;">Format Tags</button>
+                        <span style="background: #171d2b; border: 1px solid #29344c; color: #cbd5e1; font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 700;">AI Script Rewriter</span>
+                    </div>
+                </div>
+                """
+            )
 
-                            var prevAudio = parentDoc.getElementById('vdt-preview-audio-core');
-                            var prevIcon = parentDoc.getElementById('vdt-preview-icon');
-                            var prevLbl = parentDoc.getElementById('vdt-preview-lbl');
-                            var masterAudio = parentDoc.getElementById('daw-core-audio');
+            # Text Area
+            current_text = st.text_area(
+                "Kịch bản lời thoại:",
+                key="tts_main_text",
+                height=130,
+                label_visibility="collapsed",
+                placeholder="Nhập hoặc dán kịch bản tại đây...",
+            )
 
-                            if (!prevAudio) return;
+            # Dynamic Stats Counter Bar
+            initial_words = len([w for w in current_text.strip().split() if w]) if current_text.strip() else 0
+            initial_chars = len(current_text)
+            initial_tags = len(re.findall(r"\[[^\]]+\]", current_text))
+            initial_duration = f"00:{(initial_words / 2.7):04.1f}s"
 
-                            if (prevAudio.paused) {{
-                                if (masterAudio && !masterAudio.paused) {{
-                                    if (parentWin.__vdtDoPause) {{
-                                        parentWin.__vdtDoPause();
-                                    }} else {{
-                                        masterAudio.pause();
-                                    }}
-                                }}
-                                prevAudio.currentTime = 0;
-                                prevAudio.play().then(function() {{
-                                    if (prevIcon) prevIcon.textContent = "⏸";
-                                    if (prevLbl) prevLbl.textContent = "Đang phát...";
-                                    btn.style.borderColor = "#f97316";
-                                    btn.style.background = "#182030";
-                                }}).catch(function(err) {{
-                                    console.log("Preview error:", err);
-                                }});
-                            }} else {{
-                                prevAudio.pause();
-                                if (prevIcon) prevIcon.textContent = "🎧";
-                                if (prevLbl) prevLbl.textContent = "Nghe thử mẫu";
-                                btn.style.borderColor = "#283347";
-                                btn.style.background = "#0d111a";
-                            }}
-                        }});
-                    }}
+            st.html(
+                f"""
+                <div style="display: flex; justify-content: space-between; align-items: center; background: #0c0e16; border: 1px solid #1a2030; border-radius: 6px; padding: 5px 12px; margin-top: 5px; margin-bottom: 12px; font-size: 11.5px; color: #94a3b8; flex-wrap: wrap; gap: 6px;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <span id="daw-stat-words" style="color: #e2e8f0;">Từ: <strong style="color: #f97316;">{initial_words} từ</strong></span>
+                        <span>•</span>
+                        <span id="daw-stat-chars" style="color: #e2e8f0;">Ký tự: <strong style="color: #f97316;">{initial_chars} ký tự</strong></span>
+                        <span>•</span>
+                        <span id="daw-stat-duration" style="color: #cbd5e1;">⏱️ Thời lượng dự kiến: {initial_duration}</span>
+                        <span>•</span>
+                        <span style="color: #64748b;">Tỷ lệ cảm xúc: 100% Khớp</span>
+                    </div>
+                    <div style="background: #161b27; border: 1px solid #242c3f; border-radius: 4px; padding: 1px 7px; font-size: 11px;">
+                        <strong id="daw-stat-tags" style="color: #cbd5e1;">{initial_tags} Tags Phát hiện</strong>
+                    </div>
+                </div>
+                """
+            )
 
-                    setInterval(function() {{
-                        var prevAudio = parentDoc.getElementById('vdt-preview-audio-core');
-                        if (prevAudio && !prevAudio.__vdtHooked) {{
-                            prevAudio.__vdtHooked = true;
-                            function resetBtn() {{
+            # Bottom Script Tools: Preset Dropdown & TXT File Upload
+            c_preset, c_upload = st.columns([1.1, 0.9])
+            with c_preset:
+                st.markdown("<span style='font-size: 11.5px; color: #f97316; font-weight: 700;'>🔥 Preset Kịch Bản Hot Triệu View:</span>", unsafe_allow_html=True)
+                st.selectbox(
+                    "Preset:",
+                    options=list(sample_options.keys()),
+                    index=0,
+                    key="sample_preset_choice",
+                    on_change=apply_sample_preset,
+                    label_visibility="collapsed",
+                )
+            with c_upload:
+                st.markdown("<span style='font-size: 11.5px; color: #f97316; font-weight: 700;'>📁 Tải Kịch Bản (TXT / SRT / DOCX):</span>", unsafe_allow_html=True)
+                st.file_uploader(
+                    "File kịch bản:",
+                    type=["txt"],
+                    key="txt_upload",
+                    on_change=apply_txt_upload,
+                    label_visibility="collapsed",
+                )
+
+            # Full 55+ Emotion Table Expander
+            with st.expander("📊 Xem & Sao chép đầy đủ 55+ Bảng mã lệnh cảm xúc (Dùng cho ChatGPT / AI)", expanded=False):
+                st.markdown(
+                    """
+                    💡 **Mẹo:** Bấm nút **"📋 Copy Bảng cho Chat AI"** để sao chép toàn bộ bảng và prompt gửi sang ChatGPT / Claude nhờ AI viết kịch bản chèn sẵn cảm xúc!
+                    """
+                )
+                st.code(EMOTION_PROMPT_TEMPLATE, language="markdown")
+                st.markdown(
+                    "<div style='font-size: 12px; color: #64748b; margin-top: 6px;'>👇 <i>Bấm vào mã lệnh bất kỳ trong bảng để chèn nhanh vào kịch bản:</i></div>",
+                    unsafe_allow_html=True,
+                )
+                st.markdown(emotion_table_html, unsafe_allow_html=True)
+
+
+    # ------------------------------------------------------------------------------
+    # COLUMN 2: BƯỚC 2: PHỐI GIỌNG & MÔ PHÒNG PHÒNG THU
+    # ------------------------------------------------------------------------------
+    with col_studio:
+        with st.container(border=True):
+            # Header Row
+            st.html(
+                """
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="background: #171c28; border: 1.5px solid #283147; color: #f8fafc; border-radius: 50%; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 15px;">02</div>
+                        <div>
+                            <div style="font-size: 1.05rem; font-weight: 800; color: #ffffff; letter-spacing: 0.3px;">BƯỚC 2: PHỐI GIỌNG & MÔ PHÒNG PHÒNG THU</div>
+                            <div style="font-size: 0.78rem; color: #94a3b8;">Acoustic Engine • Điều biến tần số & Giả lập buồng thu chuyên nghiệp</div>
+                        </div>
+                    </div>
+                </div>
+                """
+            )
+
+            # Language Header & Selector
+            col_lang_t1, col_lang_t2 = st.columns([0.7, 0.3])
+            with col_lang_t1:
+                st.markdown("<span style='font-size: 11.5px; color: #cbd5e1; font-weight: 600;'>Ngôn ngữ & Phương ngữ VieNeu:</span>", unsafe_allow_html=True)
+            with col_lang_t2:
+                st.markdown("<div style='text-align: right; font-size: 11px; color: #f97316; font-weight: 700;'>● AI Đa vùng miền</div>", unsafe_allow_html=True)
+
+            tts_lang = st.selectbox(
+                "Ngôn ngữ:",
+                options=list(LANGUAGE_NAMES.keys()),
+                index=0,
+                format_func=lambda code: f"🇻🇳 {LANGUAGE_NAMES.get(code, code)} (Miền Bắc Chuẩn - Hà Nội Thanh Lịch)" if code == "vi" else LANGUAGE_NAMES.get(code, code),
+                key="tts_lang_select",
+                label_visibility="collapsed",
+            )
+
+            voices_dict = VOICES_CATALOG.get(tts_lang, VOICES_CATALOG["vi"])
+            voice_options = list(voices_dict.keys())
+
+            # Ensure session state has a valid selection
+            if "selected_voice_label" not in st.session_state or st.session_state["selected_voice_label"] not in voice_options:
+                st.session_state["selected_voice_label"] = voice_options[0]
+
+            # Dropdown chọn giọng đầy đủ 31+ giọng (Chọn giọng bất kỳ để nghe thử)
+            st.markdown("<span style='font-size: 11.5px; color: #f97316; font-weight: 700;'>🎙️ Danh sách toàn bộ 31+ giọng đọc AI (Chọn nhân vật bất kỳ để nghe thử):</span>", unsafe_allow_html=True)
+            selected_voice_label = st.selectbox(
+                "Danh sách giọng:",
+                options=voice_options,
+                key="selected_voice_label",
+                label_visibility="collapsed",
+            )
+            selected_voice_id = voices_dict[selected_voice_label]
+
+            # Trích xuất thông tin động của giọng đang chọn để hiển thị lên thẻ Nghe Thử
+            clean_name = selected_voice_label.split(" (")[0].replace("🔥 ", "").strip()
+            if " (" in selected_voice_label:
+                raw_desc = selected_voice_label.split(" (")[1].rstrip(")")
+            else:
+                raw_desc = "VieNeu Voice Talent • Chuẩn Studio 48kHz"
+
+            if "Adam" in clean_name:
+                v_badge = "HOT REVIEW"
+            elif "Hải Đăng" in clean_name or "Tuấn Anh" in clean_name:
+                v_badge = "THỜI SỰ VTV"
+            elif "Thiện Minh" in clean_name or "Bảy" in clean_name:
+                v_badge = "KỂ CHUYỆN"
+            elif "Thùy Dung" in clean_name or "Mỹ Linh" in clean_name or "Trúc Ly" in clean_name:
+                v_badge = "PODCAST TỰ NHIÊN"
+            elif "🔥" in selected_voice_label:
+                v_badge = "HOT TALENT"
+            else:
+                v_badge = "VIENEU PRO"
+
+            # Thẻ Showcase động: Tự động đổi theo giọng đang chọn trong danh sách 31+ giọng
+            c_feat1, c_feat2 = st.columns([0.65, 0.35])
+            with c_feat1:
+                st.html(
+                    f"""
+                    <div style="background: #0d1018; border: 1.5px solid #f97316; border-radius: 10px; padding: 10px 12px; margin-top: 4px; margin-bottom: 8px; box-shadow: 0 0 16px rgba(249, 115, 22, 0.15);">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 38px; height: 38px; border-radius: 50%; background: #1a2030; border: 1.5px solid #f97316; color: #f97316; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                                🎙️
+                            </div>
+                            <div>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 1.05rem; font-weight: 800; color: #ffffff;">{clean_name}</span>
+                                    <span style="background: #f97316; color: #ffffff; font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 3px;">{v_badge}</span>
+                                </div>
+                                <div style="font-size: 0.74rem; color: #cbd5e1;">{raw_desc}</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 6px; margin-top: 6px; font-size: 10.5px;">
+                            <span style="background: #141926; color: #94a3b8; border: 1px solid #222a3d; padding: 1px 6px; border-radius: 4px;">Master Acoustic 48kHz Stereo</span>
+                            <span style="background: #141926; color: #10b981; border: 1px solid #222a3d; padding: 1px 6px; border-radius: 4px;">Độ biểu cảm: Cực mạnh (10/10)</span>
+                        </div>
+                    </div>
+                    """
+                )
+            # Tạo dữ liệu base64 mẫu giọng nghe thử client-side độc lập 100%
+            sample_audio_uri = ""
+            try:
+                sample_file = get_or_generate_voice_preview(selected_voice_id, tts_lang, clean_name)
+                if sample_file.exists() and sample_file.stat().st_size > 100:
+                    s_b64 = base64.b64encode(sample_file.read_bytes()).decode("utf-8")
+                    sample_audio_uri = f"data:audio/mp3;base64,{s_b64}"
+            except Exception:
+                pass
+
+            with c_feat2:
+                st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
+                st.html(
+                    f"""
+                    <audio id="vdt-preview-audio-core" src="{sample_audio_uri}" preload="auto"></audio>
+                    <button type="button" id="vdt-btn-preview-sample" style="
+                        width: 100%;
+                        height: 72px;
+                        background: #0d111a;
+                        border: 1.5px solid #283347;
+                        border-radius: 9px;
+                        padding: 8px 6px;
+                        cursor: pointer;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 3px;
+                        transition: all 0.15s ease;
+                        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+                    " title="Bấm để phát hoặc dừng nghe thử mẫu giọng {clean_name}">
+                        <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 800; color: #f97316;">
+                            <span id="vdt-preview-icon" style="font-size: 16px;">🎧</span>
+                            <span id="vdt-preview-lbl">Nghe thử mẫu</span>
+                        </div>
+                        <div style="font-size: 10.5px; color: #cbd5e1; font-weight: 700; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            {clean_name}
+                        </div>
+                        <div style="font-size: 9px; color: #64748b; font-weight: 600;">(Độc lập • 0% ảnh hưởng thanh dưới)</div>
+                    </button>
+                    """
+                )
+                # Controller script cho mẫu nghe thử: Hoàn toàn không reload Streamlit
+                preview_js = f"""
+                <!DOCTYPE html>
+                <html><head><meta charset="utf-8"></head><body>
+                <script>
+                (function() {{
+                    try {{
+                        var parentDoc = window.parent.document;
+                        var parentWin = window.parent;
+
+                        if (!parentWin.__vdtPreviewBound) {{
+                            parentWin.__vdtPreviewBound = true;
+                            parentDoc.addEventListener('click', function(e) {{
+                                var btn = e.target.closest('#vdt-btn-preview-sample');
+                                if (!btn) return;
+                                e.preventDefault();
+                                e.stopPropagation();
+
+                                var prevAudio = parentDoc.getElementById('vdt-preview-audio-core');
                                 var prevIcon = parentDoc.getElementById('vdt-preview-icon');
                                 var prevLbl = parentDoc.getElementById('vdt-preview-lbl');
-                                var btn = parentDoc.getElementById('vdt-btn-preview-sample');
-                                if (prevIcon) prevIcon.textContent = "🎧";
-                                if (prevLbl) prevLbl.textContent = "Nghe thử mẫu";
-                                if (btn) {{
+                                var masterAudio = parentDoc.getElementById('daw-core-audio');
+
+                                if (!prevAudio) return;
+
+                                if (prevAudio.paused) {{
+                                    if (masterAudio && !masterAudio.paused) {{
+                                        if (parentWin.__vdtDoPause) {{
+                                            parentWin.__vdtDoPause();
+                                        }} else {{
+                                            masterAudio.pause();
+                                        }}
+                                    }}
+                                    prevAudio.currentTime = 0;
+                                    prevAudio.play().then(function() {{
+                                        if (prevIcon) prevIcon.textContent = "⏸";
+                                        if (prevLbl) prevLbl.textContent = "Đang phát...";
+                                        btn.style.borderColor = "#f97316";
+                                        btn.style.background = "#182030";
+                                    }}).catch(function(err) {{
+                                        console.log("Preview error:", err);
+                                    }});
+                                }} else {{
+                                    prevAudio.pause();
+                                    if (prevIcon) prevIcon.textContent = "🎧";
+                                    if (prevLbl) prevLbl.textContent = "Nghe thử mẫu";
                                     btn.style.borderColor = "#283347";
                                     btn.style.background = "#0d111a";
                                 }}
-                            }}
-                            prevAudio.addEventListener('ended', resetBtn);
-                            prevAudio.addEventListener('pause', resetBtn);
+                            }});
                         }}
-                    }}, 250);
 
-                }} catch(e) {{
-                    console.error("Preview script error:", e);
-                }}
-            }})();
-            </script>
-            </body></html>
-            """
-            components.html(preview_js, height=0)
+                        setInterval(function() {{
+                            var prevAudio = parentDoc.getElementById('vdt-preview-audio-core');
+                            if (prevAudio && !prevAudio.__vdtHooked) {{
+                                prevAudio.__vdtHooked = true;
+                                function resetBtn() {{
+                                    var prevIcon = parentDoc.getElementById('vdt-preview-icon');
+                                    var prevLbl = parentDoc.getElementById('vdt-preview-lbl');
+                                    var btn = parentDoc.getElementById('vdt-btn-preview-sample');
+                                    if (prevIcon) prevIcon.textContent = "🎧";
+                                    if (prevLbl) prevLbl.textContent = "Nghe thử mẫu";
+                                    if (btn) {{
+                                        btn.style.borderColor = "#283347";
+                                        btn.style.background = "#0d111a";
+                                    }}
+                                }}
+                                prevAudio.addEventListener('ended', resetBtn);
+                                prevAudio.addEventListener('pause', resetBtn);
+                            }}
+                        }}, 250);
 
-        # Quick Voice Suggestions Grid (2x2) với on_click an toàn tuyệt đối
-        st.markdown("<div style='font-size: 11px; color: #64748b; font-weight: 700; margin-bottom: 5px;'>Gợi ý giọng đọc thịnh hành (Bấm để đổi ngay):</div>", unsafe_allow_html=True)
-        gv1, gv2 = st.columns(2)
-        with gv1:
-            st.button(
-                "🔥 Adam Review Phim\n\nKịch tính, hài hước, cà khịa",
-                key="btn_adam",
-                on_click=set_quick_voice,
-                args=(["Adam"],),
-                use_container_width=True,
-            )
-            st.button(
-                "👻 Thầy Bảy Kể Chuyện Ma\n\nRùng rợn, thì thào đêm khuya",
-                key="btn_thaybay",
-                on_click=set_quick_voice,
-                args=(["Thiện Minh", "Bảy"],),
-                use_container_width=True,
-            )
-        with gv2:
-            st.button(
-                "🎙️ Tuấn Anh Thời Sự VTV\n\nNam Bắc, trầm hùng, chuẩn mực",
-                key="btn_tuananh",
-                on_click=set_quick_voice,
-                args=(["Hải Đăng", "Tuấn Anh"],),
-                use_container_width=True,
-            )
-            st.button(
-                "✨ Mỹ Linh Podcast Sài Gòn\n\nNgọt ngào, chữa lành tâm hồn",
-                key="btn_mylinh",
-                on_click=set_quick_voice,
-                args=(["Thùy Dung", "Mỹ Linh"],),
-                use_container_width=True,
-            )
+                    }} catch(e) {{
+                        console.error("Preview script error:", e);
+                    }}
+                }})();
+                </script>
+                </body></html>
+                """
+                components.html(preview_js, height=0)
 
-        # Tempo Controls
-        st.html(
-            """
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; margin-bottom: 4px;">
-                <span style="font-size: 11.5px; font-weight: 700; color: #f97316;">⚡ Tốc độ nói (Tempo):</span>
-                <span style="background: rgba(249, 115, 22, 0.15); border: 1px solid #f97316; color: #f97316; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 800;">1.15x (+15%)</span>
-            </div>
-            """
-        )
-        sp1, sp2, sp3, sp4 = st.columns(4)
-        with sp1:
-            st.button("0.8x", key="btn_tempo_08", on_click=set_quick_tempo, args=(-20,), use_container_width=True)
-        with sp2:
-            st.button("1.0x", key="btn_tempo_10", on_click=set_quick_tempo, args=(0,), use_container_width=True)
-        with sp3:
-            st.button(
-                "🔥 1.15x",
-                key="btn_tempo_115",
-                on_click=set_quick_tempo,
-                args=(15,),
-                use_container_width=True,
-                type="primary" if st.session_state.get("slider_speed_val", 15) == 15 else "secondary",
-            )
-        with sp4:
-            st.button("1.3x", key="btn_tempo_13", on_click=set_quick_tempo, args=(30,), use_container_width=True)
-
-        current_speed = st.session_state.get("slider_speed_val", 15)
-        tts_rate_val = st.slider(
-            "Tùy chỉnh tốc độ %:",
-            min_value=-50,
-            max_value=50,
-            value=current_speed,
-            step=5,
-            format="%d%%",
-            key="slider_speed_widget",
-            label_visibility="collapsed",
-        )
-        st.session_state["slider_speed_val"] = tts_rate_val
-
-        st.html(
-            """
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748b; margin-top: -8px; margin-bottom: 10px;">
-                <span>-50% Chậm</span>
-                <span style="color: #f97316; font-weight: 700;">Chuẩn Tốp Tốp (+15%)</span>
-                <span>+50% Nhanh</span>
-            </div>
-            """
-        )
-
-        speed_factor = 1.0 + (tts_rate_val / 100.0)
-        rate_str = f"{'+' if tts_rate_val >= 0 else ''}{tts_rate_val}%"
-
-        # Two Pro Sliders: Cường độ cảm xúc & Cao độ (Pitch)
-        sl1, sl2 = st.columns(2)
-        with sl1:
-            st.markdown("<div style='font-size: 11.5px; color: #cbd5e1; font-weight: 700;'>Cường độ cảm xúc: <strong style='color: #f97316;'>85%</strong></div>", unsafe_allow_html=True)
-            st.slider("Emotion Depth:", min_value=0, max_value=100, value=85, key="emotion_depth", label_visibility="collapsed")
-            st.markdown("<div style='font-size: 10px; color: #64748b; margin-top: -8px;'>Emotion Depth Pro</div>", unsafe_allow_html=True)
-        with sl2:
-            st.markdown("<div style='font-size: 11.5px; color: #cbd5e1; font-weight: 700;'>Cao độ (Pitch): <strong style='color: #f97316;'>0 st</strong></div>", unsafe_allow_html=True)
-            st.slider("Pitch:", min_value=-12, max_value=12, value=0, key="pitch_val", label_visibility="collapsed")
-            st.markdown("<div style='font-size: 10px; color: #64748b; margin-top: -8px;'>-12st đến +12st</div>", unsafe_allow_html=True)
-
-        # Acoustic FX Studio Simulation
-        st.html(
-            """
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; margin-bottom: 6px;">
-                <span style="font-size: 11.5px; font-weight: 700; color: #cbd5e1;">Hiệu ứng buồng thu âm (Acoustic FX):</span>
-                <span style="font-size: 10.5px; color: #64748b;">AI Denoise 99.8%</span>
-            </div>
-            """
-        )
-        fx1, fx2, fx3 = st.columns(3)
-        current_fx = st.session_state.get("active_acoustic_fx", "Studio Dry")
-        with fx1:
-            st.button(
-                "🎙️ Studio Dry",
-                key="btn_fx_dry",
-                on_click=set_acoustic_fx,
-                args=("Studio Dry",),
-                use_container_width=True,
-                type="primary" if current_fx == "Studio Dry" else "secondary",
-            )
-        with fx2:
-            st.button(
-                "🏛️ Room Reverb",
-                key="btn_fx_reverb",
-                on_click=set_acoustic_fx,
-                args=("Room Reverb",),
-                use_container_width=True,
-                type="primary" if current_fx == "Room Reverb" else "secondary",
-            )
-        with fx3:
-            st.button(
-                "🎧 AI Denoise",
-                key="btn_fx_denoise",
-                on_click=set_acoustic_fx,
-                args=("AI Denoise",),
-                use_container_width=True,
-                type="primary" if current_fx == "AI Denoise" else "secondary",
-            )
-
-        # GIANT PRIMARY RENDER AUDIO BUTTON
-        st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
-        btn_generate_tts = st.button(
-            "⚡ TẠO GIỌNG ĐỌC AI NGAY (RENDER AUDIO)   Ctrl + Enter",
-            type="primary",
-            use_container_width=True,
-        )
-
-        st.html(
-            """
-            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-top: 5px;">
-                <span>Tiêu tốn: <strong style="color: #cbd5e1;">178 ký tự</strong> (-0.02% Quota)</span>
-                <span>⏱️ Thời gian kết xuất: <strong style="color: #cbd5e1;">~0.4 giây</strong></span>
-            </div>
-            """
-        )
-
-
-# ==============================================================================
-# AUDIO GENERATION EXECUTION PIPELINE (Thanh tiến trình 1% - 100% Chuẩn Xác)
-# ==============================================================================
-if btn_generate_tts:
-    text_to_speak = st.session_state["tts_main_text"].strip()
-    if not text_to_speak:
-        st.warning("⚠️ Vui lòng nhập nội dung văn bản kịch bản trước khi tạo giọng đọc!")
-    else:
-        tts_output_dir = Path("./output/tts")
-        tts_output_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        progress_slot = st.empty()
-
-        try:
-            # Giai đoạn 1: 1% -> 25% (Phân tích kịch bản và bóc tách các tag âm học)
-            for p in range(1, 26, 4):
-                progress_slot.progress(p, text=f"⚡ Tiến trình kết xuất VieNeu: {p}% — Phân tích kịch bản & thẻ cảm xúc acoustic tags...")
-                time.sleep(0.02)
-
-            # Giai đoạn 2: 26% -> 48% (Khởi tạo Acoustic Engine & nạp profile giọng)
-            for p in range(26, 49, 4):
-                progress_slot.progress(p, text=f"🎙️ Tiến trình kết xuất VieNeu: {p}% — Nạp profile âm sắc chuẩn 48kHz cho [{clean_name}]...")
-                time.sleep(0.02)
-
-            # Giai đoạn 3: 49% -> 60% (Bắt đầu tổng hợp tín hiệu âm thanh)
-            progress_slot.progress(55, text=f"⚡ Tiến trình kết xuất VieNeu: 55% — Đang tổng hợp giọng nói đa biểu cảm...")
-
-            if selected_voice_id.startswith("vieneu:"):
-                clean_v = selected_voice_id.replace("vieneu:", "")
-                safe_v_name = re.sub(r'[^\w\-_\.]', '_', clean_v)
-                out_file = tts_output_dir / f"tts_vieneu_{safe_v_name}_{timestamp}.mp3"
-                generate_vieneu_speech(
-                    text=text_to_speak,
-                    voice=clean_v,
-                    speed=speed_factor,
-                    output_path=out_file,
+            # Quick Voice Suggestions Grid (2x2) với on_click an toàn tuyệt đối
+            st.markdown("<div style='font-size: 11px; color: #64748b; font-weight: 700; margin-bottom: 5px;'>Gợi ý giọng đọc thịnh hành (Bấm để đổi ngay):</div>", unsafe_allow_html=True)
+            gv1, gv2 = st.columns(2)
+            with gv1:
+                st.button(
+                    "🔥 Adam Review Phim\n\nKịch tính, hài hước, cà khịa",
+                    key="btn_adam",
+                    on_click=set_quick_voice,
+                    args=(["Adam"],),
+                    use_container_width=True,
                 )
-            else:
-                clean_text = text_to_speak
-                for emo_tag in EMOTION_SOUND_MAP.keys():
-                    clean_text = clean_text.replace(f"[{emo_tag}]", "")
-                out_file = tts_output_dir / f"tts_edge_{selected_voice_id}_{timestamp}.mp3"
-                asyncio.run(
-                    generate_single_tts_edge(
-                        text=clean_text,
-                        voice=selected_voice_id,
-                        rate=rate_str,
-                        volume="+0%",
-                        pitch="+0Hz",
-                        output_path=out_file,
-                    )
+                st.button(
+                    "👻 Thầy Bảy Kể Chuyện Ma\n\nRùng rợn, thì thào đêm khuya",
+                    key="btn_thaybay",
+                    on_click=set_quick_voice,
+                    args=(["Thiện Minh", "Bảy"],),
+                    use_container_width=True,
+                )
+            with gv2:
+                st.button(
+                    "🎙️ Tuấn Anh Thời Sự VTV\n\nNam Bắc, trầm hùng, chuẩn mực",
+                    key="btn_tuananh",
+                    on_click=set_quick_voice,
+                    args=(["Hải Đăng", "Tuấn Anh"],),
+                    use_container_width=True,
+                )
+                st.button(
+                    "✨ Mỹ Linh Podcast Sài Gòn\n\nNgọt ngào, chữa lành tâm hồn",
+                    key="btn_mylinh",
+                    on_click=set_quick_voice,
+                    args=(["Thùy Dung", "Mỹ Linh"],),
+                    use_container_width=True,
                 )
 
-            # Giai đoạn 4: 61% -> 85% (Xử lý hiệu ứng DSP và buồng thu âm thực thụ)
-            fx_name = st.session_state.get("active_acoustic_fx", "Studio Dry")
-            pitch_semitones = st.session_state.get("pitch_val", 0)
+            # Tempo Controls
+            st.html(
+                """
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; margin-bottom: 4px;">
+                    <span style="font-size: 11.5px; font-weight: 700; color: #f97316;">⚡ Tốc độ nói (Tempo):</span>
+                    <span style="background: rgba(249, 115, 22, 0.15); border: 1px solid #f97316; color: #f97316; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 800;">1.15x (+15%)</span>
+                </div>
+                """
+            )
+            sp1, sp2, sp3, sp4 = st.columns(4)
+            with sp1:
+                st.button("0.8x", key="btn_tempo_08", on_click=set_quick_tempo, args=(-20,), use_container_width=True)
+            with sp2:
+                st.button("1.0x", key="btn_tempo_10", on_click=set_quick_tempo, args=(0,), use_container_width=True)
+            with sp3:
+                st.button(
+                    "🔥 1.15x",
+                    key="btn_tempo_115",
+                    on_click=set_quick_tempo,
+                    args=(15,),
+                    use_container_width=True,
+                    type="primary" if st.session_state.get("slider_speed_val", 15) == 15 else "secondary",
+                )
+            with sp4:
+                st.button("1.3x", key="btn_tempo_13", on_click=set_quick_tempo, args=(30,), use_container_width=True)
 
-            for p in range(62, 72, 3):
-                progress_slot.progress(p, text=f"🎛️ Tiến trình kết xuất: {p}% — Nạp buồng thu âm [{fx_name}]...")
-                time.sleep(0.015)
+            current_speed = st.session_state.get("slider_speed_val", 15)
+            tts_rate_val = st.slider(
+                "Tùy chỉnh tốc độ %:",
+                min_value=-50,
+                max_value=50,
+                value=current_speed,
+                step=5,
+                format="%d%%",
+                key="slider_speed_widget",
+                label_visibility="collapsed",
+            )
+            st.session_state["slider_speed_val"] = tts_rate_val
+
+            st.html(
+                """
+                <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748b; margin-top: -8px; margin-bottom: 10px;">
+                    <span>-50% Chậm</span>
+                    <span style="color: #f97316; font-weight: 700;">Chuẩn Tốp Tốp (+15%)</span>
+                    <span>+50% Nhanh</span>
+                </div>
+                """
+            )
+
+            speed_factor = 1.0 + (tts_rate_val / 100.0)
+            rate_str = f"{'+' if tts_rate_val >= 0 else ''}{tts_rate_val}%"
+
+            # Two Pro Sliders: Cường độ cảm xúc & Cao độ (Pitch)
+            sl1, sl2 = st.columns(2)
+            with sl1:
+                st.markdown("<div style='font-size: 11.5px; color: #cbd5e1; font-weight: 700;'>Cường độ cảm xúc: <strong style='color: #f97316;'>85%</strong></div>", unsafe_allow_html=True)
+                st.slider("Emotion Depth:", min_value=0, max_value=100, value=85, key="emotion_depth", label_visibility="collapsed")
+                st.markdown("<div style='font-size: 10px; color: #64748b; margin-top: -8px;'>Emotion Depth Pro</div>", unsafe_allow_html=True)
+            with sl2:
+                st.markdown("<div style='font-size: 11.5px; color: #cbd5e1; font-weight: 700;'>Cao độ (Pitch): <strong style='color: #f97316;'>0 st</strong></div>", unsafe_allow_html=True)
+                st.slider("Pitch:", min_value=-12, max_value=12, value=0, key="pitch_val", label_visibility="collapsed")
+                st.markdown("<div style='font-size: 10px; color: #64748b; margin-top: -8px;'>-12st đến +12st</div>", unsafe_allow_html=True)
+
+            # Acoustic FX Studio Simulation
+            st.html(
+                """
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; margin-bottom: 6px;">
+                    <span style="font-size: 11.5px; font-weight: 700; color: #cbd5e1;">Hiệu ứng buồng thu âm (Acoustic FX):</span>
+                    <span style="font-size: 10.5px; color: #64748b;">AI Denoise 99.8%</span>
+                </div>
+                """
+            )
+            fx1, fx2, fx3 = st.columns(3)
+            current_fx = st.session_state.get("active_acoustic_fx", "Studio Dry")
+            with fx1:
+                st.button(
+                    "🎙️ Studio Dry",
+                    key="btn_fx_dry",
+                    on_click=set_acoustic_fx,
+                    args=("Studio Dry",),
+                    use_container_width=True,
+                    type="primary" if current_fx == "Studio Dry" else "secondary",
+                )
+            with fx2:
+                st.button(
+                    "🏛️ Room Reverb",
+                    key="btn_fx_reverb",
+                    on_click=set_acoustic_fx,
+                    args=("Room Reverb",),
+                    use_container_width=True,
+                    type="primary" if current_fx == "Room Reverb" else "secondary",
+                )
+            with fx3:
+                st.button(
+                    "🎧 AI Denoise",
+                    key="btn_fx_denoise",
+                    on_click=set_acoustic_fx,
+                    args=("AI Denoise",),
+                    use_container_width=True,
+                    type="primary" if current_fx == "AI Denoise" else "secondary",
+                )
+
+            # GIANT PRIMARY RENDER AUDIO BUTTON
+            st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+            btn_generate_tts = st.button(
+                "⚡ TẠO GIỌNG ĐỌC AI NGAY (RENDER AUDIO)   Ctrl + Enter",
+                type="primary",
+                use_container_width=True,
+            )
+
+            st.html(
+                """
+                <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-top: 5px;">
+                    <span>Tiêu tốn: <strong style="color: #cbd5e1;">178 ký tự</strong> (-0.02% Quota)</span>
+                    <span>⏱️ Thời gian kết xuất: <strong style="color: #cbd5e1;">~0.4 giây</strong></span>
+                </div>
+                """
+            )
+
+
+    # ==============================================================================
+    # AUDIO GENERATION EXECUTION PIPELINE (Thanh tiến trình 1% - 100% Chuẩn Xác)
+    # ==============================================================================
+    if btn_generate_tts:
+        text_to_speak = st.session_state["tts_main_text"].strip()
+        if not text_to_speak:
+            st.warning("⚠️ Vui lòng nhập nội dung văn bản kịch bản trước khi tạo giọng đọc!")
+        else:
+            tts_output_dir = Path("./output/tts")
+            tts_output_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            progress_slot = st.empty()
 
             try:
-                from video_dubber.vieneu_tts import apply_acoustic_fx
-                apply_acoustic_fx(
-                    sound_or_path=out_file,
-                    fx_name=fx_name,
-                    pitch_semitones=pitch_semitones,
-                    output_path=out_file,
+                # Giai đoạn 1: 1% -> 25% (Phân tích kịch bản và bóc tách các tag âm học)
+                for p in range(1, 26, 4):
+                    progress_slot.progress(p, text=f"⚡ Tiến trình kết xuất VieNeu: {p}% — Phân tích kịch bản & thẻ cảm xúc acoustic tags...")
+                    time.sleep(0.02)
+
+                # Giai đoạn 2: 26% -> 48% (Khởi tạo Acoustic Engine & nạp profile giọng)
+                for p in range(26, 49, 4):
+                    progress_slot.progress(p, text=f"🎙️ Tiến trình kết xuất VieNeu: {p}% — Nạp profile âm sắc chuẩn 48kHz cho [{clean_name}]...")
+                    time.sleep(0.02)
+
+                # Giai đoạn 3: 49% -> 60% (Bắt đầu tổng hợp tín hiệu âm thanh)
+                progress_slot.progress(55, text=f"⚡ Tiến trình kết xuất VieNeu: 55% — Đang tổng hợp giọng nói đa biểu cảm...")
+
+                if selected_voice_id.startswith("vieneu:"):
+                    clean_v = selected_voice_id.replace("vieneu:", "")
+                    safe_v_name = re.sub(r'[^\w\-_\.]', '_', clean_v)
+                    out_file = tts_output_dir / f"tts_vieneu_{safe_v_name}_{timestamp}.mp3"
+                    generate_vieneu_speech(
+                        text=text_to_speak,
+                        voice=clean_v,
+                        speed=speed_factor,
+                        output_path=out_file,
+                    )
+                else:
+                    clean_text = text_to_speak
+                    for emo_tag in EMOTION_SOUND_MAP.keys():
+                        clean_text = clean_text.replace(f"[{emo_tag}]", "")
+                    out_file = tts_output_dir / f"tts_edge_{selected_voice_id}_{timestamp}.mp3"
+                    asyncio.run(
+                        generate_single_tts_edge(
+                            text=clean_text,
+                            voice=selected_voice_id,
+                            rate=rate_str,
+                            volume="+0%",
+                            pitch="+0Hz",
+                            output_path=out_file,
+                        )
+                    )
+
+                # Giai đoạn 4: 61% -> 85% (Xử lý hiệu ứng DSP và buồng thu âm thực thụ)
+                fx_name = st.session_state.get("active_acoustic_fx", "Studio Dry")
+                pitch_semitones = st.session_state.get("pitch_val", 0)
+
+                for p in range(62, 72, 3):
+                    progress_slot.progress(p, text=f"🎛️ Tiến trình kết xuất: {p}% — Nạp buồng thu âm [{fx_name}]...")
+                    time.sleep(0.015)
+
+                try:
+                    from video_dubber.vieneu_tts import apply_acoustic_fx
+                    apply_acoustic_fx(
+                        sound_or_path=out_file,
+                        fx_name=fx_name,
+                        pitch_semitones=pitch_semitones,
+                        output_path=out_file,
+                    )
+                except Exception as dsp_err:
+                    logger.warning(f"Acoustic FX processing note: {dsp_err}")
+
+                for p in range(74, 86, 3):
+                    progress_slot.progress(p, text=f"🎛️ Tiến trình kết xuất: {p}% — Hoàn tất hiệu ứng buồng thu [{fx_name}] & Equalizer Mastering...")
+                    time.sleep(0.015)
+
+                # Giai đoạn 5: 86% -> 99% (Mastering Lossless & Đồng bộ Timecode Phụ đề)
+                for p in range(86, 100, 3):
+                    progress_slot.progress(p, text=f"📦 Tiến trình kết xuất VieNeu: {p}% — Đóng gói Master 24-bit Lossless & Phụ đề SRT...")
+                    time.sleep(0.02)
+
+                # Giai đoạn 6: 100% (Hoàn tất thành công)
+                progress_slot.progress(100, text="✅ Hoàn tất kết xuất 100%! Đang khởi tạo DAW Master Player...")
+                time.sleep(0.35)
+                progress_slot.empty()
+
+                # Lưu vào session_state dành riêng cho kết quả từ văn bản
+                st.session_state["script_generated_file"] = str(out_file)
+                st.session_state["script_generated_title"] = f"{clean_name}_{timestamp}"
+                st.session_state["script_generated_voice_name"] = clean_name
+                st.session_state["just_rendered_autoplay"] = True
+                st.toast("🎉 Đã kết xuất âm thanh Master 48kHz thành công! Đang phát trong DAW Player.", icon="🎙️")
+                st.rerun()
+
+            except Exception as err:
+                progress_slot.empty()
+                st.error(f"❌ Có lỗi xảy ra trong quá trình tạo âm thanh: {err}")
+
+with tab_dubbing:
+    st.html(
+        """
+        <div style="background: linear-gradient(135deg, rgba(23, 29, 43, 0.95), rgba(16, 21, 31, 0.95)); border: 1.5px solid #232d42; border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="background: rgba(249, 115, 22, 0.15); border: 1.5px solid #f97316; color: #f97316; border-radius: 10px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 20px;">🎬</div>
+                    <div>
+                        <div style="font-size: 1.12rem; font-weight: 800; color: #ffffff; letter-spacing: 0.3px;">LỒNG TIẾNG VIDEO AI TỰ ĐỘNG (AI VIDEO DUBBING PRO)</div>
+                        <div style="font-size: 0.8rem; color: #94a3b8;">Nhận diện giọng nói siêu tốc Whisper • Dịch thuật đa ngữ • Lồng tiếng AI & khớp khẩu hình âm thanh</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <span style="background: #141926; border: 1px solid #26334d; color: #38bdf8; font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 6px;">⚡ Whisper AI</span>
+                    <span style="background: #141926; border: 1px solid #26334d; color: #a855f7; font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 6px;">🌐 Auto Translate</span>
+                    <span style="background: #141926; border: 1px solid #26334d; color: #f97316; font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 6px;">🎙️ 43+ AI Voices</span>
+                </div>
+            </div>
+        </div>
+        """
+    )
+
+    col_dub_left, col_dub_right = st.columns([1, 1], gap="medium")
+
+    with col_dub_left:
+        with st.container(border=True):
+            st.markdown("##### 📁 Bước 1: Tải lên Video cần lồng tiếng")
+            uploaded_video = st.file_uploader(
+                "Chọn tệp Video (MP4, MKV, MOV, AVI)",
+                type=["mp4", "mkv", "mov", "avi"],
+                key="dub_video_file_uploader",
+                help="Hỗ trợ các định dạng video thông dụng"
+            )
+
+            if uploaded_video is not None:
+                st.video(uploaded_video)
+                st.caption(f"📹 Tệp: **{uploaded_video.name}** ({uploaded_video.size / (1024 * 1024):.2f} MB)")
+            else:
+                st.info("💡 Kéo thả hoặc chọn tệp video bạn muốn chuyển ngữ & lồng tiếng.")
+
+    with col_dub_right:
+        with st.container(border=True):
+            st.markdown("##### ⚙️ Bước 2: Thiết lập Ngôn ngữ & Giọng lồng tiếng")
+            
+            c_l1, c_l2 = st.columns(2)
+            with c_l1:
+                source_options = {"auto": "Tự động phát hiện (Auto)"}
+                source_options.update(LANGUAGE_NAMES)
+                dub_src_lang = st.selectbox(
+                    "Ngôn ngữ gốc của Video:",
+                    options=list(source_options.keys()),
+                    format_func=lambda x: source_options[x],
+                    index=0,
+                    key="dub_src_lang_select"
                 )
-            except Exception as dsp_err:
-                logger.warning(f"Acoustic FX processing note: {dsp_err}")
+            with c_l2:
+                dub_tgt_lang = st.selectbox(
+                    "Dịch và lồng tiếng sang:",
+                    options=list(LANGUAGE_NAMES.keys()),
+                    format_func=lambda x: LANGUAGE_NAMES[x],
+                    index=0,
+                    key="dub_tgt_lang_select"
+                )
 
-            for p in range(74, 86, 3):
-                progress_slot.progress(p, text=f"🎛️ Tiến trình kết xuất: {p}% — Hoàn tất hiệu ứng buồng thu [{fx_name}] & Equalizer Mastering...")
-                time.sleep(0.015)
+            # Chọn giọng đọc AI từ Catalog theo ngôn ngữ đích
+            target_catalog = VOICES_CATALOG.get(dub_tgt_lang, VOICES_CATALOG.get("vi", {}))
+            voice_names = list(target_catalog.keys())
+            
+            default_voice_idx = 0
+            for idx_v, vname in enumerate(voice_names):
+                if "Adam" in vname and "bựa" not in vname:
+                    default_voice_idx = idx_v
+                    break
 
-            # Giai đoạn 5: 86% -> 99% (Mastering Lossless & Đồng bộ Timecode Phụ đề)
-            for p in range(86, 100, 3):
-                progress_slot.progress(p, text=f"📦 Tiến trình kết xuất VieNeu: {p}% — Đóng gói Master 24-bit Lossless & Phụ đề SRT...")
-                time.sleep(0.02)
+            dub_selected_voice_name = st.selectbox(
+                "Giọng đọc AI lồng tiếng:",
+                options=voice_names,
+                index=default_voice_idx,
+                key="dub_voice_select"
+            )
+            dub_selected_voice_id = target_catalog[dub_selected_voice_name]
 
-            # Giai đoạn 6: 100% (Hoàn tất thành công)
-            progress_slot.progress(100, text="✅ Hoàn tất kết xuất 100%! Đang khởi tạo DAW Master Player...")
-            time.sleep(0.35)
-            progress_slot.empty()
+            with st.expander("🛠️ Cấu hình Nâng cao (Mô hình Whisper & Nhạc nền)", expanded=False):
+                col_w1, col_w2 = st.columns(2)
+                with col_w1:
+                    whisper_model = st.selectbox(
+                        "Mô hình Whisper STT:",
+                        options=["tiny", "base", "small", "medium"],
+                        index=1,
+                        help="base: Cân bằng tốt nhất giữa tốc độ và độ chính xác trên Streamlit Cloud."
+                    )
+                with col_w2:
+                    bg_music_vol = st.slider(
+                        "Âm lượng nhạc nền gốc (Ducking):",
+                        min_value=0.0,
+                        max_value=1.0,
+                        value=0.15,
+                        step=0.05,
+                        format="%.2f",
+                        help="0.15 = 15% (giảm nhỏ nhạc nền gốc để nghe rõ giọng lồng tiếng mới)"
+                    )
+                
+                col_s1, col_s2 = st.columns(2)
+                with col_s1:
+                    dub_speed_factor = st.slider(
+                        "Tốc độ đọc tối đa (Speed Factor):",
+                        min_value=1.0,
+                        max_value=2.0,
+                        value=1.35,
+                        step=0.05,
+                        help="Giới hạn tối đa khi tự động tăng tốc audio để khớp mốc thời gian phụ đề"
+                    )
+                with col_s2:
+                    compute_type = st.selectbox(
+                        "Chế độ tính toán (Compute):",
+                        options=["int8", "float32"],
+                        index=0,
+                        help="int8 giúp tiết kiệm RAM và CPU tối đa"
+                    )
 
-            # Lưu vào session_state dành riêng cho kết quả từ văn bản
-            st.session_state["script_generated_file"] = str(out_file)
-            st.session_state["script_generated_title"] = f"{clean_name}_{timestamp}"
-            st.session_state["script_generated_voice_name"] = clean_name
-            st.session_state["just_rendered_autoplay"] = True
-            st.toast("🎉 Đã kết xuất âm thanh Master 48kHz thành công! Đang phát trong DAW Player.", icon="🎙️")
+            st.write("")
+            btn_start_dubbing = st.button(
+                "🚀 BẮT ĐẦU LỒNG TIẾNG VIDEO AI",
+                type="primary",
+                use_container_width=True,
+                disabled=(uploaded_video is None),
+                key="btn_run_video_dubbing"
+            )
+
+    dub_progress_slot = st.empty()
+
+    if btn_start_dubbing and uploaded_video is not None:
+        try:
+            dub_progress_slot.progress(0, text="Đang chuẩn bị tệp video và khởi tạo pipeline...")
+            
+            temp_dir = Path("./temp")
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            output_dir = Path("./output")
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            safe_stem = re.sub(r'[^a-zA-Z0-9_\-]', '_', Path(uploaded_video.name).stem)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            in_video_path = temp_dir / f"{safe_stem}_{timestamp}.mp4"
+            with open(in_video_path, "wb") as f_out:
+                f_out.write(uploaded_video.getbuffer())
+
+            out_video_path = output_dir / f"{safe_stem}_dubbed_{dub_tgt_lang}_{timestamp}.mp4"
+
+            dub_config = DubbingConfig(
+                whisper_model=whisper_model,
+                device="cpu",
+                compute_type=compute_type,
+                source_language=dub_src_lang,
+                target_language=dub_tgt_lang,
+                tts_voice=dub_selected_voice_id,
+                original_audio_volume=bg_music_vol,
+                max_speed_factor=dub_speed_factor,
+                temp_dir=temp_dir,
+                output_dir=output_dir,
+            )
+
+            import importlib
+            import video_dubber.translator
+            import video_dubber.pipeline
+            importlib.reload(video_dubber.translator)
+            importlib.reload(video_dubber.pipeline)
+
+            pipeline = video_dubber.pipeline.VideoDubberPipeline(dub_config)
+
+            def update_progress(msg: str, progress: float):
+                dub_progress_slot.progress(int(progress * 100), text=f"⏳ {msg}")
+
+            final_video_file = pipeline.process(
+                video_path=in_video_path,
+                output_path=out_video_path,
+                progress_callback=update_progress
+            )
+
+            dub_progress_slot.progress(100, text="✅ Hoàn tất lồng tiếng video 100%!")
+            time.sleep(0.5)
+            dub_progress_slot.empty()
+
+            st.session_state["dubbed_video_path"] = str(final_video_file)
+            st.session_state["dubbed_srt_path"] = str(final_video_file.with_suffix(".srt"))
+            st.session_state["dubbed_video_title"] = f"{safe_stem}_dubbed_{dub_tgt_lang}"
+            st.toast("🎉 Đã hoàn tất lồng tiếng video AI!", icon="🎬")
             st.rerun()
 
-        except Exception as err:
-            progress_slot.empty()
-            st.error(f"❌ Có lỗi xảy ra trong quá trình tạo âm thanh: {err}")
+        except Exception as e:
+            dub_progress_slot.empty()
+            st.error(f"❌ Có lỗi xảy ra trong quá trình lồng tiếng video: {e}")
+
+    active_dubbed_video = st.session_state.get("dubbed_video_path")
+    if active_dubbed_video and Path(active_dubbed_video).exists():
+        st.write("---")
+        st.markdown("### 🎬 KẾT QUẢ VIDEO ĐÃ LỒNG TIẾNG HOÀN THIỆN")
+        
+        c_res_v, c_res_info = st.columns([1.2, 0.8], gap="medium")
+        
+        with c_res_v:
+            st.video(active_dubbed_video)
+        
+        with c_res_info:
+            with st.container(border=True):
+                st.markdown("#### 📥 Tải xuống & Xuất bản")
+                v_bytes = Path(active_dubbed_video).read_bytes()
+                v_name = Path(active_dubbed_video).name
+                st.download_button(
+                    label=f"⬇️ TẢI VIDEO MP4 HOÀN CHỈNH ({len(v_bytes)/(1024*1024):.1f} MB)",
+                    data=v_bytes,
+                    file_name=v_name,
+                    mime="video/mp4",
+                    use_container_width=True,
+                    type="primary"
+                )
+
+                srt_file = Path(st.session_state.get("dubbed_srt_path", ""))
+                if srt_file.exists():
+                    srt_data = srt_file.read_bytes()
+                    st.download_button(
+                        label="📝 TẢI TỆP PHỤ ĐỀ ĐỒNG BỘ (.SRT)",
+                        data=srt_data,
+                        file_name=srt_file.name,
+                        mime="text/plain",
+                        use_container_width=True
+                    )
+                
+                st.markdown(
+                    f"""
+                    <div style="background: #111622; border: 1px solid #1f293d; border-radius: 8px; padding: 12px; margin-top: 12px; font-size: 0.82rem; color: #94a3b8;">
+                        <div style="color: #f8fafc; font-weight: 700; margin-bottom: 6px;">Chi tiết bản xuất:</div>
+                        • <strong>Tên tệp:</strong> {v_name}<br>
+                        • <strong>Dung lượng:</strong> {len(v_bytes)/(1024*1024):.2f} MB<br>
+                        • <strong>Trạng thái:</strong> Âm thanh & Hình ảnh đã đồng bộ hoàn hảo
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
 
 
 # ==============================================================================
@@ -2340,13 +2617,6 @@ if active_audio_path and Path(active_audio_path).exists():
                 }}
             }}
 
-        }} catch(err) {{
-            console.error('DAW Player error:', err);
-        }}
-    }})();
-    </script>
-    </body>
-    </html>
         }} catch(err) {{
             console.error('DAW Player error:', err);
         }}
