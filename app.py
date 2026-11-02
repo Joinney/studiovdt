@@ -2021,7 +2021,7 @@ if btn_generate_tts:
                     from pydub import AudioSegment
                     if out_file.exists() and out_file.stat().st_size > 1000:
                         snd = AudioSegment.from_file(str(out_file))
-                        snd = enhance_vocal(snd, voice_name=selected_voice_id, deep_warmth=True, emotion_depth=active_emotion_depth)
+                        snd = enhance_vocal(snd, voice_name=selected_voice_id, deep_warmth=False, emotion_depth=active_emotion_depth)
                         snd.export(str(out_file), format="mp3", bitrate="320k")
                 except Exception as e_ed:
                     logger.warning(f"Script edge TTS mastering note: {e_ed}")

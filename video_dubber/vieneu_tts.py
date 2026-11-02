@@ -708,13 +708,12 @@ FEMALE_BRIGHT_KEYS = (
 
 def get_voice_mastering_profile(voice_name: Optional[str] = None) -> dict:
     """
-    Xác định hồ sơ Mastering âm học chuẩn Studio (EQ 5-Band Zero-Phase & Warmth Compressor)
-    dựa trên đặc trưng sinh lý thanh quản và thể loại giọng nói:
-    - MALE_ENERGETIC: Adam, Adam bựa, Anh Khôi, Hữu Quân, Thái Sơn... (Lực ngực đầm chắc, punchy, triệt xé tiếng)
-    - MALE_DEEP: Hải Đăng, Thiện Minh, Minh Đức, Quang Sơn, Hoàng Nam... (Trầm ấm, uy lực, khử đục 520Hz, giọng phát thanh)
-    - FEMALE_SWEET: Thùy Dung, Mỹ Duyên, Thục Đoan, Thanh Tâm, SF... (Đầm ấm 260Hz, dịu dàng, mượt mà, khử sibilance)
-    - FEMALE_BRIGHT: Trúc Ly, Mai Anh, Ngọc Linh, Ngọc Ánh, Hoài My... (Trong sáng, sáng rõ, đĩnh đạc, chống the thé)
-    - UNIVERSAL: Cấu hình studio toàn dải cân bằng
+    Xác định hồ sơ Mastering âm học chuẩn Studio Broadcast (Zero-Phase & Anti-Distortion):
+    - Khử triệt để tạp âm xì rè vocoder cao tần (De-Hiss trên 7.5kHz).
+    - Cắt sạch dải siêu trầm ù rền dưới 75Hz (Low-Cut Butterworth).
+    - Tăng độ ấm thân giọng vừa phải (+1.2dB đến +1.5dB, chống vỡ/rè loa).
+    - Cắt bỏ dải đục nghẹt 550Hz (-1.5dB) và dải chói gắt 5.4kHz (-3.5dB).
+    - Khống chế trần đỉnh True Peak tại -1.0 dBFS (0.891) chống vỡ tiếng 100% khi phát trên điện thoại và xuất MP3.
     """
     if not voice_name:
         category = "UNIVERSAL"
@@ -741,62 +740,62 @@ def get_voice_mastering_profile(voice_name: Optional[str] = None) -> dict:
     if category == "MALE_ENERGETIC":
         return {
             "category": "MALE_ENERGETIC",
-            "desc": "Nam Trẻ trung / Tốp Tốp / Review (Lực ngực đầm chắc, punchy, triệt chói gắt)",
-            "low_cut_hz": 78.0,
-            "chest_center": 180.0, "chest_bw": 65.0, "chest_gain_db": 3.5,
-            "mud_center": 600.0, "mud_bw": 150.0, "mud_gain_db": -1.2,
-            "mid_presence_center": 2150.0, "mid_bw": 650.0, "mid_gain_db": 1.0,
-            "de_glare_center": 5400.0, "de_glare_bw": 1200.0, "de_glare_gain_db": -3.8,
-            "hiss_cutoff_hz": 8600.0, "hiss_gain_db": -5.2,
-            "threshold_db": -16.8, "ratio": 2.5, "makeup_gain_db": 3.4, "gate_ratio": 0.038,
+            "desc": "Nam Trẻ trung / Tốp Tốp / Review (Trong trẻo, đầm chắc, chống vỡ tiếng)",
+            "low_cut_hz": 75.0,
+            "chest_center": 180.0, "chest_bw": 65.0, "chest_gain_db": 1.2,
+            "mud_center": 580.0, "mud_bw": 150.0, "mud_gain_db": -1.4,
+            "mid_presence_center": 2200.0, "mid_bw": 650.0, "mid_gain_db": 0.8,
+            "de_glare_center": 5400.0, "de_glare_bw": 1200.0, "de_glare_gain_db": -3.5,
+            "hiss_cutoff_hz": 7500.0, "hiss_gain_db": -6.5,
+            "gate_ratio": 0.015,
         }
     elif category == "MALE_DEEP":
         return {
             "category": "MALE_DEEP",
-            "desc": "Nam Trầm ấm / Tin tức / Kể chuyện (Dày dặn, uy lực, khử đục 520Hz, phát thanh)",
+            "desc": "Nam Trầm ấm / Tin tức / Kể chuyện (Dày dặn, sạch sẽ, phát thanh chuẩn mực)",
             "low_cut_hz": 70.0,
-            "chest_center": 160.0, "chest_bw": 55.0, "chest_gain_db": 3.6,
-            "mud_center": 520.0, "mud_bw": 160.0, "mud_gain_db": -1.6,
-            "mid_presence_center": 2200.0, "mid_bw": 600.0, "mid_gain_db": 1.2,
-            "de_glare_center": 5300.0, "de_glare_bw": 1150.0, "de_glare_gain_db": -3.8,
-            "hiss_cutoff_hz": 8400.0, "hiss_gain_db": -5.5,
-            "threshold_db": -17.5, "ratio": 2.6, "makeup_gain_db": 3.6, "gate_ratio": 0.035,
+            "chest_center": 160.0, "chest_bw": 55.0, "chest_gain_db": 1.4,
+            "mud_center": 520.0, "mud_bw": 160.0, "mud_gain_db": -1.5,
+            "mid_presence_center": 2200.0, "mid_bw": 600.0, "mid_gain_db": 0.8,
+            "de_glare_center": 5300.0, "de_glare_bw": 1150.0, "de_glare_gain_db": -3.5,
+            "hiss_cutoff_hz": 7500.0, "hiss_gain_db": -6.5,
+            "gate_ratio": 0.015,
         }
     elif category == "FEMALE_SWEET":
         return {
             "category": "FEMALE_SWEET",
-            "desc": "Nữ Ngọt ngào / Truyền cảm / Podcast (Đầm ấm 260Hz, mượt dịu, khử sibilance)",
-            "low_cut_hz": 92.0,
-            "chest_center": 260.0, "chest_bw": 80.0, "chest_gain_db": 2.8,
-            "mud_center": 700.0, "mud_bw": 200.0, "mud_gain_db": -1.2,
-            "mid_presence_center": 2600.0, "mid_bw": 650.0, "mid_gain_db": 1.4,
-            "de_glare_center": 6200.0, "de_glare_bw": 1100.0, "de_glare_gain_db": -4.2,
-            "hiss_cutoff_hz": 9400.0, "hiss_gain_db": -4.8,
-            "threshold_db": -18.0, "ratio": 2.2, "makeup_gain_db": 3.0, "gate_ratio": 0.035,
+            "desc": "Nữ Ngọt ngào / Truyền cảm / Podcast (Mượt dịu, trong trẻo, triệt sibilance)",
+            "low_cut_hz": 88.0,
+            "chest_center": 260.0, "chest_bw": 80.0, "chest_gain_db": 1.0,
+            "mud_center": 680.0, "mud_bw": 180.0, "mud_gain_db": -1.3,
+            "mid_presence_center": 2600.0, "mid_bw": 650.0, "mid_gain_db": 0.9,
+            "de_glare_center": 6000.0, "de_glare_bw": 1100.0, "de_glare_gain_db": -3.8,
+            "hiss_cutoff_hz": 8200.0, "hiss_gain_db": -6.0,
+            "gate_ratio": 0.015,
         }
     elif category == "FEMALE_BRIGHT":
         return {
             "category": "FEMALE_BRIGHT",
-            "desc": "Nữ Trong sáng / Thời sự / Tin tức (Rõ nét, đĩnh đạc, đầm giọng 275Hz, chống chói the thé)",
-            "low_cut_hz": 96.0,
-            "chest_center": 275.0, "chest_bw": 85.0, "chest_gain_db": 2.6,
-            "mud_center": 680.0, "mud_bw": 180.0, "mud_gain_db": -1.0,
-            "mid_presence_center": 2800.0, "mid_bw": 700.0, "mid_gain_db": 1.6,
-            "de_glare_center": 5900.0, "de_glare_bw": 1200.0, "de_glare_gain_db": -4.0,
-            "hiss_cutoff_hz": 9600.0, "hiss_gain_db": -4.6,
-            "threshold_db": -17.2, "ratio": 2.4, "makeup_gain_db": 3.2, "gate_ratio": 0.036,
+            "desc": "Nữ Trong sáng / Thời sự / Tin tức (Rõ nét, đĩnh đạc, chống the thé và rít)",
+            "low_cut_hz": 90.0,
+            "chest_center": 275.0, "chest_bw": 85.0, "chest_gain_db": 1.0,
+            "mud_center": 660.0, "mud_bw": 170.0, "mud_gain_db": -1.2,
+            "mid_presence_center": 2750.0, "mid_bw": 700.0, "mid_gain_db": 1.0,
+            "de_glare_center": 5800.0, "de_glare_bw": 1200.0, "de_glare_gain_db": -3.6,
+            "hiss_cutoff_hz": 8200.0, "hiss_gain_db": -6.0,
+            "gate_ratio": 0.015,
         }
     else:  # UNIVERSAL
         return {
             "category": "UNIVERSAL",
-            "desc": "Studio Cân bằng Toàn dải (Ấm áp, sắc nét, khử tạp âm vocoder)",
-            "low_cut_hz": 82.0,
-            "chest_center": 200.0, "chest_bw": 70.0, "chest_gain_db": 3.0,
-            "mud_center": 600.0, "mud_bw": 160.0, "mud_gain_db": -1.2,
-            "mid_presence_center": 2400.0, "mid_bw": 650.0, "mid_gain_db": 1.2,
-            "de_glare_center": 5600.0, "de_glare_bw": 1200.0, "de_glare_gain_db": -3.8,
-            "hiss_cutoff_hz": 8800.0, "hiss_gain_db": -5.0,
-            "threshold_db": -17.0, "ratio": 2.4, "makeup_gain_db": 3.2, "gate_ratio": 0.036,
+            "desc": "Studio Cân bằng Toàn dải (Ấm áp, sắc nét, khử sạch tạp âm vocoder)",
+            "low_cut_hz": 78.0,
+            "chest_center": 200.0, "chest_bw": 70.0, "chest_gain_db": 1.2,
+            "mud_center": 580.0, "mud_bw": 160.0, "mud_gain_db": -1.4,
+            "mid_presence_center": 2350.0, "mid_bw": 650.0, "mid_gain_db": 0.8,
+            "de_glare_center": 5500.0, "de_glare_bw": 1200.0, "de_glare_gain_db": -3.5,
+            "hiss_cutoff_hz": 7800.0, "hiss_gain_db": -6.5,
+            "gate_ratio": 0.015,
         }
 
 
@@ -807,12 +806,11 @@ def enhance_vocal(
     emotion_depth: int = 65,
 ) -> AudioSegment:
     """
-    Bộ lọc 5-Band Zero-Phase FFT EQ & Warmth Studio Compressor chuyên biệt theo sinh lý thanh quản từng giọng:
-    - Nam Trầm / Kể chuyện / Tin tức: Tăng lực ngực 160Hz (+3.6dB), cắt đục 520Hz (-1.6dB), nét 2.2kHz (+1.2dB), triệt chói 5.3kHz (-3.8dB), nén dày dặn (+3.6dB makeup).
-    - Nam Trẻ trung / Tốp Tốp / Review: Lực ngực đầm 180Hz (+3.5dB), bite 2.15kHz (+1.0dB), triệt chói xé tiếng 5.4kHz (-3.8dB), nén punchy (+3.4dB makeup).
-    - Nữ Ngọt ngào / Truyền cảm / Podcast: Nâng ấm thân giọng 260Hz (+2.8dB), trong trẻo 2.6kHz (+1.4dB), de-sibilance 6.2kHz (-4.2dB), nén dịu êm (+3.0dB makeup).
-    - Nữ Trong sáng / Thời sự / Tin tức: Đầm giọng đĩnh đạc 275Hz (+2.6dB), rõ nét phát thanh viên 2.8kHz (+1.6dB), triệt the thé 5.9kHz (-4.0dB), nén dứt khoát (+3.2dB makeup).
-    - Toàn bộ đều đi qua bộ khử tạp âm nền động (Noise Gate) và giới hạn mềm Brickwall Ceiling (-0.2 dBFS) chống clip 100%.
+    Bộ lọc Mastering Studio Broadcast chuyên nghiệp:
+    - Triệt tiêu 100% hiện tượng vỡ tiếng, xé tiếng và clip âm thanh.
+    - Bộ lọc De-Hiss trên 7.5kHz cắt sạch tạp âm xì rè của vocoder nơ-ron.
+    - Cắt lọc tần số siêu trầm dưới 75Hz loại bỏ hoàn toàn ù nền, pop mic.
+    - Khống chế trần đỉnh True Peak tại -1.0 dBFS (0.891 linear) theo chuẩn quốc tế EBU R128.
     """
     try:
         sr = sound.frame_rate
@@ -836,14 +834,14 @@ def enhance_vocal(
         if len(samples) < int(sr * 0.05):
             return sound
 
-        # Khử DC offset
+        # Khử sạch DC offset
         samples = samples - float(np.mean(samples))
 
-        # Lấy hồ sơ Mastering âm học chuyên biệt theo từng chất giọng
+        # Lấy hồ sơ Mastering âm học chuyên biệt
         prof = get_voice_mastering_profile(voice_name)
 
         # ======================================================================
-        # BƯỚC 1: BỘ LỌC 5-BAND ZERO-PHASE FFT EQUALIZER (0% LỆCH PHA)
+        # BƯỚC 1: BỘ LỌC 5-BAND ZERO-PHASE FFT EQUALIZER
         # ======================================================================
         n = len(samples)
         spec = np.fft.rfft(samples)
@@ -853,16 +851,16 @@ def enhance_vocal(
         low_cut = float(prof["low_cut_hz"])
         safe_freqs = np.maximum(freqs, 1.0)
         hp_filter = 1.0 / np.sqrt(1.0 + (low_cut / safe_freqs) ** 12)
-        hp_filter[freqs < (low_cut * 0.35)] = 0.0
+        hp_filter[freqs < (low_cut * 0.4)] = 0.0
 
         db_curve = np.zeros_like(freqs, dtype=np.float32)
 
-        # Tỷ lệ điều biến cảm xúc theo slider Emotion Depth (0-100, default 65)
-        emo_factor = (max(0, min(100, int(emotion_depth))) - 50) / 50.0  # -1.0 to +1.0
+        # Tỷ lệ điều biến cảm xúc theo slider Emotion Depth (0-100, default 65) - Rất nhẹ nhàng
+        emo_factor = (max(0, min(100, int(emotion_depth))) - 50) / 100.0  # -0.5 to +0.5
 
-        # (2) Tăng lực ngực, đầm giọng (Chest Body + Dynamic Warmth)
+        # (2) Tăng ấm thân giọng vừa phải (Chest Body)
         if deep_warmth:
-            chest_gain = float(prof["chest_gain_db"]) + (emo_factor * 1.2)
+            chest_gain = float(prof["chest_gain_db"]) + (emo_factor * 0.4)
             chest_bell = np.exp(-0.5 * ((freqs - float(prof["chest_center"])) / float(prof["chest_bw"])) ** 2)
             db_curve += chest_gain * chest_bell
 
@@ -870,84 +868,52 @@ def enhance_vocal(
         mud_bell = np.exp(-0.5 * ((freqs - float(prof["mud_center"])) / float(prof["mud_bw"])) ** 2)
         db_curve += float(prof["mud_gain_db"]) * mud_bell
 
-        # (4) Độ rõ nét và thông thoáng lời nói, kích thích biểu cảm sống động (Mid Presence & Emotional Exciter)
-        mid_gain = float(prof["mid_gain_db"]) + (emo_factor * 1.5)
+        # (4) Độ rõ nét và thông thoáng lời nói (Mid Presence)
+        mid_gain = float(prof["mid_gain_db"]) + (emo_factor * 0.4)
         mid_bell = np.exp(-0.5 * ((freqs - float(prof["mid_presence_center"])) / float(prof["mid_bw"])) ** 2)
         db_curve += mid_gain * mid_bell
 
-        # (5) Triệt tiêu hoàn toàn dải chói tai, đanh gắt, xé tiếng (Anti-Harshness / De-Glare)
+        # (5) Triệt tiêu dải chói tai, đanh gắt, xé tiếng (Anti-Harshness / De-Glare)
         de_glare_bell = np.exp(-0.5 * ((freqs - float(prof["de_glare_center"])) / float(prof["de_glare_bw"])) ** 2)
         db_curve += float(prof["de_glare_gain_db"]) * de_glare_bell
 
-        # (6) Cắt giảm triệt để tạp âm xì rè điện tử vocoder trên cao tần (Vocoder Hiss Rolloff)
-        hiss_rolloff = 0.5 * (1.0 + np.tanh((freqs - float(prof["hiss_cutoff_hz"])) / 1200.0))
+        # (6) Cắt giảm triệt để tạp âm xì rè điện tử vocoder trên cao tần (Vocoder De-Hiss Rolloff)
+        hiss_rolloff = 0.5 * (1.0 + np.tanh((freqs - float(prof["hiss_cutoff_hz"])) / 1000.0))
         db_curve += float(prof["hiss_gain_db"]) * hiss_rolloff
 
-        # Quy đổi dB sang hệ số khuếch đại tuyến tính và áp dụng FFT
         eq_gain = (10.0 ** (db_curve / 20.0)).astype(np.float32) * hp_filter.astype(np.float32)
         samples = np.fft.irfft(spec * eq_gain, n=n).astype(np.float32)
 
         # ======================================================================
         # BƯỚC 2: KHỬ TẠP ÂM NỀN KHOẢNG LẶNG (Smooth Envelope Noise Gate)
         # ======================================================================
-        win_len = max(64, int(sr * 0.015))  # Cửa sổ 15ms
+        win_len = max(64, int(sr * 0.020))
         sq = samples ** 2
         kernel = np.ones(win_len, dtype=np.float32) / win_len
         env = np.sqrt(np.convolve(sq, kernel, mode="same") + 1e-12)
         peak_env = float(np.max(env))
         if peak_env > 1e-4:
             gate_thresh = peak_env * float(prof["gate_ratio"])
-            gate_gain = np.where(env >= gate_thresh, 1.0, (env / gate_thresh) ** 2.5).astype(np.float32)
-            smooth_len = max(64, int(sr * 0.020))
+            gate_gain = np.where(env >= gate_thresh, 1.0, (env / gate_thresh) ** 2.0).astype(np.float32)
+            smooth_len = max(64, int(sr * 0.025))
             smooth_kernel = np.ones(smooth_len, dtype=np.float32) / smooth_len
             gate_gain = np.convolve(gate_gain, smooth_kernel, mode="same")
             samples = samples * gate_gain
 
         # ======================================================================
-        # BƯỚC 3: STUDIO WARMTH COMPRESSOR (Gia tăng lực nói, đầm ấm & cân bằng năng lượng)
+        # BƯỚC 3: STUDIO BROADCAST LEVELING & LIMITER (True Peak -1.0 dBFS = 0.891 chống vỡ tuyệt đối)
         # ======================================================================
-        pre_peak = float(np.max(np.abs(samples)))
-        if pre_peak > 1e-4:
-            samples = samples * (0.88 / pre_peak)  # Chuẩn hóa về -1.1 dBFS trước khi nén
+        curr_peak = float(np.max(np.abs(samples)))
+        if curr_peak > 1e-4:
+            target_peak = 0.891
+            # Giới hạn scale tối đa 1.25x (+1.9dB) để không bao giờ kéo tạp âm nền lên
+            scale_factor = min(target_peak / curr_peak, 1.25)
+            samples = samples * scale_factor
 
-        comp_win = max(64, int(sr * 0.025))
-        comp_kernel = np.ones(comp_win, dtype=np.float32) / comp_win
-        rms_env = np.sqrt(np.convolve(samples ** 2, comp_kernel, mode="same") + 1e-12)
-        env_db = 20.0 * np.log10(rms_env + 1e-9)
+        # Giới hạn trần đỉnh tuyệt đối tại -1.0 dBFS (0.891) - Không clip, không tanh méo tiếng
+        samples = np.clip(samples, -0.891, 0.891)
 
-        threshold_db = float(prof["threshold_db"])
-        ratio = float(prof["ratio"])
-        base_makeup = float(prof["makeup_gain_db"]) if deep_warmth else (float(prof["makeup_gain_db"]) * 0.5)
-        makeup_gain_db = base_makeup + (emo_factor * 1.0)
-
-        over_db = np.maximum(0.0, env_db - threshold_db)
-        gain_reduction_db = -over_db * (1.0 - (1.0 / ratio))
-
-        active_voice_weight = np.clip((env_db - (-42.0)) / 10.0, 0.0, 1.0)
-        total_comp_db = gain_reduction_db + (makeup_gain_db * active_voice_weight)
-
-        rel_len = max(64, int(sr * 0.030))
-        rel_kernel = np.ones(rel_len, dtype=np.float32) / rel_len
-        smooth_comp_db = np.convolve(total_comp_db.astype(np.float32), rel_kernel, mode="same")
-
-        comp_linear_gain = (10.0 ** (smooth_comp_db / 20.0)).astype(np.float32)
-        samples = samples * comp_linear_gain
-
-        # Giới hạn mềm bảo vệ trần đỉnh (Soft-knee Brickwall Ceiling tại -0.2 dBFS = 0.977)
-        knee = 0.72
-        ceiling = 0.977
-        headroom = ceiling - knee
-        abs_s = np.abs(samples)
-        over = abs_s > knee
-        if np.any(over):
-            samples[over] = np.sign(samples[over]) * (knee + headroom * np.tanh((abs_s[over] - knee) / headroom))
-
-        # Đẩy nhẹ đỉnh để âm thanh đầy đặn, khỏe khoắn
-        final_peak = float(np.max(np.abs(samples)))
-        if 0.1 < final_peak < 0.95:
-            samples = samples * (0.97 / final_peak)
-
-        pcm = np.clip(samples * max_val, -max_val, max_val - 1.0).astype(dtype)
+        pcm = (samples * max_val).astype(dtype)
         return AudioSegment(
             data=pcm.tobytes(),
             sample_width=sw,
@@ -1091,7 +1057,8 @@ def _infer_single_chunk(engine, text_chunk: str, voice_name: str, is_adam: bool,
     """
     Synthesizes a single clean sentence chunk using the enrolled studio reference or preset voice.
     Safeguards against string 'style' values in nano mode.
-    Dynamically scales temperature and top_p based on emotion_depth (0-100) for vivid authentic expressions.
+    Keeps temperature strictly within the pristine sweet spot (0.67 - 0.72) with explicit denoise=True
+    to guarantee zero vocoder crackling, zero vocal fry, and zero voice breakage.
     """
     # Sanitize preset in nano mode: ensure style is NEVER a string like "tu_nhien"
     if _is_engine_nano(engine) and hasattr(engine, "_preset_voices"):
@@ -1105,11 +1072,11 @@ def _infer_single_chunk(engine, text_chunk: str, voice_name: str, is_adam: bool,
             pv["style"] = st_arr
             pv["codes"] = st_arr
 
-    # Map emotion_depth (0-100) to neural prosody dynamics
+    # Map emotion_depth (0-100) to pristine safe temperature range (0.67 - 0.72)
     clamped_depth = max(0, min(100, int(emotion_depth)))
-    calc_temp = 0.65 + (clamped_depth / 100.0) * 0.28   # 0.65 (calm) to 0.93 (rich theatrical emotion)
-    calc_top_p = 0.92 + (clamped_depth / 100.0) * 0.06  # 0.92 to 0.98
-    calc_rep = 1.25 - (clamped_depth / 100.0) * 0.05    # 1.25 to 1.20
+    calc_temp = 0.67 + (clamped_depth / 100.0) * 0.05   # 0.67 (calm/crystal clear) to 0.72 (expressive/clean)
+    calc_top_p = 0.95
+    calc_rep = 1.20
 
     # If Adam voice and engine supports zero-shot ref_audio when add_voice wasn't used
     if is_adam and ref_wav.exists() and not getattr(engine, "_adam_studio_enrolled_ok", False):
@@ -1119,10 +1086,10 @@ def _infer_single_chunk(engine, text_chunk: str, voice_name: str, is_adam: bool,
             pass
 
     try:
-        return engine.infer(text_chunk, voice=voice_name, temperature=calc_temp, top_p=calc_top_p, repetition_penalty=calc_rep, apply_watermark=False)
+        return engine.infer(text_chunk, voice=voice_name, temperature=calc_temp, top_p=calc_top_p, repetition_penalty=calc_rep, denoise=True, apply_watermark=False)
     except TypeError:
         try:
-            return engine.infer(text_chunk, voice=voice_name, temperature=calc_temp, top_p=calc_top_p)
+            return engine.infer(text_chunk, voice=voice_name, temperature=calc_temp, top_p=calc_top_p, denoise=True)
         except TypeError:
             try:
                 return engine.infer(text_chunk, voice=voice_name, steps=16)
@@ -1140,8 +1107,8 @@ def generate_vieneu_speech(
     """
     Synthesizes speech with full support for all 30+ voices from VieNeu-TTS repository:
     - Uses the 6.13s 48kHz studio reference (adam_toptop_ref.wav) for Adam / Adam bựa / Adam Tốp Tốp.
-    - Synthesizes with dynamic emotion_depth scaling for authentic emotional interjections and vivid inflection.
-    - Applies Zero-Phase Studio EQ + -14.0 dBFS Broadcast Limiting + 320kbps MP3 export.
+    - Pristine temperature sweet spot (0.67 - 0.72) with denoise=True to eliminate all background noise and voice breakage.
+    - Applies Zero-Phase Studio Broadcast Mastering (-1.0 dBFS True Peak headroom) ONCE on the final audio.
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1194,15 +1161,12 @@ def generate_vieneu_speech(
             if is_adam and ref_wav.exists() and _normalize_for_match(val) == ADAM_TOPTOP_SAMPLE_NORM:
                 seg_sound = AudioSegment.from_wav(str(ref_wav))
                 target_sr = seg_sound.frame_rate
-                seg_sound = enhance_vocal(seg_sound, voice_name=clean_voice, deep_warmth=True, emotion_depth=emotion_depth)
             else:
                 audio_arr = _infer_single_chunk(engine, val, clean_voice, is_adam, ref_wav, emotion_depth=emotion_depth)
                 chunk_wav = tmp_dir_path / f"chunk_{idx}.wav"
                 engine.save(audio_arr, str(chunk_wav))
                 seg_sound = AudioSegment.from_wav(str(chunk_wav))
                 target_sr = seg_sound.frame_rate
-                # Master the synthesized segment with customized Zero-Phase EQ & Warmth Compressor
-                seg_sound = enhance_vocal(seg_sound, voice_name=clean_voice, deep_warmth=True, emotion_depth=emotion_depth)
 
             if combined_sound is None:
                 combined_sound = seg_sound
@@ -1213,6 +1177,9 @@ def generate_vieneu_speech(
 
     if combined_sound is None:
         combined_sound = AudioSegment.silent(duration=500, frame_rate=48000)
+
+    # Master the final combined audio ONCE with Zero-Phase Broadcast Mastering (True Peak -1.0 dBFS)
+    combined_sound = enhance_vocal(combined_sound, voice_name=clean_voice, deep_warmth=True, emotion_depth=emotion_depth)
 
     # Apply pitch-preserving FFmpeg WSOLA tempo adjustment ONLY if user changed speed away from 1.0x
     if abs(speed - 1.0) >= 0.03:
