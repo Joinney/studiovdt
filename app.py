@@ -2189,7 +2189,7 @@ with tab_dubbing:
                                         t_aud = t_dir / "preview_audio.wav"
                                         extract_audio(t_vid, t_aud)
 
-                                        transcriber = Transcriber(model_size="base", device="cpu", compute_type="int8")
+                                        transcriber = Transcriber(model_size="base", device="auto", compute_type="default")
                                         t_segs, det_lang = transcriber.transcribe(t_aud)
                                         translator = Translator(target_lang="vi", source_lang=det_lang)
                                         t_segs = translator.translate_segments(t_segs)
@@ -2797,10 +2797,18 @@ with tab_dubbing:
                 with col_s2:
                     compute_type = st.selectbox(
                         "Chế độ tính toán (Compute):",
-                        options=["int8", "float32"],
+                        options=["auto", "float16", "int8", "float32"],
                         index=0,
-                        help="int8 giúp tiết kiệm RAM và CPU tối đa"
+                        help="auto: Tự động dùng float16 trên card NVIDIA GPU hoặc int8 trên CPU để tạo video nhanh nhất"
                     )
+
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    gpu_name = torch.cuda.get_device_name(0)
+                    st.caption(f"⚡ *Đã bật tăng tốc GPU:* **{gpu_name}** *(CUDA float16)*")
+            except Exception:
+                pass
 
             st.write("")
             btn_start_dubbing = st.button(
@@ -2872,9 +2880,18 @@ with tab_dubbing:
                 elif Path("assets/endgpc.mp4").exists():
                     outro_file_path = Path("assets/endgpc.mp4")
 
+            # Tự động kích hoạt GPU CUDA khi có sẵn để Whisper xử lý siêu tốc
+            device_choice = "auto"
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    device_choice = "cuda"
+            except Exception:
+                pass
+
             dub_config = config.DubbingConfig(
                 whisper_model=whisper_model,
-                device="cpu",
+                device=device_choice,
                 compute_type=compute_type,
                 source_language=dub_src_lang,
                 target_language=dub_tgt_lang,

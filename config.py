@@ -152,7 +152,7 @@ LANGUAGE_NAMES = {
 class DubbingConfig:
     whisper_model: str = "base"
     device: str = "auto"
-    compute_type: str = "int8"
+    compute_type: str = "default"
     source_language: str = "auto"
     target_language: str = "vi"
     tts_voice: str = "vieneu:Adam"

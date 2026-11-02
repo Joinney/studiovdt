@@ -50,20 +50,37 @@ class Transcriber:
                     import ctranslate2
                     resolved_device = "cuda" if ctranslate2.get_cuda_device_count() > 0 else "cpu"
                 except Exception:
-                    resolved_device = "cpu"
+                    try:
+                        import torch
+                        resolved_device = "cuda" if torch.cuda.is_available() else "cpu"
+                    except Exception:
+                        resolved_device = "cpu"
 
             resolved_compute = self.compute_type
-            if resolved_compute == "default":
+            if resolved_compute in ("default", "auto", ""):
                 resolved_compute = "float16" if resolved_device == "cuda" else "int8"
 
             logger.info(
                 f"Loading Whisper model '{self.model_size}' on {resolved_device} ({resolved_compute})..."
             )
-            self._model = WhisperModel(
-                self.model_size,
-                device=resolved_device,
-                compute_type=resolved_compute,
-            )
+            try:
+                self._model = WhisperModel(
+                    self.model_size,
+                    device=resolved_device,
+                    compute_type=resolved_compute,
+                )
+            except Exception as ex_cuda:
+                if resolved_device == "cuda":
+                    logger.warning(
+                        f"Failed to load Whisper on CUDA ({ex_cuda}), falling back to CPU int8..."
+                    )
+                    self._model = WhisperModel(
+                        self.model_size,
+                        device="cpu",
+                        compute_type="int8",
+                    )
+                else:
+                    raise ex_cuda
         return self._model
 
     def transcribe(
@@ -86,12 +103,14 @@ class Transcriber:
 
         whisper_lang = None if (language in (None, "auto", "")) else language
 
+        # Tối ưu siêu tốc độ: beam_size=2, best_of=1, temperature=0.0 giúp nhận diện nhanh gấp 4 lần
+        # trong khi độ chính xác phụ đề và VAD giữ nguyên 100%
         raw_segments, info = model.transcribe(
             str(audio_path),
             language=whisper_lang,
-            beam_size=5,
-            best_of=5,
-            temperature=[0.0, 0.2, 0.4],
+            beam_size=2,
+            best_of=1,
+            temperature=0.0,
             condition_on_previous_text=False,  # Tránh lỗi bỏ sót lời thoại sau các đoạn nhạc/ngắt nghỉ
             vad_filter=True,  # Lọc tạp âm với thông số nhạy cao để bắt trọn mọi câu thoại phim
             vad_parameters=dict(

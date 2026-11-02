@@ -2,6 +2,7 @@
 Video and Audio Merging Module
 Combines the synchronized dubbed audio with video, with background audio ducking.
 """
+import os
 import logging
 import shutil
 import subprocess
@@ -448,6 +449,8 @@ class VideoMerger:
             f"(has_logo={has_logo}, has_sub={has_sub}, floating_wm={floating_watermark_text}, has_outro={has_outro})..."
         )
 
+        cpu_threads = min(8, max(2, os.cpu_count() or 4))
+
         has_floating_wm = bool(floating_watermark_text and floating_watermark_text.strip())
         wm_opacity = max(0.05, min(0.95, float(floating_watermark_opacity)))
         wm_fsize = max(12, min(48, int(floating_watermark_font_size)))
@@ -550,7 +553,8 @@ class VideoMerger:
                         "-map", "1:a:0",
                         "-c:v", "libx264",
                         "-pix_fmt", "yuv420p",
-                        "-preset", "fast",
+                        "-preset", "veryfast",
+                        "-threads", str(cpu_threads),
                         "-crf", "22",
                         "-c:a", "aac",
                         "-b:a", "192k",
@@ -679,13 +683,19 @@ class VideoMerger:
                         logger.warning(f"MoviePy floating watermark warning: {ex_wm_m}")
 
                 # 3. Ghi đè toàn bộ Phụ đề tiếng Việt (Hardsub) từng câu thoại đã dịch
+                # Tối ưu siêu tốc O(1) active subtitle overlay thay vì tạo hàng trăm ImageClip độc lập
                 if has_sub and subtitle_path and Path(subtitle_path).exists():
                     try:
+                        import bisect
+                        from PIL import Image
+                        import numpy as np
+
                         sub_items = parse_srt_file(Path(subtitle_path))
                         sub_temp_dir = Path("temp") / f"sub_frames_{uuid.uuid4().hex[:6]}"
                         sub_temp_dir.mkdir(parents=True, exist_ok=True)
                         mv = max(8, min(240, int(subtitle_margin_v)))
 
+                        sub_overlays = []
                         for s_i, (s_start, s_end, s_text) in enumerate(sub_items):
                             s_dur = s_end - s_start
                             if s_dur <= 0.05 or not s_text.strip():
@@ -699,24 +709,112 @@ class VideoMerger:
                                 max_video_width=video.w,
                                 video_height=video.h
                             )
-                            s_clip = ImageClip(str(p_file), transparent=True)
-                            if hasattr(s_clip, "with_start"):
-                                s_clip = s_clip.with_start(s_start).with_duration(s_dur)
-                            elif hasattr(s_clip, "set_start"):
-                                s_clip = s_clip.set_start(s_start).set_duration(s_dur)
+                            if p_file.exists():
+                                with Image.open(str(p_file)) as simg:
+                                    s_rgba = np.array(simg.convert("RGBA"))
+                                    sc_w = s_rgba.shape[1]
+                                    sc_h = s_rgba.shape[0]
+                                    pos_x = max(10, min(video.w - sc_w - 10, (video.w - sc_w) // 2))
+                                    pos_y = max(10, min(video.h - sc_h - 10, video.h - sc_h - mv))
+                                    sub_rgb = s_rgba[:, :, :3]
+                                    sub_alpha = (s_rgba[:, :, 3].astype(np.float32) / 255.0)[:, :, np.newaxis]
+                                    sub_overlays.append({
+                                        "start": s_start,
+                                        "end": s_end,
+                                        "x": pos_x,
+                                        "y": pos_y,
+                                        "w": sc_w,
+                                        "h": sc_h,
+                                        "rgb": sub_rgb,
+                                        "alpha": sub_alpha,
+                                    })
 
-                            sc_w = getattr(s_clip, "w", None) or (s_clip.size[0] if hasattr(s_clip, "size") else 200)
-                            sc_h = getattr(s_clip, "h", None) or (s_clip.size[1] if hasattr(s_clip, "size") else 40)
-                            pos_x = max(10, min(video.w - sc_w - 10, (video.w - sc_w) // 2))
-                            pos_y = max(10, min(video.h - sc_h - 10, video.h - sc_h - mv))
+                        sub_overlays.sort(key=lambda item: item["start"])
+                        sub_starts = [item["start"] for item in sub_overlays]
 
-                            if hasattr(s_clip, "with_position"):
-                                s_clip = s_clip.with_position((pos_x, pos_y))
-                            elif hasattr(s_clip, "set_pos"):
-                                s_clip = s_clip.set_pos((pos_x, pos_y))
+                        def apply_active_sub_to_frame(frame, t):
+                            if not sub_overlays:
+                                return frame
+                            idx = bisect.bisect_right(sub_starts, t) - 1
+                            active_sub = None
+                            if 0 <= idx < len(sub_overlays):
+                                cand = sub_overlays[idx]
+                                if cand["start"] <= t <= cand["end"]:
+                                    active_sub = cand
+                            if active_sub is None and (idx + 1) < len(sub_overlays):
+                                cand_next = sub_overlays[idx + 1]
+                                if cand_next["start"] <= t <= cand_next["end"]:
+                                    active_sub = cand_next
 
-                            clips_to_composite.append(s_clip)
-                        logger.info(f"MoviePy added {len(clips_to_composite)} subtitle and watermark clips.")
+                            if active_sub is None:
+                                return frame
+
+                            x = active_sub["x"]
+                            y = active_sub["y"]
+                            w = active_sub["w"]
+                            h = active_sub["h"]
+                            x1 = max(0, x)
+                            y1 = max(0, y)
+                            x2 = min(frame.shape[1], x + w)
+                            y2 = min(frame.shape[0], y + h)
+                            if x2 <= x1 or y2 <= y1:
+                                return frame
+
+                            out_frame = frame.copy()
+                            sub_rgb_roi = active_sub["rgb"][:(y2 - y1), :(x2 - x1)]
+                            sub_alpha_roi = active_sub["alpha"][:(y2 - y1), :(x2 - x1)]
+                            bg_roi = out_frame[y1:y2, x1:x2].astype(np.float32)
+                            blended = (sub_rgb_roi.astype(np.float32) * sub_alpha_roi + bg_roi * (1.0 - sub_alpha_roi)).astype(np.uint8)
+                            out_frame[y1:y2, x1:x2] = blended
+                            return out_frame
+
+                        def sub_transform_fn(gf, t):
+                            return apply_active_sub_to_frame(gf(t), t)
+
+                        applied_fast_sub = False
+                        if hasattr(video, "transform"):
+                            try:
+                                video = video.transform(sub_transform_fn)
+                                applied_fast_sub = True
+                                logger.info(f"Tăng tốc MoviePy subtitle render qua video.transform ({len(sub_overlays)} câu thoại).")
+                            except Exception as ex_tr:
+                                logger.warning(f"video.transform notice: {ex_tr}")
+
+                        if not applied_fast_sub and hasattr(video, "fl"):
+                            try:
+                                video = video.fl(sub_transform_fn)
+                                applied_fast_sub = True
+                                logger.info(f"Tăng tốc MoviePy subtitle render qua video.fl ({len(sub_overlays)} câu thoại).")
+                            except Exception as ex_fl:
+                                logger.warning(f"video.fl notice: {ex_fl}")
+
+                        if not applied_fast_sub:
+                            # Fallback an toàn nếu môi trường không hỗ trợ transform/fl
+                            for s_i, (s_start, s_end, s_text) in enumerate(sub_items):
+                                p_file = sub_temp_dir / f"s_{s_i}.png"
+                                if not p_file.exists():
+                                    continue
+                                s_dur = s_end - s_start
+                                if s_dur <= 0.05:
+                                    continue
+                                s_clip = ImageClip(str(p_file), transparent=True)
+                                if hasattr(s_clip, "with_start"):
+                                    s_clip = s_clip.with_start(s_start).with_duration(s_dur)
+                                elif hasattr(s_clip, "set_start"):
+                                    s_clip = s_clip.set_start(s_start).set_duration(s_dur)
+
+                                sc_w = getattr(s_clip, "w", None) or (s_clip.size[0] if hasattr(s_clip, "size") else 200)
+                                sc_h = getattr(s_clip, "h", None) or (s_clip.size[1] if hasattr(s_clip, "size") else 40)
+                                pos_x = max(10, min(video.w - sc_w - 10, (video.w - sc_w) // 2))
+                                pos_y = max(10, min(video.h - sc_h - 10, video.h - sc_h - mv))
+
+                                if hasattr(s_clip, "with_position"):
+                                    s_clip = s_clip.with_position((pos_x, pos_y))
+                                elif hasattr(s_clip, "set_pos"):
+                                    s_clip = s_clip.set_pos((pos_x, pos_y))
+
+                                clips_to_composite.append(s_clip)
+                            logger.info(f"MoviePy fallback: added {len(clips_to_composite)} clips to composite.")
                     except Exception as ex_sub_m:
                         logger.warning(f"MoviePy subtitle burning warning: {ex_sub_m}")
 
@@ -816,7 +914,8 @@ class VideoMerger:
                     codec="libx264",
                     audio_codec="aac",
                     fps=base_fps,
-                    preset="fast",
+                    preset="veryfast",
+                    threads=cpu_threads,
                     ffmpeg_params=["-pix_fmt", "yuv420p"],
                     logger=None,
                 )
@@ -933,13 +1032,15 @@ class VideoMerger:
                 except Exception:
                     pass
 
+            cpu_threads = min(8, max(2, os.cpu_count() or 4))
             final_clip = concatenate_videoclips([main_clip, fitted_outro], method="compose")
             final_clip.write_videofile(
                 str(final_output_path),
                 codec="libx264",
                 audio_codec="aac",
                 fps=base_fps,
-                preset="fast",
+                preset="veryfast",
+                threads=cpu_threads,
                 ffmpeg_params=["-pix_fmt", "yuv420p"],
                 logger=None,
             )
@@ -966,7 +1067,8 @@ class VideoMerger:
                     "-map", "[a_cat]",
                     "-c:v", "libx264",
                     "-pix_fmt", "yuv420p",
-                    "-preset", "fast",
+                    "-preset", "veryfast",
+                    "-threads", str(cpu_threads),
                     "-c:a", "aac",
                     "-b:a", "192k",
                     str(final_output_path),
