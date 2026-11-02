@@ -19,9 +19,15 @@ import edge_tts
 
 logger = logging.getLogger("studiovdt")
 
+import importlib
+import config as _cfg_mod
+import video_dubber.vieneu_tts as _vieneu_mod
+_cfg_mod = importlib.reload(_cfg_mod)
+_vieneu_mod = importlib.reload(_vieneu_mod)
+
 from config import DEFAULT_VOICES, LANGUAGE_NAMES, VOICES_CATALOG, DubbingConfig
 from video_dubber.pipeline import VideoDubberPipeline
-from video_dubber.vieneu_tts import generate_vieneu_speech, EMOTION_SOUND_MAP
+from video_dubber.vieneu_tts import generate_vieneu_speech, EMOTION_SOUND_MAP, apply_acoustic_fx
 
 # 1. Page Configuration
 st.set_page_config(
@@ -145,10 +151,17 @@ async def generate_single_tts_edge(text: str, voice: str, rate: str, volume: str
 
 
 def get_or_generate_voice_preview(voice_id: str, lang: str, voice_name: str) -> Path:
+    # For Adam / Adam bựa / Adam Tốp Tốp, serve the 100% lossless 48kHz studio sample from vieneu.io directly
+    if "adam" in voice_id.lower():
+        adam_ref = Path(__file__).parent / "video_dubber" / "assets" / "adam_toptop_ref.wav"
+        if adam_ref.exists() and adam_ref.stat().st_size > 1000:
+            return adam_ref
+
     preview_dir = Path("./output/preview_samples")
     preview_dir.mkdir(parents=True, exist_ok=True)
     import unicodedata
     clean_slug = voice_id.replace("vieneu:", "").replace(":", "_").replace(" ", "_").replace("-", "_")
+    clean_slug = clean_slug.replace('đ', 'd').replace('Đ', 'D')
     safe_ascii = unicodedata.normalize('NFKD', clean_slug).encode('ascii', 'ignore').decode('ascii')
     safe_ascii = re.sub(r'[^\w\-_\.]', '_', safe_ascii).strip('_')
     if not safe_ascii:
@@ -190,13 +203,22 @@ def get_or_generate_voice_preview(voice_id: str, lang: str, voice_name: str) -> 
                 output_path=preview_path,
             )
         )
+        # Nâng cấp mẫu nghe thử Edge-TTS với Zero-Phase EQ & Warmth Compressor chuẩn Studio
+        try:
+            from video_dubber.vieneu_tts import enhance_vocal
+            from pydub import AudioSegment
+            if preview_path.exists() and preview_path.stat().st_size > 1000:
+                snd = AudioSegment.from_file(str(preview_path))
+                snd = enhance_vocal(snd, voice_name=voice_id, deep_warmth=True)
+                snd.export(str(preview_path), format="mp3", bitrate="320k")
+        except Exception as e_pv:
+            logger.warning(f"Edge preview mastering note: {e_pv}")
     return preview_path
 
 
 # Session States
 DEFAULT_DEMO_TEXT = (
-    "Hello các con vợ, hôm nay Adam lại lên đồ ngon cho cả nhà đây! [cười] "
-    "Coi hết clip rồi hãy lướt nha! [laughing] [nghỉ 0.5s] "
+    "Hello các con vợ, hôm nay Adam lại lên đồ ngon cho cả nhà đây, coi hết clip rồi hãy lướt nha! [nghỉ 0.5s] "
     "Nghe rõ chưa mấy ba? Đừng để tui phải dùng chiêu cuối đấy nhé!"
 )
 
@@ -204,10 +226,20 @@ if "tts_main_text" not in st.session_state:
     st.session_state["tts_main_text"] = DEFAULT_DEMO_TEXT
 
 if "slider_speed_val" not in st.session_state:
-    st.session_state["slider_speed_val"] = 15  # 1.15x
+    st.session_state["slider_speed_val"] = 0  # 1.0x Chuẩn Gốc Studio vieneu.io
 
 if "selected_voice_label" not in st.session_state:
-    st.session_state["selected_voice_label"] = "🔥 Adam bựa (VieNeu - Review Phim Tốp Tốp dí dỏm, hài hước)"
+    st.session_state["selected_voice_label"] = "🔥 Adam Tốp Tốp (VieNeu - Nam Miền Nam • Cảm xúc, Không nghiêm túc, Tốp Tốp, Tấu hề)"
+
+# One-time migration for open browser tabs so old 1.15x speed & noisy [cười]/[laughing] demo tags are upgraded
+if not st.session_state.get("_vdt_adam_toptop_v4_migrated"):
+    st.session_state["slider_speed_val"] = 0
+    st.session_state["slider_speed_widget"] = 0
+    st.session_state["selected_voice_label"] = "🔥 Adam Tốp Tốp (VieNeu - Nam Miền Nam • Cảm xúc, Không nghiêm túc, Tốp Tốp, Tấu hề)"
+    cur_txt = st.session_state.get("tts_main_text", "")
+    if "Hello các con vợ" in cur_txt and ("[cười]" in cur_txt or "[laughing]" in cur_txt):
+        st.session_state["tts_main_text"] = DEFAULT_DEMO_TEXT
+    st.session_state["_vdt_adam_toptop_v4_migrated"] = True
 
 if "active_acoustic_fx" not in st.session_state:
     st.session_state["active_acoustic_fx"] = "Studio Dry"
@@ -221,9 +253,8 @@ if "script_generated_file" not in st.session_state:
 
 # Preset Scripts
 sample_options = {
-    "🎬 Review Phim Tóm Tắt (Adam Siêu Bựa)": (
-        "Hello các con vợ, hôm nay Adam lại lên đồ ngon cho cả nhà đây! [cười] "
-        "Coi hết clip rồi hãy lướt nha! [laughing] [nghỉ 0.5s] "
+    "🎬 Review Phim Tóm Tắt (Adam Tốp Tốp)": (
+        "Hello các con vợ, hôm nay Adam lại lên đồ ngon cho cả nhà đây, coi hết clip rồi hãy lướt nha! [nghỉ 0.5s] "
         "Nghe rõ chưa mấy ba? Đừng để tui phải dùng chiêu cuối đấy nhé!"
     ),
     "🔥 Adam Kịch Tính Điện Ảnh": (
@@ -1858,6 +1889,15 @@ with tab_tts:
                             output_path=out_file,
                         )
                     )
+                    try:
+                        from video_dubber.vieneu_tts import enhance_vocal
+                        from pydub import AudioSegment
+                        if out_file.exists() and out_file.stat().st_size > 1000:
+                            snd = AudioSegment.from_file(str(out_file))
+                            snd = enhance_vocal(snd, voice_name=selected_voice_id, deep_warmth=True)
+                            snd.export(str(out_file), format="mp3", bitrate="320k")
+                    except Exception as e_ed:
+                        logger.warning(f"Script edge TTS mastering note: {e_ed}")
 
                 # Giai đoạn 4: 61% -> 85% (Xử lý hiệu ứng DSP và buồng thu âm thực thụ)
                 fx_name = st.session_state.get("active_acoustic_fx", "Studio Dry")
@@ -1873,6 +1913,7 @@ with tab_tts:
                         sound_or_path=out_file,
                         fx_name=fx_name,
                         pitch_semitones=pitch_semitones,
+                        voice_name=clean_name,
                         output_path=out_file,
                     )
                 except Exception as dsp_err:

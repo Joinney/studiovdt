@@ -30,6 +30,8 @@ class TTSService:
         volume: str,
     ) -> bool:
         import edge_tts
+        from pydub import AudioSegment
+        from .vieneu_tts import enhance_vocal
 
         output_file.parent.mkdir(parents=True, exist_ok=True)
         communicate = edge_tts.Communicate(
@@ -39,7 +41,19 @@ class TTSService:
             volume=volume,
         )
         await communicate.save(str(output_file))
-        return output_file.exists() and output_file.stat().st_size > 0
+        if output_file.exists() and output_file.stat().st_size > 0:
+            try:
+                snd = AudioSegment.from_file(str(output_file))
+                snd = enhance_vocal(snd, voice_name=voice, deep_warmth=True)
+                fmt = "mp3" if output_file.suffix.lower() == ".mp3" else "wav"
+                if fmt == "mp3":
+                    snd.export(str(output_file), format="mp3", bitrate="320k")
+                else:
+                    snd.export(str(output_file), format=fmt)
+            except Exception as e_master:
+                logger.warning(f"Edge TTS mastering note: {e_master}")
+            return True
+        return False
 
     def generate_speech_for_segments(
         self,

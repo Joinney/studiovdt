@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Union
 VOICES_CATALOG: Dict[str, Dict[str, str]] = {
     "vi": {
         # 🔥 Giọng Tuyển Chọn Hàng Đầu (Hot / Review / Tốp Tốp)
+        "🔥 Adam Tốp Tốp (VieNeu - Nam Miền Nam • Cảm xúc, Không nghiêm túc, Tốp Tốp, Tấu hề)": "vieneu:Adam Tốp Tốp",
         "🔥 Adam bựa (VieNeu - Review Phim Tốp Tốp dí dỏm, hài hước)": "vieneu:Adam bựa",
         "🔥 Adam (VieNeu - Giọng Tốp Tốp Tự Nhiên & Đa Cảm Xúc)": "vieneu:Adam",
         "🔥 Hải Đăng (VieNeu - Nam Bắc chuẩn phát thanh, tin tức)": "vieneu:Hải Đăng",
