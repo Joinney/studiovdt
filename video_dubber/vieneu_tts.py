@@ -276,14 +276,40 @@ def change_tempo(sound: AudioSegment, speed: float = 1.0) -> AudioSegment:
     return sound
 
 
-def _enroll_adam_studio_reference(engine):
+def _is_engine_nano(engine, is_nano_hint: Optional[bool] = None) -> bool:
+    if is_nano_hint is not None:
+        return is_nano_hint
+    if engine is None:
+        return False
+    if hasattr(engine, "mode") and "nano" in str(engine.mode).lower():
+        return True
+    if hasattr(engine, "_engine") and "nano" in str(engine._engine.__class__.__name__).lower():
+        return True
+    if "nano" in str(engine.__class__.__name__).lower():
+        return True
+    if hasattr(engine, "SAMPLE_RATE") and getattr(engine, "SAMPLE_RATE", 48000) == 24000:
+        return True
+    if hasattr(engine, "sample_rate") and getattr(engine, "sample_rate", 48000) == 24000:
+        return True
+    presets = getattr(engine, "_preset_voices", {})
+    if "Adam" in presets:
+        st = presets["Adam"].get("style")
+        if st is not None and not isinstance(st, str):
+            return True
+    return False
+
+
+def _enroll_adam_studio_reference(engine, is_nano: Optional[bool] = None):
     """
     Enrolls the official 6.13s 48kHz studio WAV reference from vieneu.io
-    into the active VieNeu engine using precomputed 73-frame studio codes.
+    into the active VieNeu engine using precomputed studio codes.
+    Guarantees compatibility across both Turbo mode (style='tu_nhien', codes=int64 array)
+    and Nano mode (style=float32 array, NEVER string 'tu_nhien').
     """
     if engine is None or getattr(engine, "_adam_studio_v4_enrolled", False):
         return
 
+    is_nano = _is_engine_nano(engine, is_nano)
     enrolled_json = Path(__file__).parent / "assets" / "adam_toptop_enrolled.json"
     presets_dict = getattr(engine, "_preset_voices", None)
 
@@ -291,24 +317,53 @@ def _enroll_adam_studio_reference(engine):
         try:
             data = json.loads(enrolled_json.read_text(encoding="utf-8"))
             spk_emb = np.asarray(data["speaker_emb"], dtype=np.float32)
-            codes = np.asarray(data["codes"], dtype=np.int64)
 
-            studio_profile = {
-                "description": "Nam · Nam · Cảm xúc, Không nghiêm túc, Tốp Tốp, Tấu hề (Studio 48kHz)",
-                "gender": "male",
-                "style": "tu_nhien",
-                "speaker_emb": spk_emb,
-                "codes": codes,
-                "featured": 1,
-                "podcast": True,
-            }
+            if is_nano:
+                # In Nano mode: style MUST be float32 array [50, 256], NEVER string 'tu_nhien'!
+                nano_style = None
+                if "Adam" in presets_dict:
+                    cur_st = presets_dict["Adam"].get("style")
+                    if cur_st is not None and not isinstance(cur_st, str):
+                        nano_style = cur_st
+                if nano_style is None:
+                    nano_json = Path(__file__).parent / "assets" / "voices_v3_nano.json"
+                    if nano_json.exists():
+                        try:
+                            d_nano = json.loads(nano_json.read_text(encoding="utf-8"))
+                            if "Adam" in d_nano.get("presets", {}):
+                                nano_style = np.asarray(d_nano["presets"]["Adam"]["style"], dtype=np.float32)
+                        except Exception:
+                            pass
+                if nano_style is None:
+                    nano_style = np.zeros((50, 256), dtype=np.float32)
+
+                studio_profile = {
+                    "description": "Nam · Nam · Cảm xúc, Không nghiêm túc, Tốp Tốp, Tấu hề (Studio 48kHz Nano)",
+                    "gender": "male",
+                    "style": nano_style,
+                    "codes": nano_style,
+                    "speaker_emb": spk_emb,
+                    "featured": 1,
+                    "podcast": True,
+                }
+            else:
+                codes = np.asarray(data["codes"], dtype=np.int64)
+                studio_profile = {
+                    "description": "Nam · Nam · Cảm xúc, Không nghiêm túc, Tốp Tốp, Tấu hề (Studio 48kHz Turbo)",
+                    "gender": "male",
+                    "style": "tu_nhien",
+                    "speaker_emb": spk_emb,
+                    "codes": codes,
+                    "featured": 1,
+                    "podcast": True,
+                }
 
             for v_name in ("Adam Tốp Tốp", "Adam", "Adam bựa"):
                 presets_dict[v_name] = dict(studio_profile)
 
             engine._adam_studio_v4_enrolled = True
             engine._adam_studio_enrolled_ok = True
-            logger.info("✅ Pre-loaded 73-frame clean studio Adam profile into VieNeu engine presets!")
+            logger.info(f"✅ Pre-loaded studio Adam profile into VieNeu engine presets (is_nano={is_nano})!")
             return
         except Exception as ex:
             logger.warning(f"Error loading adam_toptop_enrolled.json: {ex}")
@@ -317,7 +372,7 @@ def _enroll_adam_studio_reference(engine):
     if not ref_wav.exists():
         return
 
-    if hasattr(engine, "add_voice"):
+    if not is_nano and hasattr(engine, "add_voice"):
         try:
             engine.add_voice("Adam Tốp Tốp", str(ref_wav), denoise=False)
             if isinstance(presets_dict, dict) and "Adam Tốp Tốp" in presets_dict:
@@ -444,7 +499,7 @@ def _load_all_voices_into_engine(engine, is_nano: Optional[bool] = None):
                 break
 
         # Enroll 6.13s 48kHz studio reference for Adam Tốp Tốp / Adam bựa / Adam
-        _enroll_adam_studio_reference(engine)
+        _enroll_adam_studio_reference(engine, is_nano=is_nano)
 
         logger.info(f"✅ Registered {len(getattr(engine, '_preset_voices', {}))} total preset voices in VieNeu Engine (is_nano={is_nano})!")
     except Exception as e:
@@ -901,7 +956,20 @@ def list_vieneu_voices() -> List[Tuple[str, str]]:
 def _infer_single_chunk(engine, text_chunk: str, voice_name: str, is_adam: bool, ref_wav: Path):
     """
     Synthesizes a single clean sentence chunk using the enrolled studio reference or preset voice.
+    Safeguards against string 'style' values in nano mode.
     """
+    # Sanitize preset in nano mode: ensure style is NEVER a string like "tu_nhien"
+    if _is_engine_nano(engine) and hasattr(engine, "_preset_voices"):
+        pv = engine._preset_voices.get(voice_name)
+        if isinstance(pv, dict) and isinstance(pv.get("style"), str):
+            logger.info(f"Sanitizing voice '{voice_name}' style from string to float32 array in nano mode.")
+            adam_p = engine._preset_voices.get("Adam", {})
+            st_arr = adam_p.get("style")
+            if not isinstance(st_arr, np.ndarray):
+                st_arr = np.zeros((50, 256), dtype=np.float32)
+            pv["style"] = st_arr
+            pv["codes"] = st_arr
+
     # If Adam voice and engine supports zero-shot ref_audio when add_voice wasn't used
     if is_adam and ref_wav.exists() and not getattr(engine, "_adam_studio_enrolled_ok", False):
         try:
