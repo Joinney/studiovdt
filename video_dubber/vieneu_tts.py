@@ -24,131 +24,233 @@ if "_VIENEU_ENGINE" not in globals():
 ADAM_TOPTOP_SAMPLE_NORM = "hello các con vợ hôm nay adam lại lên đồ ngon cho cả nhà đây coi hết clip rồi hãy lướt nha"
 
 # Comprehensive 50+ Emotion and Sound FX Dictionary
-# Pause tags and noisy experimental tokens are handled cleanly at the sentence-splitting layer
+# Mapped to vivid, authentic Vietnamese vocal expressions and natural inflections
 EMOTION_SOUND_MAP: Dict[str, str] = {
-    # Clean non-corrupting vocal cues (avoiding raw [cười] / 'hahaha' vocoder static)
-    "chuckles": "||PAUSE_180||",
-    "chuckle": "||PAUSE_180||",
-    "cười": "||PAUSE_180||",
-    "cuoi": "||PAUSE_180||",
-    "laughing": "||PAUSE_220||",
-    "cười lớn": "||PAUSE_220||",
-    "sighs": "||PAUSE_250||",
-    "sigh": "||PAUSE_250||",
-    "thở dài": "||PAUSE_250||",
-    "tho dai": "||PAUSE_250||",
-    "clears throat": "||PAUSE_200||",
-    "clear throat": "||PAUSE_200||",
-    "hắng giọng": "||PAUSE_200||",
-    "hang giong": "||PAUSE_200||",
-
-    # Sound FX & Emotional Vocalizations
-    "crying": "hu hu. ",
-    "khóc": "hu hu. ",
-    "coughs": "khụ khụ. ",
-    "ho": "khụ khụ. ",
-    "lip smacks": "chẹp chẹp. ",
-    "annoyed": "chậc! ",
-    "screaming": "á! ",
-    "hét": "á! ",
-    "yelling": "Ê! ",
-    "la hét": "Ê! ",
-    "affirmative": "ừ hứ, ",
-    "realization": "ồ, ",
-    "nhận ra": "ồ, ",
+    # 1. Cười & Tiếng cười sống động (Laughter, Chuckles, Giggles)
+    "cười": "haha, ",
+    "cuoi": "haha, ",
+    "cười lớn": "hahaha! ",
+    "cuoi lon": "hahaha! ",
+    "laughing": "hahaha! ",
+    "laugh": "haha, ",
+    "chuckles": "he he, ",
+    "chuckle": "he he, ",
     "giggles": "hí hí, ",
+    "giggle": "hí hí, ",
     "cười khúc khích": "hí hí, ",
-    "thinking": "hừm, ",
-    "suy nghĩ": "hừm, ",
-    "gasps": "hự! ",
-    "excited": "wow! ",
-    "hào hứng": "wow! ",
-    "relieved": "phù, ",
-    "thở phào": "phù, ",
-    "confused": "hả? ",
-    "bối rối": "hả? ",
-    "agreeing": "đúng rồi! ",
-    "đồng ý": "đúng rồi! ",
-    "cheering": "yeah! ",
-    "cổ vũ": "yeah! ",
-    "groans": "ôi trời ơi. ",
-    "rên rỉ": "ôi trời ơi. ",
-    "embarrassed": "ôi ngại quá! ",
-    "ngại ngùng": "ôi ngại quá! ",
-    "angry": "tức quá! ",
-    "tức giận": "tức quá! ",
-    "curious": "ủa? ",
-    "tò mò": "ủa? ",
-    "sarcastic": "ghê chưa! ",
-    "mỉa mai": "ghê chưa! ",
-    "happy": "vui quá! ",
-    "vui vẻ": "vui quá! ",
-    "celebrating": "yo! ",
-    "ăn mừng": "yo! ",
-    "pleading": "làm ơn đi. ",
-    "năn nỉ": "làm ơn đi. ",
-    "confident": "chắc chắn luôn! ",
-    "tự tin": "chắc chắn luôn! ",
-    "grunts": "hự! Cố lên! ",
-    "gắng sức": "hự! Cố lên! ",
+    "cuoi khuc khich": "hí hí, ",
     "snickers": "khì khì, ",
+    "snicker": "khì khì, ",
+    "cười đểu": "khì khì, ",
+    "cuoi deu": "khì khì, ",
     "cười khẩy": "khì khì, ",
-    "panicked": "chết rồi! ",
-    "hoảng loạn": "chết rồi! ",
-    "sneezes": "ách xì! ",
-    "hắt xì": "ách xì! ",
-    "hesitant": "ừm, ",
-    "ngập ngừng": "ừm, ",
-    "shouting": "vô! ",
-    "surprised": "á há! ",
-    "ngạc nhiên": "á há! ",
-    "awkward laugh": "||PAUSE_200||",
-    "cười gượng": "||PAUSE_200||",
-    "yawns": "||PAUSE_300||",
-    "ngáp": "||PAUSE_300||",
-    "whispering": "||PAUSE_180||",
-    "thì thầm": "||PAUSE_180||",
-    "shocked": "trời ơi! ",
-    "sốc": "trời ơi! ",
-    "amazed": "ôi wow! ",
-    "kinh ngạc": "ôi wow! ",
-    "frustrated": "trời đất ơi! ",
-    "bực bội": "trời đất ơi! ",
-    "doubtful": "thật không vậy? ",
-    "nghi ngờ": "thật không vậy? ",
-    "disagreeing": "không đâu! ",
-    "không đồng ý": "không đâu! ",
-    "applause": "bốp bốp bốp! ",
-    "vỗ tay": "bốp bốp bốp! ",
-    "nervous laugh": "||PAUSE_180||",
-    "cười trừ": "||PAUSE_180||",
-    "disappointed": "ôi thôi rồi. ",
-    "thất vọng": "ôi thôi rồi. ",
-    "worried": "chết rồi! ",
-    "lo lắng": "chết rồi! ",
-    "teasing": "ê nha! ",
-    "trêu chọc": "ê nha! ",
-    "proud": "tuyệt vời! ",
-    "tự hào": "tuyệt vời! ",
-    "sad": "buồn ghê. ",
-    "buồn": "buồn ghê. ",
-    "apologetic": "anh xin lỗi nhé. ",
-    "xin lỗi": "anh xin lỗi nhé. ",
-    "determined": "nhất định rồi! ",
-    "quyết tâm": "nhất định rồi! ",
-    "excited gasp": "ôi không! ",
-    "smug": "biết ngay mà! ",
-    "đắc ý": "biết ngay mà! ",
+    "cuoi khay": "khì khì, ",
+    "awkward laugh": "hơ hơ, ",
+    "cười gượng": "hơ hơ, ",
+    "cuoi guong": "hơ hơ, ",
+    "nervous laugh": "hì hì... ",
+    "cười trừ": "hì hì... ",
+    "cuoi tru": "hì hì... ",
 
-    # Pure Digital Studio Pauses (Zero Vocoder Hiss)
+    # 2. Gào thét, la hét, cảm thán đỉnh cao (Screams, Shouts, Peak Excitement)
+    "gào": "Áaaa! ",
+    "gao": "Áaaa! ",
+    "hét": "Áaaa! ",
+    "het": "Áaaa! ",
+    "hét lớn": "Áaaa! ",
+    "het lon": "Áaaa! ",
+    "screaming": "Áaaa! ",
+    "scream": "Áaaa! ",
+    "shouting": "Gôôô! ",
+    "yelling": "Này! ",
+    "la hét": "Áaaa! ",
+    "la het": "Áaaa! ",
+    "đỉnh kout": "Quá đỉnh luôn! ",
+    "dinh kout": "Quá đỉnh luôn! ",
+    "đỉnh": "Đỉnh của chóp! ",
+    "dinh": "Đỉnh của chóp! ",
+
+    # 3. Đau đớn, quằn quại, rên rỉ (Pain, Grunts, Groans)
+    "đau đớn": "Á... đau quá... ",
+    "dau don": "Á... đau quá... ",
+    "grunts": "Hự... cố lên! ",
+    "gắng sức": "Hự... cố lên! ",
+    "gang suc": "Hự... cố lên! ",
+    "groans": "Ôi trời đất ơi... ",
+    "rên rỉ": "Ôi trời đất ơi... ",
+    "ren ri": "Ôi trời đất ơi... ",
+
+    # 4. Tổn thương, xúc động, khóc, uất ức (Tears, Grief, Regret)
+    "khóc": "Hức hức... hu hu hu... ",
+    "khoc": "Hức hức... hu hu hu... ",
+    "crying": "Hu hu... hức hức... ",
+    "cry": "Hu hu... hức hức... ",
+    "uất ức": "Ức quá mà! Tại sao chứ?! ",
+    "uat uc": "Ức quá mà! Tại sao chứ?! ",
+    "hối hận": "Hối hận quá... giá như... ",
+    "hoi han": "Hối hận quá... giá như... ",
+    "nghẹn ngào": "Nghẹn ngào... không nói nên lời... ",
+    "nghen ngao": "Nghẹn ngào... không nói nên lời... ",
+    "sad": "Buồn ghê... ",
+    "buồn": "Buồn ghê... ",
+    "buon": "Buồn ghê... ",
+    "disappointed": "Ôi thôi rồi... thất vọng quá... ",
+    "thất vọng": "Ôi thôi rồi... thất vọng quá... ",
+    "that vong": "Ôi thôi rồi... thất vọng quá... ",
+    "apologetic": "Anh xin lỗi nhé... ",
+    "xin lỗi": "Anh xin lỗi nhé... ",
+    "xin loi": "Anh xin lỗi nhé... ",
+
+    # 5. Thì thầm, nói nhỏ (Whispers)
+    "thì thầm": "Suỵt... nói nhỏ thôi... ",
+    "thi tham": "Suỵt... nói nhỏ thôi... ",
+    "whispering": "Suỵt... nói nhỏ thôi nha... ",
+    "whisper": "Suỵt... nói nhỏ thôi nha... ",
+
+    # 6. Thở dài, thở dốc, ngáp, mệt mỏi (Sighs, Gasps, Yawns)
+    "thở dài": "Haizzz... phùuu... ",
+    "tho dai": "Haizzz... phùuu... ",
+    "sighs": "Haizzz... ",
+    "sigh": "Haizzz... ",
+    "thở dốc": "Hộc... hộc hộc... ",
+    "tho doc": "Hộc... hộc hộc... ",
+    "gasps": "Hự... ",
+    "gasp": "Hự... ",
+    "relieved": "Phùuu... may quá đi thôi! ",
+    "thở phào": "Phùuu... may quá đi thôi! ",
+    "tho phao": "Phùuu... may quá đi thôi! ",
+    "yawns": "Ngáppp... buồn ngủ quá... ",
+    "yawn": "Ngáppp... buồn ngủ quá... ",
+    "ngáp": "Ngáppp... buồn ngủ quá... ",
+    "ngap": "Ngáppp... buồn ngủ quá... ",
+
+    # 7. Tặc lưỡi, nấc, hắt xì, ho, hắng giọng (Oral & Throat sounds)
+    "tặc lưỡi": "Chậc chậc! ",
+    "tac luoi": "Chậc chậc! ",
+    "annoyed": "Chậc! ",
+    "lip smacks": "Chẹp chẹp... ",
+    "nấc": "Hực... hực! ",
+    "nac": "Hực... hực! ",
+    "coughs": "Khụ khụ... ",
+    "cough": "Khụ khụ... ",
+    "ho": "Khụ khụ... ",
+    "sneezes": "Ách xì! ",
+    "sneeze": "Ách xì! ",
+    "hắt xì": "Ách xì! ",
+    "hat xi": "Ách xì! ",
+    "clears throat": "Hèm hèm... ",
+    "clear throat": "Hèm hèm... ",
+    "hắng giọng": "Hèm hèm... ",
+    "hang giong": "Hèm hèm... ",
+
+    # 8. Bối rối, ngơ ngác, hỏi han, sốc, hoảng loạn (Confused, Shocked, Panic)
+    "hả?": "Hả?! Cái gì cơ?! ",
+    "ha?": "Hả?! Cái gì cơ?! ",
+    "hả": "Hả?! ",
+    "ha": "Hả?! ",
+    "confused": "Hả? ",
+    "bối rối": "Hả? Bối rối quá... ",
+    "boi roi": "Hả? Bối rối quá... ",
+    "curious": "Ủa?! Sao lại thế nhỉ? ",
+    "tò mò": "Ủa?! Sao lại thế nhỉ? ",
+    "to mo": "Ủa?! Sao lại thế nhỉ? ",
+    "panicked": "Chết chết chết! Thôi toang rồi! ",
+    "panic": "Chết chết chết! ",
+    "hoảng loạn": "Chết chết chết! Thôi toang rồi! ",
+    "hoang loan": "Chết chết chết! Thôi toang rồi! ",
+    "shocked": "Trời ơi là trời! Không thể tin được! ",
+    "sốc": "Trời ơi là trời! Không thể tin được! ",
+    "soc": "Trời ơi là trời! Không thể tin được! ",
+    "amazed": "Ôi wow! Đỉnh thật sự! ",
+    "kinh ngạc": "Ôi wow! Đỉnh thật sự! ",
+    "kinh ngac": "Ôi wow! Đỉnh thật sự! ",
+    "excited": "Wowww! Tuyệt vời quá! ",
+    "hào hứng": "Wowww! Tuyệt vời quá! ",
+    "hao hung": "Wowww! Tuyệt vời quá! ",
+    "worried": "Chết rồi... lo quá đi... ",
+    "lo lắng": "Chết rồi... lo quá đi... ",
+    "lo lang": "Chết rồi... lo quá đi... ",
+    "doubtful": "Thật không vậy trời?! ",
+    "nghi ngờ": "Thật không vậy trời?! ",
+    "nghi ngo": "Thật không vậy trời?! ",
+    "excited gasp": "Ôiiii không! ",
+    "surprised": "Á há! Bất ngờ chưa! ",
+    "ngạc nhiên": "Á há! Bất ngờ chưa! ",
+    "ngac nhien": "Á há! Bất ngờ chưa! ",
+
+    # 9. Tức giận, bực bội (Anger, Frustration)
+    "angry": "Tức quá! Điên tiết thật chứ! ",
+    "tức giận": "Tức quá! Điên tiết thật chứ! ",
+    "tuc gian": "Tức quá! Điên tiết thật chứ! ",
+    "frustrated": "Trời đất ơi! Bực cả mình! ",
+    "bực bội": "Trời đất ơi! Bực cả mình! ",
+    "buc boi": "Trời đất ơi! Bực cả mình! ",
+
+    # 10. Giao tiếp, khẳng định, suy nghĩ, mừng rỡ (Communication, Thoughts)
+    "affirmative": "Ừ hứ, ",
+    "realization": "Ôooo, hiểu rồi! ",
+    "nhận ra": "Ôooo, hiểu rồi! ",
+    "nhan ra": "Ôooo, hiểu rồi! ",
+    "thinking": "Hmmm... để xem nào... ",
+    "suy nghĩ": "Hmmm... để xem nào... ",
+    "suy nghi": "Hmmm... để xem nào... ",
+    "hesitant": "Ừm... thì là... ",
+    "ngập ngừng": "Ừm... thì là... ",
+    "ngap ngung": "Ừm... thì là... ",
+    "agreeing": "Đúng rồi! Chuẩn luôn! ",
+    "đồng ý": "Đúng rồi! Chuẩn luôn! ",
+    "dong y": "Đúng rồi! Chuẩn luôn! ",
+    "disagreeing": "Không đâu! Không hề nha! ",
+    "không đồng ý": "Không đâu! Không hề nha! ",
+    "khong dong y": "Không đâu! Không hề nha! ",
+    "cheering": "Yeahhhh! Tuyệt vời! ",
+    "cổ vũ": "Yeahhhh! Cố lên! ",
+    "co vu": "Yeahhhh! Cố lên! ",
+    "embarrassed": "Ôi ngại quá... ngượng ghê... ",
+    "ngại ngùng": "Ôi ngại quá... ngượng ghê... ",
+    "ngai ngung": "Ôi ngại quá... ngượng ghê... ",
+    "sarcastic": "Ghê chưa, ghê chưa! ",
+    "mỉa mai": "Ghê chưa, ghê chưa! ",
+    "mia mai": "Ghê chưa, ghê chưa! ",
+    "happy": "Vui quá xá là vui luôn á! ",
+    "vui vẻ": "Vui quá xá là vui luôn á! ",
+    "vui ve": "Vui quá xá là vui luôn á! ",
+    "celebrating": "Yooooo! Ăn mừng thôi! ",
+    "ăn mừng": "Yooooo! Ăn mừng thôi! ",
+    "an mung": "Yooooo! Ăn mừng thôi! ",
+    "pleading": "Làm ơn đi mà... năn nỉ luôn á... ",
+    "năn nỉ": "Làm ơn đi mà... năn nỉ luôn á... ",
+    "nan ni": "Làm ơn đi mà... năn nỉ luôn á... ",
+    "confident": "Chắc chắn 100% luôn! ",
+    "tự tin": "Chắc chắn 100% luôn! ",
+    "tu tin": "Chắc chắn 100% luôn! ",
+    "smug": "Biết ngay mà! Đã bảo rồi! ",
+    "đắc ý": "Biết ngay mà! Đã bảo rồi! ",
+    "dac y": "Biết ngay mà! Đã bảo rồi! ",
+    "teasing": "Ê nhaaa! Coi chừng tui á! ",
+    "trêu chọc": "Ê nhaaa! Coi chừng tui á! ",
+    "treu choc": "Ê nhaaa! Coi chừng tui á! ",
+    "proud": "Tuyệt vời! Thật tự hào! ",
+    "tự hào": "Tuyệt vời! Thật tự hào! ",
+    "tu hao": "Tuyệt vời! Thật tự hào! ",
+    "determined": "Nhất định phải làm được! ",
+    "quyết tâm": "Nhất định phải làm được! ",
+    "quyet tam": "Nhất định phải làm được! ",
+    "applause": "Hoan hô! Vỗ tay nào! ",
+    "vỗ tay": "Hoan hô! Vỗ tay nào! ",
+    "vo tay": "Hoan hô! Vỗ tay nào! ",
+    "nhấn mạnh": "Chính xác là: ",
+    "nhan manh": "Chính xác là: ",
+    "sửng sốt": "Hả?! Sốc thật sự luôn! ",
+    "sung sot": "Hả?! Sốc thật sự luôn! ",
+
+    # 11. Các thẻ khoảng lặng kỹ thuật số (Pure Digital Studio Pauses)
     "nghỉ 0.3s": "||PAUSE_300||",
     "nghỉ 0.5s": "||PAUSE_450||",
     "nghỉ 1s": "||PAUSE_850||",
     "nghỉ 1.0s": "||PAUSE_850||",
     "nghỉ 2s": "||PAUSE_1500||",
     "nghỉ 2.0s": "||PAUSE_1500||",
-    "nhấn mạnh": "chính xác là! ",
-    "sửng sốt": "hả?! ||PAUSE_250||",
 }
 
 
@@ -163,13 +265,13 @@ def _normalize_for_match(s: str) -> str:
 
 def preprocess_emotion_text(text: str) -> str:
     """
-    Replaces emotion/pause tags with clean markers or natural expressions.
-    Also merges the two clauses of the official Adam Tốp Tốp sample if split by '[cười]'.
+    Replaces emotion/pause tags with natural expressive vocal cues or clean digital pauses.
+    Also preserves and weaves natural laughs into the official Adam Tốp Tốp opening.
     """
-    # If the text contains the official Adam Tốp Tốp opening split by [cười] / [laughing], unify it cleanly
+    # If the text contains the official Adam Tốp Tốp opening split by [cười], unify with natural laugh
     text_unified = re.sub(
         r"(Hello các con vợ,\s*hôm nay Adam lại lên đồ ngon cho cả nhà đây)[!.,\s]*(?:\[(?:cười|cuoi|chuckles|laughing)\]\s*)*(Coi hết clip rồi hãy lướt nha[!.]?)",
-        r"\1, coi hết clip rồi hãy lướt nha!",
+        r"\1, haha, coi hết clip rồi hãy lướt nha!",
         text,
         flags=re.IGNORECASE,
     )
@@ -187,6 +289,10 @@ def preprocess_emotion_text(text: str) -> str:
                 return " ||PAUSE_450|| "
         if raw_tag in EMOTION_SOUND_MAP:
             return f" {EMOTION_SOUND_MAP[raw_tag]} "
+        # Try stripping punctuation e.g. [hả?] -> 'hả'
+        clean_tag = re.sub(r"[?!.,]", "", raw_tag).strip()
+        if clean_tag in EMOTION_SOUND_MAP:
+            return f" {EMOTION_SOUND_MAP[clean_tag]} "
         return ""
 
     processed = re.sub(r"\[([^\]]+)\]", replacer, text_unified)
@@ -197,7 +303,7 @@ def preprocess_emotion_text(text: str) -> str:
 def split_into_render_items(processed_text: str) -> List[Tuple[str, str]]:
     """
     Splits preprocessed text into a sequence of ('speech', sentence) and ('pause', ms_str) items.
-    Synthesizing sentence-by-sentence prevents autoregressive hidden-state drift and vocoder static.
+    Keeps short emotional interjections joined with their clauses to prevent disjointed vocoder static.
     """
     tokens = re.split(r"(\|\|PAUSE_\d+\|\|)", processed_text)
     items: List[Tuple[str, str]] = []
@@ -217,13 +323,33 @@ def split_into_render_items(processed_text: str) -> List[Tuple[str, str]]:
             items.append(("speech", tok))
             continue
 
-        # Split long text into individual sentences by ., !, ?, or newline
-        parts = re.split(r"(?<=[.!?])\s+|\n+", tok)
+        # Split long text into sentences without chopping on ellipses '...'
+        parts = re.split(r"(?<!\.)(?<=[.!?])\s+(?!\.)|\n+", tok)
+
+        # Merge short emotional interjections (<= 3 words or <= 18 chars) with the following sentence
+        merged_parts: List[str] = []
+        buffer_frag = ""
         for p in parts:
             p_clean = p.strip()
-            # Ignore stray ellipses or empty punctuation
             if not p_clean or not re.search(r"[\wàáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]", p_clean):
                 continue
+            if buffer_frag:
+                p_clean = f"{buffer_frag} {p_clean}"
+                buffer_frag = ""
+
+            words = p_clean.split()
+            if len(words) <= 3 and len(p_clean) <= 18:
+                buffer_frag = p_clean
+            else:
+                merged_parts.append(p_clean)
+
+        if buffer_frag:
+            if merged_parts:
+                merged_parts[-1] = f"{merged_parts[-1]} {buffer_frag}"
+            else:
+                merged_parts.append(buffer_frag)
+
+        for p_clean in merged_parts:
             items.append(("speech", p_clean))
             items.append(("pause", "160"))
 
@@ -678,6 +804,7 @@ def enhance_vocal(
     sound: AudioSegment,
     voice_name: Optional[str] = None,
     deep_warmth: bool = True,
+    emotion_depth: int = 65,
 ) -> AudioSegment:
     """
     Bộ lọc 5-Band Zero-Phase FFT EQ & Warmth Studio Compressor chuyên biệt theo sinh lý thanh quản từng giọng:
@@ -730,18 +857,23 @@ def enhance_vocal(
 
         db_curve = np.zeros_like(freqs, dtype=np.float32)
 
-        # (2) Tăng lực ngực, đầm giọng (Chest Body)
+        # Tỷ lệ điều biến cảm xúc theo slider Emotion Depth (0-100, default 65)
+        emo_factor = (max(0, min(100, int(emotion_depth))) - 50) / 50.0  # -1.0 to +1.0
+
+        # (2) Tăng lực ngực, đầm giọng (Chest Body + Dynamic Warmth)
         if deep_warmth:
+            chest_gain = float(prof["chest_gain_db"]) + (emo_factor * 1.2)
             chest_bell = np.exp(-0.5 * ((freqs - float(prof["chest_center"])) / float(prof["chest_bw"])) ** 2)
-            db_curve += float(prof["chest_gain_db"]) * chest_bell
+            db_curve += chest_gain * chest_bell
 
         # (3) Khử tiếng đục ngầu, nghẹt mũi (Anti-Muddy / Boxy Cut)
         mud_bell = np.exp(-0.5 * ((freqs - float(prof["mud_center"])) / float(prof["mud_bw"])) ** 2)
         db_curve += float(prof["mud_gain_db"]) * mud_bell
 
-        # (4) Độ rõ nét và thông thoáng lời nói (Mid Presence)
+        # (4) Độ rõ nét và thông thoáng lời nói, kích thích biểu cảm sống động (Mid Presence & Emotional Exciter)
+        mid_gain = float(prof["mid_gain_db"]) + (emo_factor * 1.5)
         mid_bell = np.exp(-0.5 * ((freqs - float(prof["mid_presence_center"])) / float(prof["mid_bw"])) ** 2)
-        db_curve += float(prof["mid_gain_db"]) * mid_bell
+        db_curve += mid_gain * mid_bell
 
         # (5) Triệt tiêu hoàn toàn dải chói tai, đanh gắt, xé tiếng (Anti-Harshness / De-Glare)
         de_glare_bell = np.exp(-0.5 * ((freqs - float(prof["de_glare_center"])) / float(prof["de_glare_bw"])) ** 2)
@@ -785,7 +917,8 @@ def enhance_vocal(
 
         threshold_db = float(prof["threshold_db"])
         ratio = float(prof["ratio"])
-        makeup_gain_db = float(prof["makeup_gain_db"]) if deep_warmth else (float(prof["makeup_gain_db"]) * 0.5)
+        base_makeup = float(prof["makeup_gain_db"]) if deep_warmth else (float(prof["makeup_gain_db"]) * 0.5)
+        makeup_gain_db = base_makeup + (emo_factor * 1.0)
 
         over_db = np.maximum(0.0, env_db - threshold_db)
         gain_reduction_db = -over_db * (1.0 - (1.0 / ratio))
@@ -831,6 +964,7 @@ def apply_acoustic_fx(
     fx_name: str = "Studio Dry",
     pitch_semitones: int = 0,
     voice_name: Optional[str] = None,
+    emotion_depth: int = 65,
     output_path: Optional[Union[str, Path]] = None,
 ) -> Union[AudioSegment, Path]:
     """
@@ -890,7 +1024,7 @@ def apply_acoustic_fx(
             logger.warning(f"Room Reverb DSP note: {re_err}")
 
     elif "denoise" in mode or "ai" in mode:
-        sound = enhance_vocal(sound, voice_name=voice_name, deep_warmth=True)
+        sound = enhance_vocal(sound, voice_name=voice_name, deep_warmth=True, emotion_depth=emotion_depth)
 
     # Xuất file ở chuẩn 320kbps MP3 (tránh nén 64kbps mặc định của pydub)
     if is_file and dest_path:
@@ -953,10 +1087,11 @@ def list_vieneu_voices() -> List[Tuple[str, str]]:
     return []
 
 
-def _infer_single_chunk(engine, text_chunk: str, voice_name: str, is_adam: bool, ref_wav: Path):
+def _infer_single_chunk(engine, text_chunk: str, voice_name: str, is_adam: bool, ref_wav: Path, emotion_depth: int = 65):
     """
     Synthesizes a single clean sentence chunk using the enrolled studio reference or preset voice.
     Safeguards against string 'style' values in nano mode.
+    Dynamically scales temperature and top_p based on emotion_depth (0-100) for vivid authentic expressions.
     """
     # Sanitize preset in nano mode: ensure style is NEVER a string like "tu_nhien"
     if _is_engine_nano(engine) and hasattr(engine, "_preset_voices"):
@@ -970,32 +1105,42 @@ def _infer_single_chunk(engine, text_chunk: str, voice_name: str, is_adam: bool,
             pv["style"] = st_arr
             pv["codes"] = st_arr
 
+    # Map emotion_depth (0-100) to neural prosody dynamics
+    clamped_depth = max(0, min(100, int(emotion_depth)))
+    calc_temp = 0.65 + (clamped_depth / 100.0) * 0.28   # 0.65 (calm) to 0.93 (rich theatrical emotion)
+    calc_top_p = 0.92 + (clamped_depth / 100.0) * 0.06  # 0.92 to 0.98
+    calc_rep = 1.25 - (clamped_depth / 100.0) * 0.05    # 1.25 to 1.20
+
     # If Adam voice and engine supports zero-shot ref_audio when add_voice wasn't used
     if is_adam and ref_wav.exists() and not getattr(engine, "_adam_studio_enrolled_ok", False):
         try:
-            return engine.infer(text_chunk, ref_audio=str(ref_wav), denoise=True)
+            return engine.infer(text_chunk, ref_audio=str(ref_wav), temperature=calc_temp, top_p=calc_top_p, denoise=True)
         except Exception:
             pass
 
     try:
-        return engine.infer(text_chunk, voice=voice_name, apply_watermark=False)
+        return engine.infer(text_chunk, voice=voice_name, temperature=calc_temp, top_p=calc_top_p, repetition_penalty=calc_rep, apply_watermark=False)
     except TypeError:
         try:
-            return engine.infer(text_chunk, voice=voice_name, steps=16)
+            return engine.infer(text_chunk, voice=voice_name, temperature=calc_temp, top_p=calc_top_p)
         except TypeError:
-            return engine.infer(text_chunk, voice=voice_name)
+            try:
+                return engine.infer(text_chunk, voice=voice_name, steps=16)
+            except TypeError:
+                return engine.infer(text_chunk, voice=voice_name)
 
 
 def generate_vieneu_speech(
     text: str,
     voice: str = "Adam Tốp Tốp",
     speed: float = 1.0,
+    emotion_depth: int = 65,
     output_path: Union[str, Path] = "output.wav",
 ) -> Path:
     """
     Synthesizes speech with full support for all 30+ voices from VieNeu-TTS repository:
     - Uses the 6.13s 48kHz studio reference (adam_toptop_ref.wav) for Adam / Adam bựa / Adam Tốp Tốp.
-    - Splits long scripts into clean sentences with pure digital pauses so there is zero autoregressive drift.
+    - Synthesizes with dynamic emotion_depth scaling for authentic emotional interjections and vivid inflection.
     - Applies Zero-Phase Studio EQ + -14.0 dBFS Broadcast Limiting + 320kbps MP3 export.
     """
     output_path = Path(output_path)
@@ -1031,7 +1176,7 @@ def generate_vieneu_speech(
     if not render_items:
         render_items = [("speech", processed_text or "Xin chào các bạn.")]
 
-    logger.info(f"Synthesizing {len(render_items)} items with VieNeu voice '{clean_voice}' (speed={speed:.2f}x)...")
+    logger.info(f"Synthesizing {len(render_items)} items with VieNeu voice '{clean_voice}' (speed={speed:.2f}x, emotion_depth={emotion_depth})...")
 
     combined_sound: Optional[AudioSegment] = None
     target_sr = 48000
@@ -1049,15 +1194,15 @@ def generate_vieneu_speech(
             if is_adam and ref_wav.exists() and _normalize_for_match(val) == ADAM_TOPTOP_SAMPLE_NORM:
                 seg_sound = AudioSegment.from_wav(str(ref_wav))
                 target_sr = seg_sound.frame_rate
-                seg_sound = enhance_vocal(seg_sound, voice_name=clean_voice, deep_warmth=True)
+                seg_sound = enhance_vocal(seg_sound, voice_name=clean_voice, deep_warmth=True, emotion_depth=emotion_depth)
             else:
-                audio_arr = _infer_single_chunk(engine, val, clean_voice, is_adam, ref_wav)
+                audio_arr = _infer_single_chunk(engine, val, clean_voice, is_adam, ref_wav, emotion_depth=emotion_depth)
                 chunk_wav = tmp_dir_path / f"chunk_{idx}.wav"
                 engine.save(audio_arr, str(chunk_wav))
                 seg_sound = AudioSegment.from_wav(str(chunk_wav))
                 target_sr = seg_sound.frame_rate
                 # Master the synthesized segment with customized Zero-Phase EQ & Warmth Compressor
-                seg_sound = enhance_vocal(seg_sound, voice_name=clean_voice, deep_warmth=True)
+                seg_sound = enhance_vocal(seg_sound, voice_name=clean_voice, deep_warmth=True, emotion_depth=emotion_depth)
 
             if combined_sound is None:
                 combined_sound = seg_sound

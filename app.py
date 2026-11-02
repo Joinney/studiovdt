@@ -1612,26 +1612,34 @@ def render_desktop_workspace():
                 """
                 <div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
                     <select id="caretSelectTag" style="width: 100%; background: #ffffff; color: #0f172a; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 7px 10px; font-size: 12px; outline: none; cursor: pointer;">
-                        <option value="[crying]">🎭 [crying] hu hu (khóc)</option>
-                        <option value="[cười]">😄 [cười] - nụ cười thích thú</option>
-                        <option value="[laughing]">😆 [laughing] - hahaha (cười to)</option>
-                        <option value="[snickers]">😏 [snickers] - khì khì (cười đểu)</option>
-                        <option value="[chuckles]">🤣 [chuckles] - he he he</option>
-                        <option value="[sighs]">😮‍💨 [sighs] - haizzz (thở dài)</option>
-                        <option value="[screaming]">😱 [screaming] - áaaaa (kêu la)</option>
-                        <option value="[shouting]">🗣️ [shouting] - gôôôôô (hét lớn)</option>
-                        <option value="[whispering]">🤫 [whispering] - psst... (thì thầm)</option>
-                        <option value="[shocked]">😱 [shocked] - trời ơi! (sốc)</option>
-                        <option value="[confused]">🤨 [confused] - hả? (bối rối)</option>
-                        <option value="[thinking]">🤔 [thinking] - hmmm (suy nghĩ)</option>
-                        <option value="[gasps]">😮 [gasps] - hự (thở gấp)</option>
-                        <option value="[excited]">🤩 [excited] - wowww (hào hứng)</option>
-                        <option value="[relieved]">😌 [relieved] - phùuu (thở phào)</option>
-                        <option value="[angry]">😡 [angry] - tức quá!</option>
                         <option value="[panicked]">🏃 [panicked] - chết chết chết!</option>
-                        <option value="[clears throat]">🗣️ [clears throat] - hèm hèm (hắng giọng)</option>
-                        <option value="[coughs]">😷 [coughs] - khụ khụ (ho)</option>
-                        <option value="[sneezes]">🤧 [sneezes] - ách xì</option>
+                        <option value="[cười]">😄 [cười] - haha (cười tự nhiên)</option>
+                        <option value="[laughing]">😆 [laughing] - hahaha! (cười sảng khoái)</option>
+                        <option value="[gào]">😱 [gào] - Áaaa! (gào thét đỉnh điểm)</option>
+                        <option value="[đỉnh kout]">🔥 [đỉnh kout] - quá đỉnh luôn!</option>
+                        <option value="[uất ức]">😤 [uất ức] - ức quá mà!</option>
+                        <option value="[khóc]">😭 [khóc] - hu hu (xúc động)</option>
+                        <option value="[thở dài]">😮‍💨 [thở dài] - haizzz... phùuu...</option>
+                        <option value="[thì thầm]">🤫 [thì thầm] - suỵt... nói nhỏ thôi</option>
+                        <option value="[đau đớn]">🤕 [đau đớn] - á... đau quá...</option>
+                        <option value="[hả?]">🤨 [hả?] - hả?! cái gì cơ?!</option>
+                        <option value="[thở dốc]">😮‍💨 [thở dốc] - hộc... hộc hộc...</option>
+                        <option value="[tặc lưỡi]">😒 [tặc lưỡi] - chậc chậc!</option>
+                        <option value="[nấc]">🫨 [nấc] - hực... hực!</option>
+                        <option value="[hối hận]">😔 [hối hận] - hối hận quá...</option>
+                        <option value="[nghẹn ngào]">🥺 [nghẹn ngào] - nghẹn ngào...</option>
+                        <option value="[chuckles]">🤣 [chuckles] - he he</option>
+                        <option value="[snickers]">😏 [snickers] - khì khì (cười đểu)</option>
+                        <option value="[shocked]">😱 [shocked] - trời ơi là trời!</option>
+                        <option value="[confused]">🤨 [confused] - bối rối quá...</option>
+                        <option value="[thinking]">🤔 [thinking] - hmmm... để xem nào</option>
+                        <option value="[gasps]">😮 [gasps] - hự! (thở gấp)</option>
+                        <option value="[excited]">🤩 [excited] - wowww! tuyệt vời quá</option>
+                        <option value="[relieved]">😌 [relieved] - phùuu... may quá</option>
+                        <option value="[angry]">😡 [angry] - tức quá! điên tiết thật</option>
+                        <option value="[clears throat]">🗣️ [clears throat] - hèm hèm</option>
+                        <option value="[coughs]">😷 [coughs] - khụ khụ</option>
+                        <option value="[sneezes]">🤧 [sneezes] - ách xì!</option>
                         <option value="[nghỉ 0.3s]">⏱️ [nghỉ 0.3s] - Ngắt 0.3s</option>
                         <option value="[nghỉ 0.5s]">⏸️ [nghỉ 0.5s] - Ngắt 0.5s</option>
                         <option value="[nghỉ 1s]">⏳ [nghỉ 1s] - Ngắt 1.0s</option>
@@ -1849,23 +1857,34 @@ def render_mobile_workspace():
                 """
                 <div style="display: flex; flex-direction: column; gap: 6px;">
                     <select id="caretSelectTag" style="width: 100%; background: #ffffff; color: #0f172a; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 6px 8px; font-size: 11.5px; outline: none; cursor: pointer;">
-                        <option value="[panicked]">🎭 [panicked] - chết chết chết!</option>
-                        <option value="[crying]">😭 [crying] hu hu (khóc)</option>
-                        <option value="[cười]">😄 [cười] - nụ cười thích thú</option>
-                        <option value="[laughing]">😆 [laughing] - hahaha (cười to)</option>
+                        <option value="[panicked]">🏃 [panicked] - chết chết chết!</option>
+                        <option value="[cười]">😄 [cười] - haha (cười tự nhiên)</option>
+                        <option value="[laughing]">😆 [laughing] - hahaha! (cười sảng khoái)</option>
+                        <option value="[gào]">😱 [gào] - Áaaa! (gào thét đỉnh điểm)</option>
+                        <option value="[đỉnh kout]">🔥 [đỉnh kout] - quá đỉnh luôn!</option>
+                        <option value="[uất ức]">😤 [uất ức] - ức quá mà!</option>
+                        <option value="[khóc]">😭 [khóc] - hu hu (xúc động)</option>
+                        <option value="[thở dài]">😮‍💨 [thở dài] - haizzz... phùuu...</option>
+                        <option value="[thì thầm]">🤫 [thì thầm] - suỵt... nói nhỏ thôi</option>
+                        <option value="[đau đớn]">🤕 [đau đớn] - á... đau quá...</option>
+                        <option value="[hả?]">🤨 [hả?] - hả?! cái gì cơ?!</option>
+                        <option value="[thở dốc]">😮‍💨 [thở dốc] - hộc... hộc hộc...</option>
+                        <option value="[tặc lưỡi]">😒 [tặc lưỡi] - chậc chậc!</option>
+                        <option value="[nấc]">🫨 [nấc] - hực... hực!</option>
+                        <option value="[hối hận]">😔 [hối hận] - hối hận quá...</option>
+                        <option value="[nghẹn ngào]">🥺 [nghẹn ngào] - nghẹn ngào...</option>
+                        <option value="[chuckles]">🤣 [chuckles] - he he</option>
                         <option value="[snickers]">😏 [snickers] - khì khì (cười đểu)</option>
-                        <option value="[sighs]">😮‍💨 [sighs] - haizzz (thở dài)</option>
-                        <option value="[screaming]">😱 [screaming] - áaaaa (kêu la)</option>
-                        <option value="[shouting]">🗣️ [shouting] - gôôôôô (hét lớn)</option>
-                        <option value="[whispering]">🤫 [whispering] - psst... (thì thầm)</option>
-                        <option value="[shocked]">😱 [shocked] - trời ơi! (sốc)</option>
-                        <option value="[confused]">🤨 [confused] - hả? (bối rối)</option>
-                        <option value="[thinking]">🤔 [thinking] - hmmm (suy nghĩ)</option>
-                        <option value="[gasps]">😮 [gasps] - hự (thở gấp)</option>
-                        <option value="[excited]">🤩 [excited] - wowww (hào hứng)</option>
-                        <option value="[relieved]">😌 [relieved] - phùuu (thở phào)</option>
-                        <option value="[angry]">😡 [angry] - tức quá!</option>
-                        <option value="[clears throat]">🗣️ [clears throat] - hèm hèm (hắng giọng)</option>
+                        <option value="[shocked]">😱 [shocked] - trời ơi là trời!</option>
+                        <option value="[confused]">🤨 [confused] - bối rối quá...</option>
+                        <option value="[thinking]">🤔 [thinking] - hmmm... để xem nào</option>
+                        <option value="[gasps]">😮 [gasps] - hự! (thở gấp)</option>
+                        <option value="[excited]">🤩 [excited] - wowww! tuyệt vời quá</option>
+                        <option value="[relieved]">😌 [relieved] - phùuu... may quá</option>
+                        <option value="[angry]">😡 [angry] - tức quá! điên tiết thật</option>
+                        <option value="[clears throat]">🗣️ [clears throat] - hèm hèm</option>
+                        <option value="[coughs]">😷 [coughs] - khụ khụ</option>
+                        <option value="[sneezes]">🤧 [sneezes] - ách xì!</option>
                         <option value="[nghỉ 0.3s]">⏱️ [nghỉ 0.3s] - Ngắt 0.3s</option>
                         <option value="[nghỉ 0.5s]">⏸️ [nghỉ 0.5s] - Ngắt 0.5s</option>
                         <option value="[nghỉ 1s]">⏳ [nghỉ 1s] - Ngắt 1.0s</option>
@@ -1961,6 +1980,12 @@ if btn_generate_tts:
             # Giai đoạn 3: Bắt đầu tổng hợp tín hiệu âm thanh
             progress_slot.progress(55, text=f"⚡ Tiến trình kết xuất VieNeu: 55% — Đang tổng hợp giọng nói đa biểu cảm...")
 
+            # Lấy cường độ cảm xúc từ session state (hỗ trợ cả desktop và mobile)
+            active_emotion_depth = st.session_state.get("mob_emotion_depth")
+            if active_emotion_depth is None:
+                active_emotion_depth = st.session_state.get("emotion_depth", 65)
+            active_emotion_depth = int(active_emotion_depth)
+
             if selected_voice_id.startswith("vieneu:"):
                 clean_v = selected_voice_id.replace("vieneu:", "")
                 safe_v_name = re.sub(r'[^\w\-_\.]', '_', clean_v)
@@ -1969,16 +1994,21 @@ if btn_generate_tts:
                     text=text_to_speak,
                     voice=clean_v,
                     speed=speed_factor,
+                    emotion_depth=active_emotion_depth,
                     output_path=out_file,
                 )
             else:
-                clean_text = text_to_speak
-                for emo_tag in EMOTION_SOUND_MAP.keys():
-                    clean_text = clean_text.replace(f"[{emo_tag}]", "")
+                # Edge-TTS pipeline: Chuyển đổi mã cảm xúc sang từ đệm cảm thán tự nhiên (Không xóa thẻ!)
+                from video_dubber.vieneu_tts import preprocess_emotion_text
+                edge_text = preprocess_emotion_text(text_to_speak)
+                # Thay thế các thẻ khoảng lặng số ||PAUSE_XXX|| thành dấu chấm lửng tự nhiên
+                edge_text = re.sub(r"\|\|PAUSE_\d+\|\|", "... ", edge_text)
+                edge_text = re.sub(r"\s+", " ", edge_text).strip()
+
                 out_file = tts_output_dir / f"tts_edge_{selected_voice_id}_{timestamp}.mp3"
                 asyncio.run(
                     generate_single_tts_edge(
-                        text=clean_text,
+                        text=edge_text,
                         voice=selected_voice_id,
                         rate=rate_str,
                         volume="+0%",
@@ -1991,7 +2021,7 @@ if btn_generate_tts:
                     from pydub import AudioSegment
                     if out_file.exists() and out_file.stat().st_size > 1000:
                         snd = AudioSegment.from_file(str(out_file))
-                        snd = enhance_vocal(snd, voice_name=selected_voice_id, deep_warmth=True)
+                        snd = enhance_vocal(snd, voice_name=selected_voice_id, deep_warmth=True, emotion_depth=active_emotion_depth)
                         snd.export(str(out_file), format="mp3", bitrate="320k")
                 except Exception as e_ed:
                     logger.warning(f"Script edge TTS mastering note: {e_ed}")
@@ -2011,6 +2041,7 @@ if btn_generate_tts:
                     fx_name=fx_name,
                     pitch_semitones=pitch_semitones,
                     voice_name=clean_name,
+                    emotion_depth=active_emotion_depth,
                     output_path=out_file,
                 )
             except Exception as dsp_err:
