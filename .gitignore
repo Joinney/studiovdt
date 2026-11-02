@@ -20,4 +20,5 @@ output/
 *.srt
 
 # Streamlit
-.streamlit/
+.streamlit/*
+!.streamlit/config.toml

@@ -423,21 +423,21 @@ st.html(
         color: #475569 !important;
     }
 
-    /* Primary Accent Button: Energetic Studio Orange/Amber Gradient */
+    /* Primary Accent Button: Vibrant Ocean Blue Gradient */
     button[kind="primary"] {
-        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%) !important;
         color: #ffffff !important;
         border: none !important;
         border-radius: 9px !important;
         font-weight: 800 !important;
         letter-spacing: 0.3px !important;
-        font-size: 14.5px !important;
-        box-shadow: 0 3px 12px rgba(234, 88, 12, 0.35) !important;
+        font-size: 13.5px !important;
+        box-shadow: 0 3px 12px rgba(2, 132, 199, 0.35) !important;
         transition: all 0.15s ease !important;
     }
     button[kind="primary"]:hover {
-        background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important;
-        box-shadow: 0 5px 16px rgba(234, 88, 12, 0.5) !important;
+        background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%) !important;
+        box-shadow: 0 5px 16px rgba(2, 132, 199, 0.5) !important;
         transform: translateY(-1px) !important;
     }
 
@@ -448,21 +448,47 @@ st.html(
         border: 1px solid #cbd5e1 !important;
         border-radius: 8px !important;
         font-weight: 600 !important;
-        font-size: 12.5px !important;
+        font-size: 12px !important;
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
         transition: all 0.12s ease !important;
     }
     button[kind="secondary"]:hover {
         background: #f8fafc !important;
-        border-color: #94a3b8 !important;
-        color: #0f172a !important;
+        border-color: #0284c7 !important;
+        color: #0284c7 !important;
     }
 
-    /* Sliders styling */
+    /* Buttons in dense studio columns: no ellipsis truncation, clean wrap */
+    div[data-testid="stButton"] button {
+        padding: 5px 4px !important;
+        min-height: 36px !important;
+        font-size: 11px !important;
+        line-height: 1.2 !important;
+    }
+    div[data-testid="stButton"] button p {
+        font-size: 11px !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        word-break: normal !important;
+        line-height: 1.2 !important;
+    }
+
+    /* Sliders: Complete Ocean Blue Theme */
     div[data-testid="stSlider"] [role="slider"] {
         background-color: #0284c7 !important;
         border: 2px solid #ffffff !important;
-        box-shadow: 0 1px 4px rgba(2, 132, 199, 0.4) !important;
+        box-shadow: 0 1px 6px rgba(2, 132, 199, 0.45) !important;
+    }
+    div[data-testid="stSlider"] div[data-baseweb="slider"] div[style*="background"] {
+        background: #0284c7 !important;
+    }
+    div[data-testid="stSlider"] [data-testid="stSliderThumbValue"] {
+        color: #0284c7 !important;
+        font-weight: 700 !important;
+    }
+    div[data-testid="stSlider"] p, div[data-testid="stSlider"] span {
+        color: #0284c7 !important;
     }
 
     /* Expander styling */
@@ -590,25 +616,25 @@ st.html(
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 4px;">
             <!-- Brand / Logo -->
             <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="width: 42px; height: 42px; border-radius: 50%; background: #ffffff; border: 2px solid #ea580c; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(234, 88, 12, 0.25); flex-shrink: 0;">
+                <div style="width: 42px; height: 42px; border-radius: 50%; background: #ffffff; border: 2px solid #0284c7; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(234, 88, 12, 0.25); flex-shrink: 0;">
                     <img src="{author_logo_b64}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;" />
                 </div>
                 <div>
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         <span style="font-size: 1.45rem; font-weight: 900; letter-spacing: -0.5px; color: #0f172a;">Studio VDT</span>
-                        <span style="background: rgba(249, 115, 22, 0.1); border: 1px solid #ea580c; color: #ea580c; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 16px; letter-spacing: 0.4px;">• ENTERPRISE PRO AUDIO</span>
+                        <span style="background: rgba(2, 132, 199, 0.1); border: 1px solid #0284c7; color: #0284c7; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 16px; letter-spacing: 0.4px;">• ENTERPRISE PRO AUDIO</span>
                         <span style="background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 16px;">VieNeu Neural v4.2 Max</span>
                     </div>
                     <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">
-                        Sáng lập & Bản quyền: <span style="color: #ea580c; font-weight: 700;">Võ Duy Toàn</span> | Hệ thống phối âm & lồng tiếng AI cao cấp
+                        Sáng lập & Bản quyền: <span style="color: #0284c7; font-weight: 700;">Võ Duy Toàn</span> | Hệ thống phối âm & lồng tiếng AI cao cấp
                     </div>
                 </div>
             </div>
 
             <!-- Server Status & Indicator Dot -->
             <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="width: 9px; height: 9px; border-radius: 50%; background: #ea580c; box-shadow: 0 0 8px #ea580c;"></span>
-                <span style="background: #fff7ed; border: 1px solid #fdba74; color: #ea580c; border-radius: 6px; padding: 3px 10px; font-size: 11px; font-weight: 700;">PRO STUDIO</span>
+                <span style="width: 9px; height: 9px; border-radius: 50%; background: #0284c7; box-shadow: 0 0 8px #0284c7;"></span>
+                <span style="background: #f0f9ff; border: 1px solid #7dd3fc; color: #0284c7; border-radius: 6px; padding: 3px 10px; font-size: 11px; font-weight: 700;">PRO STUDIO</span>
             </div>
         </div>
     </div>
@@ -765,7 +791,7 @@ caret_injector_template = """
                     btn.setAttribute('data-original-html', originalHtml);
                 }
                 btn.innerHTML = success ? '✅ Đã copy!' : '❌ Lỗi copy';
-                btn.style.background = success ? '#ea580c' : '#991b1b';
+                btn.style.background = success ? '#0284c7' : '#991b1b';
                 setTimeout(function() {
                     btn.innerHTML = originalHtml;
                     btn.style.background = '';
@@ -952,7 +978,7 @@ with col_voice:
                 <div style="flex-grow: 1; min-width: 0;">
                     <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                         <span style="font-size: 1.05rem; font-weight: 800; color: #0f172a;">{clean_name}</span>
-                        <span style="background: #ea580c; color: #ffffff; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.3px;">{v_badge}</span>
+                        <span style="background: #0284c7; color: #ffffff; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.3px;">{v_badge}</span>
                     </div>
                     <div style="font-size: 0.74rem; color: #475569; margin-top: 2px; line-height: 1.35; max-height: 34px; overflow: hidden; text-overflow: ellipsis;">
                         {raw_desc}
@@ -1014,8 +1040,8 @@ with col_voice:
                         prevAudio.play().then(function() {
                             if (prevIcon) prevIcon.textContent = "⏸";
                             if (prevLbl) prevLbl.textContent = "Đang phát...";
-                            btn.style.borderColor = "#ea580c";
-                            btn.style.background = "#fff7ed";
+                            btn.style.borderColor = "#0284c7";
+                            btn.style.background = "#f0f9ff";
                         }).catch(function(err) {
                             console.log("Preview error:", err);
                         });
@@ -1060,14 +1086,14 @@ with col_voice:
         gv1, gv2 = st.columns(2)
         with gv1:
             st.button(
-                "🟠 Adam Review Phim\n\nKịch tính, hài hước...",
+                "🎙️ Adam Review\n\nKịch tính, hề hước",
                 key="btn_adam",
                 on_click=set_quick_voice,
                 args=(["Adam"],),
                 use_container_width=True,
             )
             st.button(
-                "👻 Thầy Bảy\n\nKể Chuyện Ma Rùng rợn...",
+                "👻 Thầy Bảy\n\nChuyện Ma Rùng Rợn",
                 key="btn_thaybay",
                 on_click=set_quick_voice,
                 args=(["Thiện Minh", "Bảy"],),
@@ -1075,14 +1101,14 @@ with col_voice:
             )
         with gv2:
             st.button(
-                "👤 Tuấn Rần VTV\n\nTin Sự Nam Bắc...",
+                "👤 Tuấn Rần VTV\n\nThời sự chuẩn mực",
                 key="btn_tuananh",
                 on_click=set_quick_voice,
                 args=(["Hải Đăng", "Tuấn Anh"],),
                 use_container_width=True,
             )
             st.button(
-                "🎙️ Mỹ Linh\n\nPodcast Sài Gòn Ngọt ngào...",
+                "✨ Mỹ Linh\n\nPodcast Sài Gòn",
                 key="btn_mylinh",
                 on_click=set_quick_voice,
                 args=(["Thùy Dung", "Mỹ Linh"],),
@@ -1096,7 +1122,7 @@ with col_voice:
             f"""
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; margin-bottom: 5px;">
                 <span style="font-size: 11.5px; font-weight: 700; color: #0f172a;">⚡ Tốc độ nói (Tempo):</span>
-                <span style="background: #fff7ed; border: 1px solid #fdba74; color: #ea580c; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 800;">{speed_disp}</span>
+                <span style="background: #f0f9ff; border: 1px solid #7dd3fc; color: #0284c7; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 800;">{speed_disp}</span>
             </div>
             """
         )
@@ -1112,7 +1138,7 @@ with col_voice:
             )
         with sp2:
             st.button(
-                "⬇️ 1.0x (Gốc)",
+                "1.0x",
                 key="btn_tempo_10",
                 on_click=set_quick_tempo,
                 args=(0,),
@@ -1168,7 +1194,7 @@ with col_voice:
         current_pitch = st.session_state.get("pitch_val", 0)
         sl1, sl2 = st.columns(2)
         with sl1:
-            st.markdown(f"<div style='font-size: 11.5px; color: #0f172a; font-weight: 700;'>Cường độ cảm xúc: <strong style='color: #ea580c;'>{current_emo}</strong></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size: 11.5px; color: #0f172a; font-weight: 700;'>Cường độ cảm xúc: <strong style='color: #0284c7;'>{current_emo}</strong></div>", unsafe_allow_html=True)
             st.slider("Emotion Depth:", min_value=0, max_value=100, value=current_emo, key="emotion_depth", label_visibility="collapsed")
         with sl2:
             st.markdown(f"<div style='font-size: 11.5px; color: #0f172a; font-weight: 700;'>Cao độ (chỉ số): <strong style='color: #0284c7;'>{current_pitch}</strong></div>", unsafe_allow_html=True)
@@ -1186,7 +1212,7 @@ with col_voice:
         current_fx = st.session_state.get("active_acoustic_fx", "Studio Dry")
         with fx1:
             st.button(
-                "🎙️ Studio Dry",
+                "🎙️ Studio",
                 key="btn_fx_dry",
                 on_click=set_acoustic_fx,
                 args=("Studio Dry",),
@@ -1195,7 +1221,7 @@ with col_voice:
             )
         with fx2:
             st.button(
-                "🏛️ Room Reverb",
+                "🏛️ Reverb",
                 key="btn_fx_reverb",
                 on_click=set_acoustic_fx,
                 args=("Room Reverb",),
@@ -1204,7 +1230,7 @@ with col_voice:
             )
         with fx3:
             st.button(
-                "🎧 AI Denoise",
+                "🎧 Denoise",
                 key="btn_fx_denoise",
                 on_click=set_acoustic_fx,
                 args=("AI Denoise",),
@@ -1223,7 +1249,7 @@ with col_editor:
             """
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11.5px;">
                 <span style="color: #0f172a; font-weight: 700; display: flex; align-items: center; gap: 4px;">
-                    <span style="color: #ea580c;">•</span> KỊCH BẢN ĐANG XỬ LÝ (LIVE SYNTAX MODE) <span style="color: #64748b; font-weight: 500;">| Review Phim Thánh Adam #01</span>
+                    <span style="color: #0284c7;">•</span> KỊCH BẢN ĐANG XỬ LÝ (LIVE SYNTAX MODE) <span style="color: #64748b; font-weight: 500;">| Review Phim Thánh Adam #01</span>
                 </span>
                 <div style="display: flex; gap: 6px;">
                     <button type="button" id="btn-action-format" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; color: #334155; font-size: 11px; font-weight: 600; padding: 3px 8px; cursor: pointer;">Format Tags</button>
@@ -1610,7 +1636,7 @@ if active_audio_path and Path(active_audio_path).exists():
                     <div>
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <span id="daw-track-title" style="font-weight: 800; color: #0f172a; font-size: 0.92rem; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{track_title}</span>
-                            <span id="daw-badge-status" style="background: #fff7ed; border: 1px solid #fdba74; color: #ea580c; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px;">PLAYING</span>
+                            <span id="daw-badge-status" style="background: #f0f9ff; border: 1px solid #7dd3fc; color: #0284c7; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px;">PLAYING</span>
                         </div>
                         <div id="daw-track-subtitle" style="font-size: 0.74rem; color: #64748b; font-weight: 600; margin-top: 1px;">{voice_display_info}</div>
                     </div>
@@ -1778,8 +1804,8 @@ if active_audio_path and Path(active_audio_path).exists():
                     if (playIcon) playIcon.textContent = "⏸";
                     if (statusBadge) {{
                         statusBadge.textContent = "PLAYING";
-                        statusBadge.style.background = "#fff7ed";
-                        statusBadge.style.color = "#ea580c";
+                        statusBadge.style.background = "#f0f9ff";
+                        statusBadge.style.color = "#0284c7";
                     }}
                     cancelAnimationFrame(animId);
                     animId = requestAnimationFrame(animateWave);
@@ -1995,8 +2021,8 @@ st.html(
     f"""
     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding: 10px 4px; border-top: 1px solid #e2e8f0; font-size: 0.78rem; color: #64748b; flex-wrap: wrap; gap: 8px;">
         <div style="display: flex; align-items: center; gap: 8px;">
-            <img src="{author_logo_b64}" style="width: 20px; height: 20px; border-radius: 50%; border: 1px solid #ea580c; object-fit: cover;" />
-            <span><strong>Studio VDT • DAW Pro Edition</strong> — Sáng lập & Bản quyền bởi <strong style="color: #ea580c;">Võ Duy Toàn</strong></span>
+            <img src="{author_logo_b64}" style="width: 20px; height: 20px; border-radius: 50%; border: 1px solid #0284c7; object-fit: cover;" />
+            <span><strong>Studio VDT • DAW Pro Edition</strong> — Sáng lập & Bản quyền bởi <strong style="color: #0284c7;">Võ Duy Toàn</strong></span>
         </div>
         <div>
             Trạm sản xuất âm thanh AI thế hệ mới • Kết xuất giọng nói chuẩn điện ảnh VieNeu Neural Engine v4.2
