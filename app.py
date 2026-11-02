@@ -136,15 +136,100 @@ def get_author_logo_base64():
 author_logo_b64 = get_author_logo_base64()
 
 
-def get_anime_avatar_base64():
-    avatar_path = Path(__file__).parent / "assets" / "anime_avatar.png"
-    if avatar_path.exists():
-        encoded = base64.b64encode(avatar_path.read_bytes()).decode("utf-8")
-        return f"data:image/png;base64,{encoded}"
-    return ""
+VOICE_AVATAR_MAP = {
+    # Adam series
+    "Adam Tốp Tốp": "adam1.png",
+    "Adam bựa": "adam2.png",
+    "Adam": "adam3.png",
+
+    # Hot voices (Ưu tiên giọng hot trước)
+    "Hải Đăng": "n10.png",
+    "Trúc Ly": "nu3.png",
+    "Thiện Minh": "ch2.png",
+    "Mai Anh": "nu4.png",
+    "Thùy Dung": "nu6.png",
+    "Thiền Tâm Đức": "n15.png",
+    "Ngọc Huyền": "nu11.png",
+    "Quang Sơn": "n13.png",
+    "Ngọc Trân": "nu26.png",
+
+    # Nam voices (n1 - n20, ch: chú)
+    "Minh Đức": "n1.png",
+    "Phạm Tuyên": "n2.png",
+    "Xuân Vĩnh": "n4.png",
+    "Thanh Bình": "n8.png",
+    "Quốc Tuấn": "n11.png",
+    "Hữu Quân": "n5.png",
+    "Anh Khôi": "n9.png",
+    "Minh Quân": "n18.png",
+    "Mạnh Dũng": "n7.png",
+    "Thái Sơn": "n6.png",
+    "Minh Triết": "n12.png",
+    "Đức Trí": "n19.png",
+    "Hoàng Nam": "n19.png",
+    "Quang Huy": "n20.png",
+    "NM1": "n10.png",
+    "SM": "n6.png",
+    "NM2": "n9.png",
+    "NamMinh": "n1.png",
+    "Thầy Bảy": "ch2.png",
+
+    # Nữ voices (nu1 - nu27, co: cô)
+    "Ngọc Linh": "nu5.png",
+    "Đoan Trang": "nu15.png",
+    "Quỳnh Anh": "nu27.png",
+    "Ái Hân": "nu12.png",
+    "Xuân Tiên": "nu2.png",
+    "Thục Đoan": "nu14.png",
+    "Mỹ Duyên": "nu24.png",
+    "Kim Thanh": "nu1.png",
+    "Ngọc Ánh": "nu8.png",
+    "Thanh Tâm": "nu9.png",
+    "Thu Hà": "nu7.png",
+    "NF": "nu16.png",
+    "SF": "nu17.png",
+    "HoaiMy": "nu20.png",
+    "Mỹ Linh": "nu23.png",
+}
+
+_AVATAR_B64_CACHE = {}
 
 
-anime_avatar_b64 = get_anime_avatar_base64()
+def get_voice_avatar_base64(voice_label: str = "", voice_id: str = "") -> str:
+    search_key = f"{voice_label} {voice_id}".lower()
+    matched_file = None
+
+    for k, img_name in VOICE_AVATAR_MAP.items():
+        if k.lower() in search_key:
+            matched_file = img_name
+            break
+
+    if not matched_file:
+        if "adam" in search_key:
+            matched_file = "adam1.png"
+        elif any(w in search_key for w in ["chú", "thầy", "bác", "ông", "bảy", "kể chuyện", "rùng rợn", "ma"]):
+            matched_file = "ch2.png"
+        elif any(w in search_key for w in ["cô", "bà", "mẹ", "lão"]):
+            matched_file = "co1.png"
+        elif any(w in search_key for w in ["nữ", "chị", "bé", "gái", "mai", "ly", "dung", "huyền", "trân", "linh", "anh", "hân", "tiên", "đoan", "duyên", "thanh", "ánh", "tâm", "hà"]):
+            matched_file = "nu3.png"
+        else:
+            matched_file = "n1.png"
+
+    if matched_file in _AVATAR_B64_CACHE:
+        return _AVATAR_B64_CACHE[matched_file]
+
+    img_path = Path(__file__).parent / "assets" / matched_file
+    if img_path.exists():
+        try:
+            b64_str = base64.b64encode(img_path.read_bytes()).decode("utf-8")
+            uri = f"data:image/png;base64,{b64_str}"
+            _AVATAR_B64_CACHE[matched_file] = uri
+            return uri
+        except Exception:
+            pass
+
+    return author_logo_b64
 
 
 # 3. Audio Generation Helpers
@@ -968,12 +1053,15 @@ with col_voice:
         except Exception:
             pass
 
-        # Voice Showcase Card (Anime avatar bên trái, chi tiết bên phải)
+        # Dynamic Voice Avatar (Khớp nhân vật theo ảnh trong assets)
+        voice_avatar_b64 = get_voice_avatar_base64(selected_voice_label, selected_voice_id)
+
+        # Voice Showcase Card (Avatar nhân vật bên trái, chi tiết bên phải)
         st.html(
             f"""
             <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 10px; margin-top: 4px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; gap: 10px; align-items: center;">
-                <div style="flex-shrink: 0; width: 78px; height: 98px; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; background: #f1f5f9;">
-                    <img src="{anime_avatar_b64}" style="width: 100%; height: 100%; object-fit: cover;" />
+                <div style="flex-shrink: 0; width: 78px; height: 98px; border-radius: 8px; overflow: hidden; border: 1.5px solid #e2e8f0; background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <img src="{voice_avatar_b64}" style="width: 100%; height: 100%; object-fit: cover;" />
                 </div>
                 <div style="flex-grow: 1; min-width: 0;">
                     <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
@@ -1584,6 +1672,7 @@ if active_audio_path and Path(active_audio_path).exists():
     if not gen_voice_name:
         parts = track_title.rsplit("_", 2)
         gen_voice_name = parts[0] if len(parts) >= 3 else clean_name
+    track_avatar_b64 = get_voice_avatar_base64(gen_voice_name, gen_voice_name)
     voice_display_info = f"{gen_voice_name} • 48kHz / 24-Bit Lossless"
 
     # Tạo phụ đề SRT
@@ -1630,8 +1719,8 @@ if active_audio_path and Path(active_audio_path).exists():
             <div class="daw-dock-inner" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; max-width: 1480px; margin: 0 auto; width: 100%;">
                 <!-- Left: Track Title & Status Badge -->
                 <div class="daw-dock-left" style="display: flex; align-items: center; gap: 10px;">
-                    <div id="daw-disc" style="width: 38px; height: 38px; border-radius: 50%; background: #f0f9ff; border: 1.5px solid #0284c7; display: flex; align-items: center; justify-content: center; font-size: 17px; color: #0284c7; box-shadow: 0 1px 6px rgba(2, 132, 199, 0.2);">
-                        🎙️
+                    <div id="daw-disc" style="width: 38px; height: 38px; border-radius: 50%; overflow: hidden; border: 1.5px solid #0284c7; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 6px rgba(2, 132, 199, 0.25); flex-shrink: 0;">
+                        <img src="{track_avatar_b64}" style="width: 100%; height: 100%; object-fit: cover;" />
                     </div>
                     <div>
                         <div style="display: flex; align-items: center; gap: 6px;">
