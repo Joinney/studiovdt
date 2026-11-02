@@ -1403,19 +1403,13 @@ with col_editor:
                 label_visibility="collapsed",
             )
 
-        # Full 55+ Emotion Table Expander
-        with st.expander("📋 Xem & Sao chép đầy đủ 55+ Bảng mã lệnh cảm xúc (Dùng cho ChatGPT / AI)", expanded=False):
-            st.markdown(
-                """
-                💡 **Mẹo:** Bấm nút **"📋 Tải bản mẫu / Copy !!"** ở góc phải để sao chép toàn bộ bảng và prompt gửi sang ChatGPT / Claude nhờ AI viết kịch bản chèn sẵn cảm xúc!
-                """
-            )
-            st.code(EMOTION_PROMPT_TEMPLATE, language="markdown")
-            st.markdown(
-                "<div style='font-size: 12px; color: #64748b; margin-top: 6px;'>👇 <i>Bấm vào mã lệnh bất kỳ trong bảng để chèn nhanh vào kịch bản:</i></div>",
-                unsafe_allow_html=True,
-            )
-            st.markdown(emotion_table_html, unsafe_allow_html=True)
+        # Nút Tạo Giọng Đọc AI Ngay (Đặt trực tiếp dưới kịch bản & file upload)
+        st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+        btn_generate_tts = st.button(
+            "+ TẠO GIỌNG ĐỌC AI NGAY (RENDER AUDIO)   Ctrl + Enter",
+            type="primary",
+            use_container_width=True,
+        )
 
 
 # ------------------------------------------------------------------------------
@@ -1538,15 +1532,7 @@ with col_tags:
         )
 
 
-# ==============================================================================
-# PROMINENT FULL-WIDTH CTA BUTTON: TẠO GIỌNG ĐỌC AI NGAY (RENDER AUDIO)
-# ==============================================================================
-st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-btn_generate_tts = st.button(
-    "+ TẠO GIỌNG ĐỌC AI NGAY (RENDER AUDIO)   Ctrl + Enter",
-    type="primary",
-    use_container_width=True,
-)
+
 
 
 # ==============================================================================
