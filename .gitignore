@@ -15,6 +15,7 @@ temp/
 output/
 *.mp4
 *.wav
+!video_dubber/assets/*.wav
 *.mp3
 *.srt
 

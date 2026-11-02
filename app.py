@@ -19,9 +19,15 @@ import edge_tts
 
 logger = logging.getLogger("studiovdt")
 
+import importlib
+import config as _cfg_mod
+import video_dubber.vieneu_tts as _vieneu_mod
+_cfg_mod = importlib.reload(_cfg_mod)
+_vieneu_mod = importlib.reload(_vieneu_mod)
+
 from config import DEFAULT_VOICES, LANGUAGE_NAMES, VOICES_CATALOG, DubbingConfig
 from video_dubber.pipeline import VideoDubberPipeline
-from video_dubber.vieneu_tts import generate_vieneu_speech, EMOTION_SOUND_MAP
+from video_dubber.vieneu_tts import generate_vieneu_speech, EMOTION_SOUND_MAP, apply_acoustic_fx
 
 # 1. Page Configuration
 st.set_page_config(
@@ -145,10 +151,17 @@ async def generate_single_tts_edge(text: str, voice: str, rate: str, volume: str
 
 
 def get_or_generate_voice_preview(voice_id: str, lang: str, voice_name: str) -> Path:
+    # For Adam / Adam bựa / Adam Tốp Tốp, serve the 100% lossless 48kHz studio sample from vieneu.io directly
+    if "adam" in voice_id.lower():
+        adam_ref = Path(__file__).parent / "video_dubber" / "assets" / "adam_toptop_ref.wav"
+        if adam_ref.exists() and adam_ref.stat().st_size > 1000:
+            return adam_ref
+
     preview_dir = Path("./output/preview_samples")
     preview_dir.mkdir(parents=True, exist_ok=True)
     import unicodedata
     clean_slug = voice_id.replace("vieneu:", "").replace(":", "_").replace(" ", "_").replace("-", "_")
+    clean_slug = clean_slug.replace('đ', 'd').replace('Đ', 'D')
     safe_ascii = unicodedata.normalize('NFKD', clean_slug).encode('ascii', 'ignore').decode('ascii')
     safe_ascii = re.sub(r'[^\w\-_\.]', '_', safe_ascii).strip('_')
     if not safe_ascii:
@@ -190,13 +203,22 @@ def get_or_generate_voice_preview(voice_id: str, lang: str, voice_name: str) -> 
                 output_path=preview_path,
             )
         )
+        # Nâng cấp mẫu nghe thử Edge-TTS với Zero-Phase EQ & Warmth Compressor chuẩn Studio
+        try:
+            from video_dubber.vieneu_tts import enhance_vocal
+            from pydub import AudioSegment
+            if preview_path.exists() and preview_path.stat().st_size > 1000:
+                snd = AudioSegment.from_file(str(preview_path))
+                snd = enhance_vocal(snd, voice_name=voice_id, deep_warmth=True)
+                snd.export(str(preview_path), format="mp3", bitrate="320k")
+        except Exception as e_pv:
+            logger.warning(f"Edge preview mastering note: {e_pv}")
     return preview_path
 
 
 # Session States
 DEFAULT_DEMO_TEXT = (
-    "Hello các con vợ, hôm nay Adam lại lên đồ ngon cho cả nhà đây! [cười] "
-    "Coi hết clip rồi hãy lướt nha! [laughing] [nghỉ 0.5s] "
+    "Hello các con vợ, hôm nay Adam lại lên đồ ngon cho cả nhà đây, coi hết clip rồi hãy lướt nha! [nghỉ 0.5s] "
     "Nghe rõ chưa mấy ba? Đừng để tui phải dùng chiêu cuối đấy nhé!"
 )
 
@@ -204,10 +226,20 @@ if "tts_main_text" not in st.session_state:
     st.session_state["tts_main_text"] = DEFAULT_DEMO_TEXT
 
 if "slider_speed_val" not in st.session_state:
-    st.session_state["slider_speed_val"] = 15  # 1.15x
+    st.session_state["slider_speed_val"] = 0  # 1.0x Chuẩn Gốc Studio vieneu.io
 
 if "selected_voice_label" not in st.session_state:
-    st.session_state["selected_voice_label"] = "🔥 Adam bựa (VieNeu - Review Phim Tốp Tốp dí dỏm, hài hước)"
+    st.session_state["selected_voice_label"] = "🔥 Adam Tốp Tốp (VieNeu - Nam Miền Nam • Cảm xúc, Không nghiêm túc, Tốp Tốp, Tấu hề)"
+
+# One-time migration for open browser tabs so old 1.15x speed & noisy [cười]/[laughing] demo tags are upgraded
+if not st.session_state.get("_vdt_adam_toptop_v4_migrated"):
+    st.session_state["slider_speed_val"] = 0
+    st.session_state["slider_speed_widget"] = 0
+    st.session_state["selected_voice_label"] = "🔥 Adam Tốp Tốp (VieNeu - Nam Miền Nam • Cảm xúc, Không nghiêm túc, Tốp Tốp, Tấu hề)"
+    cur_txt = st.session_state.get("tts_main_text", "")
+    if "Hello các con vợ" in cur_txt and ("[cười]" in cur_txt or "[laughing]" in cur_txt):
+        st.session_state["tts_main_text"] = DEFAULT_DEMO_TEXT
+    st.session_state["_vdt_adam_toptop_v4_migrated"] = True
 
 if "active_acoustic_fx" not in st.session_state:
     st.session_state["active_acoustic_fx"] = "Studio Dry"
@@ -221,10 +253,12 @@ if "script_generated_file" not in st.session_state:
 
 # Preset Scripts
 sample_options = {
-    "🎬 Review Phim Tóm Tắt (Adam Siêu Bựa)": (
-        "Hello các con vợ, hôm nay Adam lại lên đồ ngon cho cả nhà đây! [cười] "
-        "Coi hết clip rồi hãy lướt nha! [laughing] [nghỉ 0.5s] "
+    "🎬 Review Phim Tóm Tắt (Adam Tốp Tốp)": (
+        "Hello các con vợ, hôm nay Adam lại lên đồ ngon cho cả nhà đây, coi hết clip rồi hãy lướt nha! [nghỉ 0.5s] "
         "Nghe rõ chưa mấy ba? Đừng để tui phải dùng chiêu cuối đấy nhé!"
+    ),
+    "🔥 Adam Tốp Tốp (Mẫu Chuẩn vieneu.io 100%)": (
+        "Hello các con vợ, hôm nay Adam lại lên đồ ngon cho cả nhà đây, coi hết clip rồi hãy lướt nha!"
     ),
     "🔥 Adam Kịch Tính Điện Ảnh": (
         "Khoan đã... [clears throat] các bạn có biết chuyện gì vừa xảy ra không? "
@@ -1490,8 +1524,10 @@ with col_studio:
         try:
             sample_file = get_or_generate_voice_preview(selected_voice_id, tts_lang, clean_name)
             if sample_file.exists() and sample_file.stat().st_size > 100:
-                s_b64 = base64.b64encode(sample_file.read_bytes()).decode("utf-8")
-                sample_audio_uri = f"data:audio/mp3;base64,{s_b64}"
+                raw_sample_bytes = sample_file.read_bytes()
+                s_b64 = base64.b64encode(raw_sample_bytes).decode("utf-8")
+                mime_type = "audio/wav" if raw_sample_bytes[:4] == b"RIFF" else "audio/mp3"
+                sample_audio_uri = f"data:{mime_type};base64,{s_b64}"
         except Exception:
             pass
 
@@ -1650,32 +1686,54 @@ with col_studio:
             )
 
         # Tempo Controls
+        current_speed = st.session_state.get("slider_speed_val", 0)
+        speed_disp = f"{1.0 + current_speed / 100.0:.2f}x ({'+' if current_speed >= 0 else ''}{current_speed}%)"
         st.html(
-            """
+            f"""
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; margin-bottom: 4px;">
                 <span style="font-size: 11.5px; font-weight: 700; color: #f97316;">⚡ Tốc độ nói (Tempo):</span>
-                <span style="background: rgba(249, 115, 22, 0.15); border: 1px solid #f97316; color: #f97316; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 800;">1.15x (+15%)</span>
+                <span style="background: rgba(249, 115, 22, 0.15); border: 1px solid #f97316; color: #f97316; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 800;">{speed_disp}</span>
             </div>
             """
         )
         sp1, sp2, sp3, sp4 = st.columns(4)
         with sp1:
-            st.button("0.8x", key="btn_tempo_08", on_click=set_quick_tempo, args=(-20,), use_container_width=True)
+            st.button(
+                "0.8x",
+                key="btn_tempo_08",
+                on_click=set_quick_tempo,
+                args=(-20,),
+                use_container_width=True,
+                type="primary" if current_speed == -20 else "secondary",
+            )
         with sp2:
-            st.button("1.0x", key="btn_tempo_10", on_click=set_quick_tempo, args=(0,), use_container_width=True)
+            st.button(
+                "🔥 1.0x (Chuẩn)",
+                key="btn_tempo_10",
+                on_click=set_quick_tempo,
+                args=(0,),
+                use_container_width=True,
+                type="primary" if current_speed == 0 else "secondary",
+            )
         with sp3:
             st.button(
-                "🔥 1.15x",
+                "1.15x",
                 key="btn_tempo_115",
                 on_click=set_quick_tempo,
                 args=(15,),
                 use_container_width=True,
-                type="primary" if st.session_state.get("slider_speed_val", 15) == 15 else "secondary",
+                type="primary" if current_speed == 15 else "secondary",
             )
         with sp4:
-            st.button("1.3x", key="btn_tempo_13", on_click=set_quick_tempo, args=(30,), use_container_width=True)
+            st.button(
+                "1.3x",
+                key="btn_tempo_13",
+                on_click=set_quick_tempo,
+                args=(30,),
+                use_container_width=True,
+                type="primary" if current_speed == 30 else "secondary",
+            )
 
-        current_speed = st.session_state.get("slider_speed_val", 15)
         tts_rate_val = st.slider(
             "Tùy chỉnh tốc độ %:",
             min_value=-50,
@@ -1692,7 +1750,7 @@ with col_studio:
             """
             <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748b; margin-top: -8px; margin-bottom: 10px;">
                 <span>-50% Chậm</span>
-                <span style="color: #f97316; font-weight: 700;">Chuẩn Tốp Tốp (+15%)</span>
+                <span style="color: #f97316; font-weight: 700;">Chuẩn Gốc vieneu.io (1.0x)</span>
                 <span>+50% Nhanh</span>
             </div>
             """
@@ -1821,6 +1879,15 @@ if btn_generate_tts:
                         output_path=out_file,
                     )
                 )
+                try:
+                    from video_dubber.vieneu_tts import enhance_vocal
+                    from pydub import AudioSegment
+                    if out_file.exists() and out_file.stat().st_size > 1000:
+                        snd = AudioSegment.from_file(str(out_file))
+                        snd = enhance_vocal(snd, voice_name=selected_voice_id, deep_warmth=True)
+                        snd.export(str(out_file), format="mp3", bitrate="320k")
+                except Exception as e_ed:
+                    logger.warning(f"Script edge TTS mastering note: {e_ed}")
 
             # Giai đoạn 4: 61% -> 85% (Xử lý hiệu ứng DSP và buồng thu âm thực thụ)
             fx_name = st.session_state.get("active_acoustic_fx", "Studio Dry")
@@ -1836,6 +1903,7 @@ if btn_generate_tts:
                     sound_or_path=out_file,
                     fx_name=fx_name,
                     pitch_semitones=pitch_semitones,
+                    voice_name=clean_name,
                     output_path=out_file,
                 )
             except Exception as dsp_err:
