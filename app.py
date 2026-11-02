@@ -272,42 +272,57 @@ def get_or_generate_voice_preview(voice_id: str, lang: str, voice_name: str) -> 
         except Exception:
             pass
 
-    if voice_id.startswith("vieneu:"):
-        actual_voice = voice_id.replace("vieneu:", "").strip()
-        demo_text = f"Xin chào, đây là giọng đọc {voice_name} trên Studio VDT."
-        generate_vieneu_speech(
-            text=demo_text,
-            voice=actual_voice,
-            speed=1.0,
-            output_path=preview_path,
-        )
-    else:
-        if lang == "vi":
+    try:
+        if voice_id.startswith("vieneu:"):
+            actual_voice = voice_id.replace("vieneu:", "").strip()
             demo_text = f"Xin chào, đây là giọng đọc {voice_name} trên Studio VDT."
-        elif lang == "en":
-            demo_text = f"Hello, this is a sample preview of {voice_name} on Studio VDT."
-        else:
-            demo_text = f"Hello, this is an AI voice sample from Studio VDT."
-
-        asyncio.run(
-            generate_single_tts_edge(
+            generate_vieneu_speech(
                 text=demo_text,
-                voice=voice_id,
-                rate="+0%",
-                volume="+0%",
-                pitch="+0Hz",
+                voice=actual_voice,
+                speed=1.0,
                 output_path=preview_path,
             )
-        )
-        try:
-            from video_dubber.vieneu_tts import enhance_vocal
-            from pydub import AudioSegment
-            if preview_path.exists() and preview_path.stat().st_size > 1000:
-                snd = AudioSegment.from_file(str(preview_path))
-                snd = enhance_vocal(snd, voice_name=voice_id, deep_warmth=True)
-                snd.export(str(preview_path), format="mp3", bitrate="320k")
-        except Exception as e_pv:
-            logger.warning(f"Edge preview mastering note: {e_pv}")
+        else:
+            if lang == "vi":
+                demo_text = f"Xin chào, đây là giọng đọc {voice_name} trên Studio VDT."
+            elif lang == "en":
+                demo_text = f"Hello, this is a sample preview of {voice_name} on Studio VDT."
+            else:
+                demo_text = f"Hello, this is an AI voice sample from Studio VDT."
+
+            asyncio.run(
+                generate_single_tts_edge(
+                    text=demo_text,
+                    voice=voice_id,
+                    rate="+0%",
+                    volume="+0%",
+                    pitch="+0Hz",
+                    output_path=preview_path,
+                )
+            )
+            try:
+                from video_dubber.vieneu_tts import enhance_vocal
+                from pydub import AudioSegment
+                if preview_path.exists() and preview_path.stat().st_size > 1000:
+                    snd = AudioSegment.from_file(str(preview_path))
+                    snd = enhance_vocal(snd, voice_name=voice_id, deep_warmth=True)
+                    snd.export(str(preview_path), format="mp3", bitrate="320k")
+            except Exception as e_pv:
+                logger.warning(f"Edge preview mastering note: {e_pv}")
+    except Exception as e_gen:
+        logger.warning(f"Voice preview generation notice for {voice_id}: {e_gen}")
+        fallback_wav = Path("/app/video_dubber/assets/adam_toptop_ref.wav")
+        if fallback_wav.exists() and fallback_wav.stat().st_size > 100:
+            return fallback_wav
+        fallback_mp3 = Path("./output/tts/test_adam_pro.mp3")
+        if fallback_mp3.exists() and fallback_mp3.stat().st_size > 100:
+            return fallback_mp3
+
+    if not preview_path.exists() or preview_path.stat().st_size < 100:
+        fallback_wav = Path("/app/video_dubber/assets/adam_toptop_ref.wav")
+        if fallback_wav.exists():
+            return fallback_wav
+
     return preview_path
 
 
@@ -406,6 +421,17 @@ def set_quick_tempo(val: int):
 
 def set_acoustic_fx(val: str):
     st.session_state["active_acoustic_fx"] = val
+
+
+# UI Mode System: Desktop Studio (3 Cột) vs Mobile Studio (Gọn gàng)
+query_mode = st.query_params.get("mode")
+if query_mode in ["desktop", "mobile"]:
+    st.session_state["vdt_ui_mode"] = query_mode
+
+if "vdt_ui_mode" not in st.session_state:
+    st.session_state["vdt_ui_mode"] = "desktop"
+
+ui_mode = st.session_state["vdt_ui_mode"]
 
 
 # 4. Global Modern Light Studio CSS (Khớp 100% hình mẫu người dùng gửi)
@@ -630,6 +656,14 @@ st.html(
         -webkit-backdrop-filter: blur(12px) !important;
         transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
     }
+    .daw-dock-mobile {
+        padding: 6px 10px 8px 10px !important;
+    }
+    @media (max-width: 768px) {
+        .daw-dock-fixed {
+            padding: 6px 10px 8px 10px !important;
+        }
+    }
 
     .daw-action-btn {
         background: #f8fafc !important;
@@ -693,15 +727,65 @@ st.html(
     """
 )
 
+if ui_mode == "mobile":
+    st.html(
+        """
+        <style>
+        .block-container {
+            padding-top: 0.35rem !important;
+            padding-bottom: 125px !important;
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+            max-width: 540px !important;
+            margin: 0 auto !important;
+        }
+        .daw-dock-inner {
+            max-width: 540px !important;
+        }
+        div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 6px !important;
+            align-items: stretch !important;
+            width: 100% !important;
+        }
+        div[data-testid="column"], div[data-testid="stColumn"] {
+            min-width: 0 !important;
+            flex: 1 1 0px !important;
+            width: auto !important;
+            margin-bottom: 0px !important;
+            padding: 0 !important;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            padding: 8px 10px !important;
+            margin-bottom: 6px !important;
+        }
+        div[data-testid="stTextArea"] textarea {
+            height: 110px !important;
+            min-height: 90px !important;
+        }
+        </style>
+        """
+    )
+
 
 # 5. Top Header & Studio Navigation Bar (Khớp 100% hình mẫu người dùng)
+bg_desk = "#0284c7" if ui_mode == "desktop" else "#ffffff"
+color_desk = "#ffffff" if ui_mode == "desktop" else "#334155"
+border_desk = "#0284c7" if ui_mode == "desktop" else "#cbd5e1"
+
+bg_mob = "#0284c7" if ui_mode == "mobile" else "#ffffff"
+color_mob = "#ffffff" if ui_mode == "mobile" else "#334155"
+border_mob = "#0284c7" if ui_mode == "mobile" else "#cbd5e1"
+
 st.html(
     f"""
     <div style="margin-bottom: 12px;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 4px;">
             <!-- Brand / Logo -->
             <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="width: 42px; height: 42px; border-radius: 50%; background: #ffffff; border: 2px solid #0284c7; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(234, 88, 12, 0.25); flex-shrink: 0;">
+                <div style="width: 42px; height: 42px; border-radius: 50%; background: #ffffff; border: 2px solid #0284c7; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25); flex-shrink: 0;">
                     <img src="{author_logo_b64}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;" />
                 </div>
                 <div>
@@ -716,10 +800,16 @@ st.html(
                 </div>
             </div>
 
-            <!-- Server Status & Indicator Dot -->
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="width: 9px; height: 9px; border-radius: 50%; background: #0284c7; box-shadow: 0 0 8px #0284c7;"></span>
-                <span style="background: #f0f9ff; border: 1px solid #7dd3fc; color: #0284c7; border-radius: 6px; padding: 3px 10px; font-size: 11px; font-weight: 700;">PRO STUDIO</span>
+            <!-- UI Mode Switcher (Desktop 3 Cột & Mobile Gọn gàng) -->
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <a href="?mode=desktop" target="_self" style="text-decoration: none; background: {bg_desk}; color: {color_desk}; border: 1px solid {border_desk}; border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    💻 Desktop
+                </a>
+                <a href="?mode=mobile" target="_self" style="text-decoration: none; background: {bg_mob}; color: {color_mob}; border: 1px solid {border_mob}; border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    📱 Mobile
+                </a>
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: #0284c7; box-shadow: 0 0 8px #0284c7;"></span>
+                <span style="background: #f0f9ff; border: 1px solid #7dd3fc; color: #0284c7; border-radius: 6px; padding: 3px 8px; font-size: 10.5px; font-weight: 700;">PRO STUDIO</span>
             </div>
         </div>
     </div>
@@ -727,7 +817,7 @@ st.html(
 )
 
 
-# 6. Caret Injection Engine Javascript (Chèn thẻ chuẩn xác tại vị trí con trỏ chuột)
+# 6. Unified Caret & Audio Engine Javascript (Chèn thẻ chuẩn xác & Phát mẫu trên cả Desktop và Mobile)
 caret_injector_template = """
 <!DOCTYPE html>
 <html>
@@ -738,21 +828,34 @@ caret_injector_template = """
     try {
         var parentDoc = window.parent ? window.parent.document : document;
         var parentWin = window.parent ? window.parent : window;
-        if (!parentDoc) return;
+        if (!parentDoc || !parentWin) return;
 
-        parentWin.__vdtCaretPos = null;
+        // Auto-detect mobile screen on initial visit if no mode query param
+        try {
+            if (!parentWin.sessionStorage.getItem('vdt_device_checked')) {
+                parentWin.sessionStorage.setItem('vdt_device_checked', 'true');
+                var isMobile = (parentWin.innerWidth <= 768) || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                var curUrl = new URL(parentWin.location.href);
+                if (!curUrl.searchParams.get('mode') && isMobile) {
+                    curUrl.searchParams.set('mode', 'mobile');
+                    parentWin.location.replace(curUrl.href);
+                }
+            }
+        } catch(err) {}
+
+        // Global Caret Position tracking
+        parentWin.__vdtCaretPos = parentWin.__vdtCaretPos || null;
 
         function getTa() {
-            var el = parentDoc.activeElement;
-            if (el && el.tagName === 'TEXTAREA') return el;
-            return parentDoc.querySelector('textarea[data-testid="stTextAreaInput"]') 
-                || parentDoc.querySelector('div[data-testid="stTextArea"] textarea') 
+            var active = parentDoc.activeElement;
+            if (active && active.tagName === 'TEXTAREA') return active;
+            return parentDoc.querySelector('div[data-testid="stTextArea"] textarea') 
                 || parentDoc.querySelector('textarea');
         }
 
         function savePos() {
             var ta = getTa();
-            if (ta && typeof ta.selectionStart === 'number') {
+            if (ta && (parentDoc.activeElement === ta || !parentWin.__vdtCaretPos) && typeof ta.selectionStart === 'number') {
                 parentWin.__vdtCaretPos = {
                     start: ta.selectionStart,
                     end: ta.selectionEnd
@@ -764,8 +867,6 @@ caret_injector_template = """
         ['focus', 'click', 'keyup', 'mouseup', 'select', 'input', 'touchend'].forEach(function(evt) {
             parentDoc.addEventListener(evt, savePos, true);
         });
-
-        parentDoc.addEventListener('selectionchange', savePos, true);
 
         function updateStats() {
             var ta = getTa();
@@ -791,62 +892,77 @@ caret_injector_template = """
             var ta = getTa();
             if (!ta) return;
 
-            ta.focus();
-
-            var start = (parentWin.__vdtCaretPos && typeof parentWin.__vdtCaretPos.start === 'number') 
-                ? parentWin.__vdtCaretPos.start 
-                : (typeof ta.selectionStart === 'number' ? ta.selectionStart : (ta.value ? ta.value.length : 0));
-            var end = (parentWin.__vdtCaretPos && typeof parentWin.__vdtCaretPos.end === 'number') 
-                ? parentWin.__vdtCaretPos.end 
-                : (typeof ta.selectionEnd === 'number' ? ta.selectionEnd : start);
-
             var val = ta.value || '';
+            var start, end;
+
+            if (parentWin.__vdtCaretPos && typeof parentWin.__vdtCaretPos.start === 'number') {
+                start = parentWin.__vdtCaretPos.start;
+                end = parentWin.__vdtCaretPos.end;
+            } else if (parentDoc.activeElement === ta && typeof ta.selectionStart === 'number') {
+                start = ta.selectionStart;
+                end = ta.selectionEnd;
+            } else {
+                start = val.length;
+                end = val.length;
+            }
+
             if (start > val.length) start = val.length;
             if (end > val.length) end = start;
-
-            ta.setSelectionRange(start, end);
 
             var prefix = (start > 0 && val.charAt(start - 1) !== ' ' && val.charAt(start - 1) !== '\\n') ? ' ' : '';
             var suffix = (end < val.length && val.charAt(end) !== ' ' && val.charAt(end) !== '\\n') ? ' ' : ' ';
             var insertStr = prefix + tag + suffix;
 
-            var inserted = false;
-            try {
-                inserted = parentDoc.execCommand('insertText', false, insertStr);
-            } catch (err) {
-                inserted = false;
+            var newVal = val.substring(0, start) + insertStr + val.substring(end);
+            var nextPos = start + insertStr.length;
+
+            // React 18 compatible value setter
+            var proto = parentWin.HTMLTextAreaElement ? parentWin.HTMLTextAreaElement.prototype : Object.getPrototypeOf(ta);
+            var desc = Object.getOwnPropertyDescriptor(proto, 'value');
+            if (desc && desc.set) {
+                desc.set.call(ta, newVal);
+            } else {
+                ta.value = newVal;
             }
 
-            if (!inserted) {
-                var newVal = val.substring(0, start) + insertStr + val.substring(end);
-                var setter = Object.getOwnPropertyDescriptor(parentWin.HTMLTextAreaElement.prototype, 'value');
-                if (setter && setter.set) {
-                    setter.set.call(ta, newVal);
-                } else {
-                    ta.value = newVal;
-                }
-                ta.dispatchEvent(new Event('input', { bubbles: true }));
-                ta.dispatchEvent(new Event('change', { bubbles: true }));
-                var nextPos = start + insertStr.length;
-                ta.setSelectionRange(nextPos, nextPos);
-                parentWin.__vdtCaretPos = { start: nextPos, end: nextPos };
-            } else {
-                parentWin.__vdtCaretPos = { start: ta.selectionStart, end: ta.selectionEnd };
+            // Force React synthetic tracker detection
+            if (ta._valueTracker) {
+                ta._valueTracker.setValue('');
             }
+
+            // Dispatch input and change in parent window context
+            var Evt = parentWin.Event || Event;
+            ta.dispatchEvent(new Evt('input', { bubbles: true, cancelable: true }));
+            ta.dispatchEvent(new Evt('change', { bubbles: true, cancelable: true }));
+
+            // Focus and set selection range
+            ta.focus();
+            try {
+                ta.setSelectionRange(nextPos, nextPos);
+            } catch(e) {}
+            parentWin.__vdtCaretPos = { start: nextPos, end: nextPos };
+
             updateStats();
         }
 
         parentWin.clearEditorText = function() {
             var ta = getTa();
             if (!ta) return;
-            var setter = Object.getOwnPropertyDescriptor(parentWin.HTMLTextAreaElement.prototype, 'value');
-            if (setter && setter.set) {
-                setter.set.call(ta, '');
+            var proto = parentWin.HTMLTextAreaElement ? parentWin.HTMLTextAreaElement.prototype : Object.getPrototypeOf(ta);
+            var desc = Object.getOwnPropertyDescriptor(proto, 'value');
+            if (desc && desc.set) {
+                desc.set.call(ta, '');
             } else {
                 ta.value = '';
             }
-            ta.dispatchEvent(new Event('input', { bubbles: true }));
-            ta.dispatchEvent(new Event('change', { bubbles: true }));
+            if (ta._valueTracker) {
+                ta._valueTracker.setValue('__clear__');
+            }
+            var Evt = parentWin.Event || Event;
+            ta.dispatchEvent(new Evt('input', { bubbles: true, cancelable: true }));
+            ta.dispatchEvent(new Evt('change', { bubbles: true, cancelable: true }));
+            parentWin.__vdtCaretPos = { start: 0, end: 0 };
+            ta.focus();
             updateStats();
         };
 
@@ -855,16 +971,83 @@ caret_injector_template = """
             if (!ta || !ta.value) return;
             var formatted = ta.value.replace(/\\s*\\[\\s*([^\\]]+)\\s*\\]\\s*/g, ' [$1] ');
             formatted = formatted.replace(/[ \\t]+/g, ' ').trim();
-            var setter = Object.getOwnPropertyDescriptor(parentWin.HTMLTextAreaElement.prototype, 'value');
-            if (setter && setter.set) {
-                setter.set.call(ta, formatted);
+            var proto = parentWin.HTMLTextAreaElement ? parentWin.HTMLTextAreaElement.prototype : Object.getPrototypeOf(ta);
+            var desc = Object.getOwnPropertyDescriptor(proto, 'value');
+            if (desc && desc.set) {
+                desc.set.call(ta, formatted);
             } else {
                 ta.value = formatted;
             }
-            ta.dispatchEvent(new Event('input', { bubbles: true }));
-            ta.dispatchEvent(new Event('change', { bubbles: true }));
+            if (ta._valueTracker) {
+                ta._valueTracker.setValue('');
+            }
+            var Evt = parentWin.Event || Event;
+            ta.dispatchEvent(new Evt('input', { bubbles: true, cancelable: true }));
+            ta.dispatchEvent(new Evt('change', { bubbles: true, cancelable: true }));
             updateStats();
         };
+
+        // Voice Sample Audio Preview Handler (Works on both Desktop & Mobile)
+        function handlePreviewSample(btn) {
+            var prevAudio = parentDoc.getElementById('vdt-preview-audio-core');
+            var prevIcon = parentDoc.getElementById('vdt-preview-icon');
+            var prevLbl = parentDoc.getElementById('vdt-preview-lbl');
+            var masterAudio = parentDoc.getElementById('daw-core-audio');
+
+            if (!prevAudio) {
+                return;
+            }
+
+            if (!prevAudio.src || prevAudio.src === '' || prevAudio.src.endsWith('/') || prevAudio.src === parentWin.location.href) {
+                if (prevLbl) prevLbl.textContent = "Chưa có mẫu";
+                return;
+            }
+
+            function setBtnPlaying() {
+                if (prevIcon) prevIcon.textContent = "⏸";
+                if (prevLbl) prevLbl.textContent = "Đang phát...";
+                if (btn) {
+                    btn.style.borderColor = "#0284c7";
+                    btn.style.background = "#f0f9ff";
+                }
+            }
+
+            function setBtnIdle() {
+                if (prevIcon) prevIcon.textContent = "🎧";
+                if (prevLbl) prevLbl.textContent = "Nghe thử mẫu";
+                if (btn) {
+                    btn.style.borderColor = "#cbd5e1";
+                    btn.style.background = "#f8fafc";
+                }
+            }
+
+            if (prevAudio.paused) {
+                if (masterAudio && !masterAudio.paused) {
+                    if (parentWin.__vdtDoPause) parentWin.__vdtDoPause();
+                    else masterAudio.pause();
+                }
+
+                prevAudio.currentTime = 0;
+                var playPromise = prevAudio.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(function() {
+                        setBtnPlaying();
+                    }).catch(function(err) {
+                        console.warn("[StudioVDT] Preview play err:", err);
+                    });
+                } else {
+                    setBtnPlaying();
+                }
+
+                prevAudio.onended = setBtnIdle;
+                prevAudio.onpause = function() {
+                    if (prevAudio.paused) setBtnIdle();
+                };
+            } else {
+                prevAudio.pause();
+                setBtnIdle();
+            }
+        }
 
         var emotionPromptText = __EMOTION_PROMPT_JSON__;
 
@@ -913,79 +1096,85 @@ caret_injector_template = """
             }
         }
 
-        function bindButtons() {
-            var chips = parentDoc.querySelectorAll('.m-chip[data-tag]');
-            chips.forEach(function(chip) {
-                if (chip.__vdtBound) return;
-                chip.__vdtBound = true;
-                chip.addEventListener('mousedown', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                });
-                chip.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    var tag = this.getAttribute('data-tag');
-                    if (tag) doInsert(tag);
-                });
-            });
-
-            var copyBtns = parentDoc.querySelectorAll('.btn-copy-emotion-table');
-            copyBtns.forEach(function(btn) {
-                if (btn.__vdtBound) return;
-                btn.__vdtBound = true;
-                btn.addEventListener('mousedown', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                });
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    copyEmotionPrompt(this);
-                });
-            });
-
-            var btnClear = parentDoc.getElementById('btn-action-clear');
-            if (btnClear && !btnClear.__vdtBound) {
-                btnClear.__vdtBound = true;
-                btnClear.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    parentWin.clearEditorText();
-                });
-            }
-
-            var dropBtn = parentDoc.getElementById('caretDropdownBtn');
-            if (dropBtn && !dropBtn.__vdtBound) {
-                dropBtn.__vdtBound = true;
-                dropBtn.addEventListener('mousedown', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                });
-                dropBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    var sel = parentDoc.getElementById('caretSelectTag');
-                    if (sel && sel.value) doInsert(sel.value);
-                });
-            }
-
-            var btnFormat = parentDoc.getElementById('btn-action-format');
-            if (btnFormat && !btnFormat.__vdtBound) {
-                btnFormat.__vdtBound = true;
-                btnFormat.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    parentWin.formatTagsEditor();
-                });
-            }
-
-            updateStats();
+        // Global Event Delegation (Attach once to parentDoc)
+        if (parentWin.__vdtDelegatedClickHandler) {
+            parentDoc.removeEventListener('click', parentWin.__vdtDelegatedClickHandler, true);
+        }
+        if (parentWin.__vdtDelegatedMousedownHandler) {
+            parentDoc.removeEventListener('mousedown', parentWin.__vdtDelegatedMousedownHandler, true);
         }
 
-        bindButtons();
-        setInterval(bindButtons, 400);
+        parentWin.__vdtDelegatedMousedownHandler = function(e) {
+            if (e.target.closest('.m-chip[data-tag]') || e.target.closest('#caretDropdownBtn')) {
+                e.preventDefault();
+            }
+        };
+        parentDoc.addEventListener('mousedown', parentWin.__vdtDelegatedMousedownHandler, true);
+
+        parentWin.__vdtDelegatedClickHandler = function(e) {
+            // 1. Emotion chips (.m-chip[data-tag])
+            var chip = e.target.closest('.m-chip[data-tag]');
+            if (chip) {
+                e.preventDefault();
+                e.stopPropagation();
+                var tag = chip.getAttribute('data-tag');
+                if (tag) doInsert(tag);
+                return;
+            }
+
+            // 2. Dropdown Insert Button (#caretDropdownBtn)
+            var dropBtn = e.target.closest('#caretDropdownBtn');
+            if (dropBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                var sel = parentDoc.getElementById('caretSelectTag');
+                if (sel && sel.value) doInsert(sel.value);
+                return;
+            }
+
+            // 3. Audio Preview Sample Button (#vdt-btn-preview-sample)
+            var prevBtn = e.target.closest('#vdt-btn-preview-sample');
+            if (prevBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                handlePreviewSample(prevBtn);
+                return;
+            }
+
+            // 4. Format Tags (#btn-action-format)
+            var fmtBtn = e.target.closest('#btn-action-format');
+            if (fmtBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (parentWin.formatTagsEditor) parentWin.formatTagsEditor();
+                return;
+            }
+
+            // 5. Clear Editor (#btn-action-clear)
+            var clrBtn = e.target.closest('#btn-action-clear');
+            if (clrBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (parentWin.clearEditorText) parentWin.clearEditorText();
+                return;
+            }
+
+            // 6. Copy Emotion Prompt (.btn-copy-emotion-table)
+            var copyBtn = e.target.closest('.btn-copy-emotion-table');
+            if (copyBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                copyEmotionPrompt(copyBtn);
+                return;
+            }
+        };
+        parentDoc.addEventListener('click', parentWin.__vdtDelegatedClickHandler, true);
+
+        // Initial stats calculation
+        setTimeout(updateStats, 100);
 
     } catch (e) {
-        console.error('[StudioVDT] Error in caret engine:', e);
+        console.error('[StudioVDT] Error in unified engine:', e);
     }
 })();
 </script>
@@ -997,38 +1186,496 @@ caret_injector_html = caret_injector_template.replace("__EMOTION_PROMPT_JSON__",
 components.html(caret_injector_html, height=0)
 
 
-# ==============================================================================
-# MAIN WORKSPACE: 3 COLUMNS DASHBOARD (100% Khớp Hình Ảnh Người Dùng Cung Cấp)
-# ==============================================================================
-col_voice, col_editor, col_tags = st.columns([0.28, 0.44, 0.28], gap="small")
+
+def render_desktop_workspace():
+    # ==============================================================================
+    # MAIN WORKSPACE: 3 COLUMNS DASHBOARD (100% Khớp Hình Ảnh Người Dùng Cung Cấp)
+    # ==============================================================================
+    col_voice, col_editor, col_tags = st.columns([0.28, 0.44, 0.28], gap="small")
 
 
-# ------------------------------------------------------------------------------
-# CỘT 1 (BÊN TRÁI ~28%): CHỌN GIỌNG, SHOWCASE CARD, TEMPO & HIỆU ỨNG ÂM THANH
-# ------------------------------------------------------------------------------
-with col_voice:
+    # ------------------------------------------------------------------------------
+    # CỘT 1 (BÊN TRÁI ~28%): CHỌN GIỌNG, SHOWCASE CARD, TEMPO & HIỆU ỨNG ÂM THANH
+    # ------------------------------------------------------------------------------
+    with col_voice:
+        with st.container(border=True):
+            voices_dict = VOICES_CATALOG.get("vi", {})
+            voice_options = list(voices_dict.keys())
+
+            # Selectbox Chọn giọng đọc
+            if "selected_voice_label" not in st.session_state or st.session_state["selected_voice_label"] not in voice_options:
+                st.session_state["selected_voice_label"] = voice_options[0]
+
+            selected_voice_label = st.selectbox(
+                "Danh sách giọng:",
+                options=voice_options,
+                key="selected_voice_label",
+                label_visibility="collapsed",
+            )
+            selected_voice_id = voices_dict[selected_voice_label]
+
+            # Trích xuất thông tin giọng
+            clean_name = selected_voice_label.split(" (")[0].replace("🔥 ", "").strip()
+            if " (" in selected_voice_label:
+                raw_desc = selected_voice_label.split(" (")[1].rstrip(")")
+            else:
+                raw_desc = "VieNeu - Nam Miền Nam - Cảm xúc, Không nghiêm túc, Tốp Tốp, Tấu hề"
+
+            if "Adam" in clean_name:
+                v_badge = "HOT REVIEW"
+            elif "Hải Đăng" in clean_name or "Tuấn Anh" in clean_name:
+                v_badge = "THỜI SỰ VTV"
+            elif "Thiện Minh" in clean_name or "Bảy" in clean_name:
+                v_badge = "KỂ CHUYỆN"
+            elif "Thùy Dung" in clean_name or "Mỹ Linh" in clean_name:
+                v_badge = "PODCAST"
+            else:
+                v_badge = "VIENEU PRO"
+
+            # Dữ liệu âm thanh nghe thử mẫu
+            sample_audio_uri = ""
+            try:
+                sample_file = get_or_generate_voice_preview(selected_voice_id, "vi", clean_name)
+                if sample_file.exists() and sample_file.stat().st_size > 100:
+                    raw_sample_bytes = sample_file.read_bytes()
+                    s_b64 = base64.b64encode(raw_sample_bytes).decode("utf-8")
+                    mime_type = "audio/wav" if raw_sample_bytes[:4] == b"RIFF" else "audio/mp3"
+                    sample_audio_uri = f"data:{mime_type};base64,{s_b64}"
+            except Exception:
+                pass
+
+            # Dynamic Voice Avatar (Khớp nhân vật theo ảnh trong assets)
+            voice_avatar_b64 = get_voice_avatar_base64(selected_voice_label, selected_voice_id)
+
+            # Voice Showcase Card (Avatar nhân vật bên trái, chi tiết bên phải)
+            st.html(
+                f"""
+                <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 10px; margin-top: 4px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; gap: 10px; align-items: center;">
+                    <div style="flex-shrink: 0; width: 78px; height: 98px; border-radius: 8px; overflow: hidden; border: 1.5px solid #e2e8f0; background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <img src="{voice_avatar_b64}" style="width: 100%; height: 100%; object-fit: cover;" />
+                    </div>
+                    <div style="flex-grow: 1; min-width: 0;">
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <span style="font-size: 1.05rem; font-weight: 800; color: #0f172a;">{clean_name}</span>
+                            <span style="background: #0284c7; color: #ffffff; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.3px;">{v_badge}</span>
+                        </div>
+                        <div style="font-size: 0.74rem; color: #475569; margin-top: 2px; line-height: 1.35; max-height: 34px; overflow: hidden; text-overflow: ellipsis;">
+                            {raw_desc}
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px; gap: 4px;">
+                            <div style="font-size: 10px; color: #64748b; font-weight: 600;">
+                                Acoustic 48kHz
+                            </div>
+                            <audio id="vdt-preview-audio-core" src="{sample_audio_uri}" preload="auto"></audio>
+                            <button type="button" id="vdt-btn-preview-sample" style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 700; color: #0284c7; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;" title="Bấm để phát mẫu nghe thử {clean_name}">
+                                <span id="vdt-preview-icon">🎧</span>
+                                <span id="vdt-preview-lbl">Nghe thử mẫu</span>
+                            </button>
+                        </div>
+                        <div style="font-size: 8.5px; color: #94a3b8; margin-top: 3px;">
+                            Adper Ally MX6 • Như bạn đã sẵn sàng thành thạo
+                        </div>
+                    </div>
+                </div>
+                """
+            )
+
+
+
+            # Quick Suggestions (2x2 grid)
+            st.markdown("<div style='font-size: 11px; color: #475569; font-weight: 700; margin-bottom: 5px;'>Hiển thị danh tính nhanh:</div>", unsafe_allow_html=True)
+            gv1, gv2 = st.columns(2)
+            with gv1:
+                st.button(
+                    "🎙️ Adam Review\n\nKịch tính, hề hước",
+                    key="btn_adam",
+                    on_click=set_quick_voice,
+                    args=(["Adam"],),
+                    use_container_width=True,
+                )
+                st.button(
+                    "👻 Thầy Bảy\n\nChuyện Ma Rùng Rợn",
+                    key="btn_thaybay",
+                    on_click=set_quick_voice,
+                    args=(["Thiện Minh", "Bảy"],),
+                    use_container_width=True,
+                )
+            with gv2:
+                st.button(
+                    "👤 Tuấn Rần VTV\n\nThời sự chuẩn mực",
+                    key="btn_tuananh",
+                    on_click=set_quick_voice,
+                    args=(["Hải Đăng", "Tuấn Anh"],),
+                    use_container_width=True,
+                )
+                st.button(
+                    "✨ Mỹ Linh\n\nPodcast Sài Gòn",
+                    key="btn_mylinh",
+                    on_click=set_quick_voice,
+                    args=(["Thùy Dung", "Mỹ Linh"],),
+                    use_container_width=True,
+                )
+
+            # Speed (Tempo) Controls
+            current_speed = st.session_state.get("slider_speed_val", 0)
+            speed_disp = "1.00x (Gốc)" if current_speed == 0 else f"{1.0 + current_speed / 100.0:.2f}x ({'+' if current_speed >= 0 else ''}{current_speed}%)"
+            st.html(
+                f"""
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; margin-bottom: 5px;">
+                    <span style="font-size: 11.5px; font-weight: 700; color: #0f172a;">⚡ Tốc độ nói (Tempo):</span>
+                    <span style="background: #f0f9ff; border: 1px solid #7dd3fc; color: #0284c7; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 800;">{speed_disp}</span>
+                </div>
+                """
+            )
+            sp1, sp2, sp3, sp4 = st.columns(4)
+            with sp1:
+                st.button(
+                    "0.8x",
+                    key="btn_tempo_08",
+                    on_click=set_quick_tempo,
+                    args=(-20,),
+                    use_container_width=True,
+                    type="primary" if current_speed == -20 else "secondary",
+                )
+            with sp2:
+                st.button(
+                    "1.0x",
+                    key="btn_tempo_10",
+                    on_click=set_quick_tempo,
+                    args=(0,),
+                    use_container_width=True,
+                    type="primary" if current_speed == 0 else "secondary",
+                )
+            with sp3:
+                st.button(
+                    "1.15x",
+                    key="btn_tempo_115",
+                    on_click=set_quick_tempo,
+                    args=(15,),
+                    use_container_width=True,
+                    type="primary" if current_speed == 15 else "secondary",
+                )
+            with sp4:
+                st.button(
+                    "1.3x",
+                    key="btn_tempo_13",
+                    on_click=set_quick_tempo,
+                    args=(30,),
+                    use_container_width=True,
+                    type="primary" if current_speed == 30 else "secondary",
+                )
+
+            tts_rate_val = st.slider(
+                "Tùy chỉnh tốc độ %:",
+                min_value=-50,
+                max_value=50,
+                value=current_speed,
+                step=5,
+                format="%d%%",
+                key="slider_speed_widget",
+                label_visibility="collapsed",
+            )
+            st.session_state["slider_speed_val"] = tts_rate_val
+
+            st.html(
+                """
+                <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748b; margin-top: -6px; margin-bottom: 8px;">
+                    <span>1.0% Chậm chuẩn</span>
+                    <span style="color: #0284c7; font-weight: 600;">Chuẩn làm phim (0.95-1.05)</span>
+                    <span>2.0% Siêu tốc</span>
+                </div>
+                """
+            )
+
+            speed_factor = 1.0 + (tts_rate_val / 100.0)
+            rate_str = f"{'+' if tts_rate_val >= 0 else ''}{tts_rate_val}%"
+
+            # Two Pro Sliders: Cường độ cảm xúc & Cao độ
+            current_emo = st.session_state.get("emotion_depth", 65)
+            current_pitch = st.session_state.get("pitch_val", 0)
+            sl1, sl2 = st.columns(2)
+            with sl1:
+                st.markdown(f"<div style='font-size: 11.5px; color: #0f172a; font-weight: 700;'>Cường độ cảm xúc: <strong style='color: #0284c7;'>{current_emo}</strong></div>", unsafe_allow_html=True)
+                st.slider("Emotion Depth:", min_value=0, max_value=100, value=current_emo, key="emotion_depth", label_visibility="collapsed")
+            with sl2:
+                st.markdown(f"<div style='font-size: 11.5px; color: #0f172a; font-weight: 700;'>Cao độ (chỉ số): <strong style='color: #0284c7;'>{current_pitch}</strong></div>", unsafe_allow_html=True)
+                st.slider("Pitch:", min_value=-12, max_value=12, value=current_pitch, key="pitch_val", label_visibility="collapsed")
+
+            # Acoustic Booth FX Buttons
+            st.html(
+                """
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; margin-bottom: 6px;">
+                    <span style="font-size: 11.5px; font-weight: 700; color: #0f172a;">Hiệu ứng buồng thu âm (Acoustic Dry)</span>
+                </div>
+                """
+            )
+            fx1, fx2, fx3 = st.columns(3)
+            current_fx = st.session_state.get("active_acoustic_fx", "Studio Dry")
+            with fx1:
+                st.button(
+                    "🎙️ Studio",
+                    key="btn_fx_dry",
+                    on_click=set_acoustic_fx,
+                    args=("Studio Dry",),
+                    use_container_width=True,
+                    type="primary" if current_fx == "Studio Dry" else "secondary",
+                )
+            with fx2:
+                st.button(
+                    "🏛️ Reverb",
+                    key="btn_fx_reverb",
+                    on_click=set_acoustic_fx,
+                    args=("Room Reverb",),
+                    use_container_width=True,
+                    type="primary" if current_fx == "Room Reverb" else "secondary",
+                )
+            with fx3:
+                st.button(
+                    "🎧 Denoise",
+                    key="btn_fx_denoise",
+                    on_click=set_acoustic_fx,
+                    args=("AI Denoise",),
+                    use_container_width=True,
+                    type="primary" if current_fx == "AI Denoise" else "secondary",
+                )
+
+
+    # ------------------------------------------------------------------------------
+    # CỘT 2 (Ở GIỮA ~44%): TRÌNH SOẠN THẢO KỊCH BẢN, THỐNG KÊ, PRESET & UPLOAD
+    # ------------------------------------------------------------------------------
+    with col_editor:
+        with st.container(border=True):
+            # Header Editor
+            st.html(
+                """
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11.5px;">
+                    <span style="color: #0f172a; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                        <span style="color: #0284c7;">•</span> KỊCH BẢN ĐANG XỬ LÝ (LIVE SYNTAX MODE) <span style="color: #64748b; font-weight: 500;">| Review Phim Thánh Adam #01</span>
+                    </span>
+                    <div style="display: flex; gap: 6px;">
+                        <button type="button" id="btn-action-format" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; color: #334155; font-size: 11px; font-weight: 600; padding: 3px 8px; cursor: pointer;">Format Tags</button>
+                        <span style="background: #f1f5f9; border: 1px solid #e2e8f0; color: #334155; font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 700;">AI Script Rewriter</span>
+                    </div>
+                </div>
+                """
+            )
+
+            # Large Clean White Text Area
+            current_text = st.text_area(
+                "Kịch bản lời thoại:",
+                key="tts_main_text",
+                height=280,
+                label_visibility="collapsed",
+                placeholder="Nhập hoặc dán kịch bản tại đây...",
+            )
+
+            # Dynamic Stats Counter Bar
+            initial_words = len([w for w in current_text.strip().split() if w]) if current_text.strip() else 0
+            initial_chars = len(current_text)
+            initial_tags = len(re.findall(r"\[[^\]]+\]", current_text))
+            initial_duration = f"00:{(initial_words / 2.7):04.1f}s"
+
+            st.html(
+                f"""
+                <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 12px; margin-top: 5px; margin-bottom: 10px; font-size: 11.5px; color: #64748b; flex-wrap: wrap; gap: 6px;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                        <span id="daw-stat-words" style="color: #334155;">Từ: <strong style="color: #0f172a;">{initial_words} từ</strong></span>
+                        <span>•</span>
+                        <span id="daw-stat-chars" style="color: #334155;">Ký tự: <strong style="color: #0f172a;">{initial_chars} ký tự</strong></span>
+                        <span>•</span>
+                        <span id="daw-stat-duration" style="color: #334155;">⏱️ Thời lượng dự kiến: {initial_duration}</span>
+                        <span>•</span>
+                        <span style="color: #64748b;">Tỷ lệ cảm xúc: 100% Khớp</span>
+                    </div>
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 2px 8px; font-size: 11px;">
+                        <strong id="daw-stat-tags" style="color: #0284c7;">{initial_tags} Tags Phát hiện</strong>
+                    </div>
+                </div>
+                """
+            )
+
+            # Bottom Tools: Preset Script & TXT Upload (Trong thẻ card gọn gàng)
+            c_preset, c_upload = st.columns([1.1, 0.9])
+            with c_preset:
+                st.markdown("<span style='font-size: 11.5px; color: #0284c7; font-weight: 700;'>💧 Preset Kịch Bản Hot Triệu View:</span>", unsafe_allow_html=True)
+                st.selectbox(
+                    "Preset:",
+                    options=list(sample_options.keys()),
+                    index=0,
+                    key="sample_preset_choice",
+                    on_change=apply_sample_preset,
+                    label_visibility="collapsed",
+                )
+            with c_upload:
+                st.markdown("<span style='font-size: 11.5px; color: #0284c7; font-weight: 700;'>📁 Tải Kịch Bản (TXT / SRT / DOCX):</span>", unsafe_allow_html=True)
+                st.file_uploader(
+                    "File kịch bản:",
+                    type=["txt"],
+                    key="txt_upload",
+                    on_change=apply_txt_upload,
+                    label_visibility="collapsed",
+                )
+
+            # Nút Tạo Giọng Đọc AI Ngay (Đặt trực tiếp dưới kịch bản & file upload)
+            st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+            btn_generate_tts = st.button(
+                "+ TẠO GIỌNG ĐỌC AI NGAY (RENDER AUDIO)   Ctrl + Enter",
+                type="primary",
+                use_container_width=True,
+            )
+
+
+    # ------------------------------------------------------------------------------
+    # CỘT 3 (BÊN PHẢI ~28%): THAO TÁC KỊCH BẢN, CHÈN THẺ CẢM XÚC TẠI CON TRỎ
+    # ------------------------------------------------------------------------------
+    with col_tags:
+        with st.container(border=True):
+            # Top 3 Utility Buttons
+            st.html(
+                """
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 12px;">
+                    <button type="button" class="btn-copy-emotion-table" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #334155; padding: 5px 9px; font-size: 11px; font-weight: 600; cursor: pointer;">Kịch bản mẫu</button>
+                    <button type="button" id="btn-action-clear" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #334155; padding: 5px 9px; font-size: 11px; font-weight: 600; cursor: pointer;">🔄 Làm mới</button>
+                    <button type="button" class="btn-copy-emotion-table" style="background: #0284c7; border: none; border-radius: 6px; color: #ffffff; padding: 5px 11px; font-size: 11px; font-weight: 700; cursor: pointer; box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3);">📋 Tải bản mẫu / Copy !!</button>
+                </div>
+                """
+            )
+
+            # Header Chèn thẻ
+            st.html(
+                """
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-size: 11.5px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 4px;">
+                        <span style="color: #0284c7;">•</span> BẤM CHÈN THẺ CẢM XÚC TẠI CON TRỎ:
+                    </span>
+                    <span style="font-size: 10.5px; color: #64748b;">Chèn tại vị trí con trỏ chuột</span>
+                </div>
+                """
+            )
+
+            # Emotion Tag Cloud Theo Danh Mục
+            st.html(
+                """
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+                    <!-- Group 1: Kịch bản cảm xúc -->
+                    <div>
+                        <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 4px;">Kịch bản cảm xúc:</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[cười]">[cười]</button>
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[gào]">[gào]</button>
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[đỉnh kout]">[đỉnh kout]</button>
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[hét lớn]">[hét lớn]</button>
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[đau đớn]">[đau đớn]</button>
+                        </div>
+                    </div>
+
+                    <!-- Group 2: Tổn thương & xúc động -->
+                    <div>
+                        <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 4px;">Tổn thương & xúc động:</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[khóc]">[khóc]</button>
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[uất ức]">[uất ức]</button>
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[hối hận]">[hối hận]</button>
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[nghẹn ngào]">[nghẹn ngào]</button>
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[thì thầm]">[thì thầm]</button>
+                        </div>
+                    </div>
+
+                    <!-- Group 3: Xem trực diện (nghe sướng) -->
+                    <div>
+                        <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 4px;">Xem trực diện (nghe sướng):</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[hả?]">[hả?]</button>
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[thở dốc]">[thở dốc]</button>
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[thở dài]">[thở dài]</button>
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[tặc lưỡi]">[tặc lưỡi]</button>
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[nấc]">[nấc]</button>
+                        </div>
+                    </div>
+
+                    <!-- Group 4: Tăng nhịp ngắt nhanh -->
+                    <div>
+                        <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 4px;">Tăng nhịp ngắt nhanh:</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[nghỉ 0.3s]">[Nghỉ 0.3]</button>
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[nghỉ 0.5s]">[Nghỉ 0.5]</button>
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[nghỉ 1s]">[Nghỉ 1.0]</button>
+                            <button type="button" class="m-chip neon-tag-chip" data-tag="[nghỉ 2s]">[Nghỉ 2.0]</button>
+                        </div>
+                    </div>
+                </div>
+                """
+            )
+
+            # Dropdown 55+ Thẻ & Nút Solid Blue Chèn Tại Con Trỏ
+            st.html(
+                """
+                <div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                    <select id="caretSelectTag" style="width: 100%; background: #ffffff; color: #0f172a; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 7px 10px; font-size: 12px; outline: none; cursor: pointer;">
+                        <option value="[crying]">🎭 [crying] hu hu (khóc)</option>
+                        <option value="[cười]">😄 [cười] - nụ cười thích thú</option>
+                        <option value="[laughing]">😆 [laughing] - hahaha (cười to)</option>
+                        <option value="[snickers]">😏 [snickers] - khì khì (cười đểu)</option>
+                        <option value="[chuckles]">🤣 [chuckles] - he he he</option>
+                        <option value="[sighs]">😮‍💨 [sighs] - haizzz (thở dài)</option>
+                        <option value="[screaming]">😱 [screaming] - áaaaa (kêu la)</option>
+                        <option value="[shouting]">🗣️ [shouting] - gôôôôô (hét lớn)</option>
+                        <option value="[whispering]">🤫 [whispering] - psst... (thì thầm)</option>
+                        <option value="[shocked]">😱 [shocked] - trời ơi! (sốc)</option>
+                        <option value="[confused]">🤨 [confused] - hả? (bối rối)</option>
+                        <option value="[thinking]">🤔 [thinking] - hmmm (suy nghĩ)</option>
+                        <option value="[gasps]">😮 [gasps] - hự (thở gấp)</option>
+                        <option value="[excited]">🤩 [excited] - wowww (hào hứng)</option>
+                        <option value="[relieved]">😌 [relieved] - phùuu (thở phào)</option>
+                        <option value="[angry]">😡 [angry] - tức quá!</option>
+                        <option value="[panicked]">🏃 [panicked] - chết chết chết!</option>
+                        <option value="[clears throat]">🗣️ [clears throat] - hèm hèm (hắng giọng)</option>
+                        <option value="[coughs]">😷 [coughs] - khụ khụ (ho)</option>
+                        <option value="[sneezes]">🤧 [sneezes] - ách xì</option>
+                        <option value="[nghỉ 0.3s]">⏱️ [nghỉ 0.3s] - Ngắt 0.3s</option>
+                        <option value="[nghỉ 0.5s]">⏸️ [nghỉ 0.5s] - Ngắt 0.5s</option>
+                        <option value="[nghỉ 1s]">⏳ [nghỉ 1s] - Ngắt 1.0s</option>
+                        <option value="[nghỉ 2s]">🛑 [nghỉ 2s] - Ngắt 2.0s</option>
+                    </select>
+                    <button type="button" id="caretDropdownBtn" style="background: #0284c7; color: #ffffff; border: none; border-radius: 6px; padding: 7px 14px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3);">
+                        ➕ Chèn tại vị trí con trỏ chuột
+                    </button>
+                </div>
+                """
+            )
+
+
+
+
+
+    return btn_generate_tts
+
+def render_mobile_workspace():
+    # ==============================================================================
+    # GIAO DIỆN MOBILE: ĐIỆN THOẠI SIÊU GỌN GÀNG (Khớp 100% Mockup Điện Thoại)
+    # ==============================================================================
+    # KHỐI 1: CHỌN GIỌNG, SHOWCASE CARD, TEMPO & THANH TRƯỢT
     with st.container(border=True):
         voices_dict = VOICES_CATALOG.get("vi", {})
         voice_options = list(voices_dict.keys())
 
-        # Selectbox Chọn giọng đọc
         if "selected_voice_label" not in st.session_state or st.session_state["selected_voice_label"] not in voice_options:
             st.session_state["selected_voice_label"] = voice_options[0]
 
         selected_voice_label = st.selectbox(
             "Danh sách giọng:",
             options=voice_options,
-            key="selected_voice_label",
+            key="selected_voice_label_mob",
             label_visibility="collapsed",
         )
+        st.session_state["selected_voice_label"] = selected_voice_label
         selected_voice_id = voices_dict[selected_voice_label]
 
-        # Trích xuất thông tin giọng
         clean_name = selected_voice_label.split(" (")[0].replace("🔥 ", "").strip()
         if " (" in selected_voice_label:
             raw_desc = selected_voice_label.split(" (")[1].rstrip(")")
         else:
-            raw_desc = "VieNeu - Nam Miền Nam - Cảm xúc, Không nghiêm túc, Tốp Tốp, Tấu hề"
+            raw_desc = "VieNeu - Nam Bắc trầm tĩnh, triết lý, thiền định"
 
         if "Adam" in clean_name:
             v_badge = "HOT REVIEW"
@@ -1038,10 +1685,11 @@ with col_voice:
             v_badge = "KỂ CHUYỆN"
         elif "Thùy Dung" in clean_name or "Mỹ Linh" in clean_name:
             v_badge = "PODCAST"
+        elif "Thiền Tâm" in clean_name:
+            v_badge = "VIENEU PRO"
         else:
             v_badge = "VIENEU PRO"
 
-        # Dữ liệu âm thanh nghe thử mẫu
         sample_audio_uri = ""
         try:
             sample_file = get_or_generate_voice_preview(selected_voice_id, "vi", clean_name)
@@ -1053,26 +1701,24 @@ with col_voice:
         except Exception:
             pass
 
-        # Dynamic Voice Avatar (Khớp nhân vật theo ảnh trong assets)
         voice_avatar_b64 = get_voice_avatar_base64(selected_voice_label, selected_voice_id)
 
-        # Voice Showcase Card (Avatar nhân vật bên trái, chi tiết bên phải)
         st.html(
             f"""
-            <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 10px; margin-top: 4px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; gap: 10px; align-items: center;">
-                <div style="flex-shrink: 0; width: 78px; height: 98px; border-radius: 8px; overflow: hidden; border: 1.5px solid #e2e8f0; background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 10px; margin-top: 4px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); display: flex; gap: 10px; align-items: center;">
+                <div style="flex-shrink: 0; width: 72px; height: 90px; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; background: #f1f5f9; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                     <img src="{voice_avatar_b64}" style="width: 100%; height: 100%; object-fit: cover;" />
                 </div>
                 <div style="flex-grow: 1; min-width: 0;">
                     <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        <span style="font-size: 1.05rem; font-weight: 800; color: #0f172a;">{clean_name}</span>
+                        <span style="font-size: 1.02rem; font-weight: 800; color: #0f172a;">{clean_name}</span>
                         <span style="background: #0284c7; color: #ffffff; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.3px;">{v_badge}</span>
                     </div>
-                    <div style="font-size: 0.74rem; color: #475569; margin-top: 2px; line-height: 1.35; max-height: 34px; overflow: hidden; text-overflow: ellipsis;">
+                    <div style="font-size: 0.72rem; color: #475569; margin-top: 2px; line-height: 1.35; max-height: 32px; overflow: hidden; text-overflow: ellipsis;">
                         {raw_desc}
                     </div>
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px; gap: 4px;">
-                        <div style="font-size: 10px; color: #64748b; font-weight: 600;">
+                        <div style="font-size: 9.5px; color: #64748b; font-weight: 600;">
                             Acoustic 48kHz
                         </div>
                         <audio id="vdt-preview-audio-core" src="{sample_audio_uri}" preload="auto"></audio>
@@ -1081,7 +1727,7 @@ with col_voice:
                             <span id="vdt-preview-lbl">Nghe thử mẫu</span>
                         </button>
                     </div>
-                    <div style="font-size: 8.5px; color: #94a3b8; margin-top: 3px;">
+                    <div style="font-size: 8px; color: #94a3b8; margin-top: 2px;">
                         Adper Ally MX6 • Như bạn đã sẵn sàng thành thạo
                     </div>
                 </div>
@@ -1089,168 +1735,38 @@ with col_voice:
             """
         )
 
-        # Preview JS Controller
-        preview_js = """
-        <!DOCTYPE html>
-        <html><head><meta charset="utf-8"></head><body>
-        <script>
-        (function() {
-            try {
-                var parentDoc = window.parent.document;
-                var parentWin = window.parent;
-
-                if (parentWin.__vdtPreviewClickHandler) {
-                    parentDoc.removeEventListener('click', parentWin.__vdtPreviewClickHandler, true);
-                }
-
-                parentWin.__vdtPreviewClickHandler = function(e) {
-                    var btn = e.target.closest('#vdt-btn-preview-sample');
-                    if (!btn) return;
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    var prevAudio = parentDoc.getElementById('vdt-preview-audio-core');
-                    var prevIcon = parentDoc.getElementById('vdt-preview-icon');
-                    var prevLbl = parentDoc.getElementById('vdt-preview-lbl');
-                    var masterAudio = parentDoc.getElementById('daw-core-audio');
-
-                    if (!prevAudio || !prevAudio.src || prevAudio.src === '' || prevAudio.src.endsWith('/')) {
-                        if (prevLbl) prevLbl.textContent = "Chưa có mẫu";
-                        return;
-                    }
-
-                    if (prevAudio.paused) {
-                        if (masterAudio && !masterAudio.paused) {
-                            if (parentWin.__vdtDoPause) parentWin.__vdtDoPause();
-                            else masterAudio.pause();
-                        }
-                        prevAudio.currentTime = 0;
-                        prevAudio.play().then(function() {
-                            if (prevIcon) prevIcon.textContent = "⏸";
-                            if (prevLbl) prevLbl.textContent = "Đang phát...";
-                            btn.style.borderColor = "#0284c7";
-                            btn.style.background = "#f0f9ff";
-                        }).catch(function(err) {
-                            console.log("Preview error:", err);
-                        });
-                    } else {
-                        prevAudio.pause();
-                        if (prevIcon) prevIcon.textContent = "🎧";
-                        if (prevLbl) prevLbl.textContent = "Nghe thử mẫu";
-                        btn.style.borderColor = "#cbd5e1";
-                        btn.style.background = "#f8fafc";
-                    }
-                };
-
-                parentDoc.addEventListener('click', parentWin.__vdtPreviewClickHandler, true);
-
-                var prevAudio = parentDoc.getElementById('vdt-preview-audio-core');
-                if (prevAudio) {
-                    function resetBtn() {
-                        var prevIcon = parentDoc.getElementById('vdt-preview-icon');
-                        var prevLbl = parentDoc.getElementById('vdt-preview-lbl');
-                        var btn = parentDoc.getElementById('vdt-btn-preview-sample');
-                        if (prevIcon) prevIcon.textContent = "🎧";
-                        if (prevLbl) prevLbl.textContent = "Nghe thử mẫu";
-                        if (btn) {
-                            btn.style.borderColor = "#cbd5e1";
-                            btn.style.background = "#f8fafc";
-                        }
-                    }
-                    prevAudio.onended = resetBtn;
-                    prevAudio.onpause = function() {
-                        if (prevAudio.paused) resetBtn();
-                    };
-                }
-            } catch(e) {}
-        })();
-        </script>
-        </body></html>
-        """
-        components.html(preview_js, height=0)
-
-        # Quick Suggestions (2x2 grid)
-        st.markdown("<div style='font-size: 11px; color: #475569; font-weight: 700; margin-bottom: 5px;'>Hiển thị danh tính nhanh:</div>", unsafe_allow_html=True)
-        gv1, gv2 = st.columns(2)
+        st.markdown("<div style='font-size: 10.5px; color: #475569; font-weight: 700; margin-bottom: 4px;'>Hiển thị danh tính nhanh:</div>", unsafe_allow_html=True)
+        gv1, gv2, gv3 = st.columns(3)
         with gv1:
-            st.button(
-                "🎙️ Adam Review\n\nKịch tính, hề hước",
-                key="btn_adam",
-                on_click=set_quick_voice,
-                args=(["Adam"],),
-                use_container_width=True,
-            )
-            st.button(
-                "👻 Thầy Bảy\n\nChuyện Ma Rùng Rợn",
-                key="btn_thaybay",
-                on_click=set_quick_voice,
-                args=(["Thiện Minh", "Bảy"],),
-                use_container_width=True,
-            )
+            st.button("🎙️ Adam Review\n\nKịch tính hề hước", key="mob_btn_adam", on_click=set_quick_voice, args=(["Adam"],), use_container_width=True)
         with gv2:
-            st.button(
-                "👤 Tuấn Rần VTV\n\nThời sự chuẩn mực",
-                key="btn_tuananh",
-                on_click=set_quick_voice,
-                args=(["Hải Đăng", "Tuấn Anh"],),
-                use_container_width=True,
-            )
-            st.button(
-                "✨ Mỹ Linh\n\nPodcast Sài Gòn",
-                key="btn_mylinh",
-                on_click=set_quick_voice,
-                args=(["Thùy Dung", "Mỹ Linh"],),
-                use_container_width=True,
-            )
+            st.button("👤 Tuấn Rần VTV\n\nThời sự chuẩn mực", key="mob_btn_tuananh", on_click=set_quick_voice, args=(["Hải Đăng", "Tuấn Anh"],), use_container_width=True)
+        with gv3:
+            st.button("👻 Thầy Bảy\n\nMa Rùng Rợn", key="mob_btn_thaybay", on_click=set_quick_voice, args=(["Thiện Minh", "Bảy"],), use_container_width=True)
 
-        # Speed (Tempo) Controls
         current_speed = st.session_state.get("slider_speed_val", 0)
         speed_disp = "1.00x (Gốc)" if current_speed == 0 else f"{1.0 + current_speed / 100.0:.2f}x ({'+' if current_speed >= 0 else ''}{current_speed}%)"
         st.html(
             f"""
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; margin-bottom: 5px;">
-                <span style="font-size: 11.5px; font-weight: 700; color: #0f172a;">⚡ Tốc độ nói (Tempo):</span>
-                <span style="background: #f0f9ff; border: 1px solid #7dd3fc; color: #0284c7; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 800;">{speed_disp}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; margin-bottom: 4px;">
+                <span style="font-size: 11px; font-weight: 700; color: #0f172a;">⚡ Tốc độ nói (Tempo):</span>
+                <span style="background: #f0f9ff; border: 1px solid #7dd3fc; color: #0284c7; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 800;">{speed_disp}</span>
             </div>
             """
         )
-        sp1, sp2, sp3, sp4 = st.columns(4)
+        sp1, sp2, sp3, sp4, sp5, sp6 = st.columns(6)
         with sp1:
-            st.button(
-                "0.8x",
-                key="btn_tempo_08",
-                on_click=set_quick_tempo,
-                args=(-20,),
-                use_container_width=True,
-                type="primary" if current_speed == -20 else "secondary",
-            )
+            st.button("0.8x", key="mob_tempo_08", on_click=set_quick_tempo, args=(-20,), use_container_width=True, type="primary" if current_speed == -20 else "secondary")
         with sp2:
-            st.button(
-                "1.0x",
-                key="btn_tempo_10",
-                on_click=set_quick_tempo,
-                args=(0,),
-                use_container_width=True,
-                type="primary" if current_speed == 0 else "secondary",
-            )
+            st.button("0.9x", key="mob_tempo_09", on_click=set_quick_tempo, args=(-10,), use_container_width=True, type="primary" if current_speed == -10 else "secondary")
         with sp3:
-            st.button(
-                "1.15x",
-                key="btn_tempo_115",
-                on_click=set_quick_tempo,
-                args=(15,),
-                use_container_width=True,
-                type="primary" if current_speed == 15 else "secondary",
-            )
+            st.button("1.0x", key="mob_tempo_10", on_click=set_quick_tempo, args=(0,), use_container_width=True, type="primary" if current_speed == 0 else "secondary")
         with sp4:
-            st.button(
-                "1.3x",
-                key="btn_tempo_13",
-                on_click=set_quick_tempo,
-                args=(30,),
-                use_container_width=True,
-                type="primary" if current_speed == 30 else "secondary",
-            )
+            st.button("1.15x", key="mob_tempo_115", on_click=set_quick_tempo, args=(15,), use_container_width=True, type="primary" if current_speed == 15 else "secondary")
+        with sp5:
+            st.button("1.25x", key="mob_tempo_125", on_click=set_quick_tempo, args=(25,), use_container_width=True, type="primary" if current_speed == 25 else "secondary")
+        with sp6:
+            st.button("1.3x", key="mob_tempo_13", on_click=set_quick_tempo, args=(30,), use_container_width=True, type="primary" if current_speed == 30 else "secondary")
 
         tts_rate_val = st.slider(
             "Tùy chỉnh tốc độ %:",
@@ -1259,104 +1775,48 @@ with col_voice:
             value=current_speed,
             step=5,
             format="%d%%",
-            key="slider_speed_widget",
+            key="mob_slider_speed",
             label_visibility="collapsed",
         )
         st.session_state["slider_speed_val"] = tts_rate_val
 
-        st.html(
-            """
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #64748b; margin-top: -6px; margin-bottom: 8px;">
-                <span>1.0% Chậm chuẩn</span>
-                <span style="color: #0284c7; font-weight: 600;">Chuẩn làm phim (0.95-1.05)</span>
-                <span>2.0% Siêu tốc</span>
-            </div>
-            """
-        )
-
         speed_factor = 1.0 + (tts_rate_val / 100.0)
         rate_str = f"{'+' if tts_rate_val >= 0 else ''}{tts_rate_val}%"
 
-        # Two Pro Sliders: Cường độ cảm xúc & Cao độ
         current_emo = st.session_state.get("emotion_depth", 65)
         current_pitch = st.session_state.get("pitch_val", 0)
         sl1, sl2 = st.columns(2)
         with sl1:
-            st.markdown(f"<div style='font-size: 11.5px; color: #0f172a; font-weight: 700;'>Cường độ cảm xúc: <strong style='color: #0284c7;'>{current_emo}</strong></div>", unsafe_allow_html=True)
-            st.slider("Emotion Depth:", min_value=0, max_value=100, value=current_emo, key="emotion_depth", label_visibility="collapsed")
+            st.markdown(f"<div style='font-size: 10.5px; color: #0f172a; font-weight: 700; display:flex; justify-content:space-between; align-items:center;'><span>Cường độ cảm xúc:</span><span style='background: #f0f9ff; border: 1px solid #7dd3fc; color: #0284c7; border-radius: 4px; padding: 0px 5px; font-size: 9.5px; font-weight: 800;'>{current_emo}</span></div>", unsafe_allow_html=True)
+            st.slider("Emotion Depth:", min_value=0, max_value=100, value=current_emo, key="mob_emotion_depth", label_visibility="collapsed")
         with sl2:
-            st.markdown(f"<div style='font-size: 11.5px; color: #0f172a; font-weight: 700;'>Cao độ (chỉ số): <strong style='color: #0284c7;'>{current_pitch}</strong></div>", unsafe_allow_html=True)
-            st.slider("Pitch:", min_value=-12, max_value=12, value=current_pitch, key="pitch_val", label_visibility="collapsed")
+            st.markdown(f"<div style='font-size: 10.5px; color: #0f172a; font-weight: 700; display:flex; justify-content:space-between; align-items:center;'><span>Cao độ (chỉ số):</span><span style='background: #f0f9ff; border: 1px solid #7dd3fc; color: #0284c7; border-radius: 4px; padding: 0px 5px; font-size: 9.5px; font-weight: 800;'>{current_pitch}</span></div>", unsafe_allow_html=True)
+            st.slider("Pitch:", min_value=-12, max_value=12, value=current_pitch, key="mob_pitch_val", label_visibility="collapsed")
 
-        # Acoustic Booth FX Buttons
-        st.html(
-            """
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; margin-bottom: 6px;">
-                <span style="font-size: 11.5px; font-weight: 700; color: #0f172a;">Hiệu ứng buồng thu âm (Acoustic Dry)</span>
-            </div>
-            """
-        )
-        fx1, fx2, fx3 = st.columns(3)
-        current_fx = st.session_state.get("active_acoustic_fx", "Studio Dry")
-        with fx1:
-            st.button(
-                "🎙️ Studio",
-                key="btn_fx_dry",
-                on_click=set_acoustic_fx,
-                args=("Studio Dry",),
-                use_container_width=True,
-                type="primary" if current_fx == "Studio Dry" else "secondary",
-            )
-        with fx2:
-            st.button(
-                "🏛️ Reverb",
-                key="btn_fx_reverb",
-                on_click=set_acoustic_fx,
-                args=("Room Reverb",),
-                use_container_width=True,
-                type="primary" if current_fx == "Room Reverb" else "secondary",
-            )
-        with fx3:
-            st.button(
-                "🎧 Denoise",
-                key="btn_fx_denoise",
-                on_click=set_acoustic_fx,
-                args=("AI Denoise",),
-                use_container_width=True,
-                type="primary" if current_fx == "AI Denoise" else "secondary",
-            )
-
-
-# ------------------------------------------------------------------------------
-# CỘT 2 (Ở GIỮA ~44%): TRÌNH SOẠN THẢO KỊCH BẢN, THỐNG KÊ, PRESET & UPLOAD
-# ------------------------------------------------------------------------------
-with col_editor:
+    # KHỐI 2: TRÌNH SOẠN THẢO KỊCH BẢN & BỘ ĐẾM THỜI GIAN THỰC
     with st.container(border=True):
-        # Header Editor
         st.html(
             """
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11.5px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-size: 11px;">
                 <span style="color: #0f172a; font-weight: 700; display: flex; align-items: center; gap: 4px;">
-                    <span style="color: #0284c7;">•</span> KỊCH BẢN ĐANG XỬ LÝ (LIVE SYNTAX MODE) <span style="color: #64748b; font-weight: 500;">| Review Phim Thánh Adam #01</span>
+                    <span style="color: #0284c7;">•</span> KỊCH BẢN ĐANG XỬ LÝ (LIVE SYNTAX) <span style="color: #64748b; font-weight: 500;">| Review Phim Thánh Adam #01</span>
                 </span>
-                <div style="display: flex; gap: 6px;">
-                    <button type="button" id="btn-action-format" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; color: #334155; font-size: 11px; font-weight: 600; padding: 3px 8px; cursor: pointer;">Format Tags</button>
-                    <span style="background: #f1f5f9; border: 1px solid #e2e8f0; color: #334155; font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 700;">AI Script Rewriter</span>
+                <div style="display: flex; gap: 5px;">
+                    <button type="button" id="btn-action-format" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; color: #334155; font-size: 10px; font-weight: 600; padding: 2px 7px; cursor: pointer;">Format Tags</button>
+                    <span style="background: #f1f5f9; border: 1px solid #e2e8f0; color: #334155; font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 700;">AI Script Rewriter</span>
                 </div>
             </div>
             """
         )
 
-        # Large Clean White Text Area
         current_text = st.text_area(
             "Kịch bản lời thoại:",
             key="tts_main_text",
-            height=280,
+            height=110,
             label_visibility="collapsed",
             placeholder="Nhập hoặc dán kịch bản tại đây...",
         )
 
-        # Dynamic Stats Counter Bar
         initial_words = len([w for w in current_text.strip().split() if w]) if current_text.strip() else 0
         initial_chars = len(current_text)
         initial_tags = len(re.findall(r"\[[^\]]+\]", current_text))
@@ -1364,8 +1824,8 @@ with col_editor:
 
         st.html(
             f"""
-            <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 12px; margin-top: 5px; margin-bottom: 10px; font-size: 11.5px; color: #64748b; flex-wrap: wrap; gap: 6px;">
-                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 10px; margin-top: 4px; margin-bottom: 8px; font-size: 11px; color: #64748b; flex-wrap: wrap; gap: 4px;">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
                     <span id="daw-stat-words" style="color: #334155;">Từ: <strong style="color: #0f172a;">{initial_words} từ</strong></span>
                     <span>•</span>
                     <span id="daw-stat-chars" style="color: #334155;">Ký tự: <strong style="color: #0f172a;">{initial_chars} ký tự</strong></span>
@@ -1374,165 +1834,104 @@ with col_editor:
                     <span>•</span>
                     <span style="color: #64748b;">Tỷ lệ cảm xúc: 100% Khớp</span>
                 </div>
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 2px 8px; font-size: 11px;">
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 1px 6px; font-size: 10px;">
                     <strong id="daw-stat-tags" style="color: #0284c7;">{initial_tags} Tags Phát hiện</strong>
                 </div>
             </div>
             """
         )
 
-        # Bottom Tools: Preset Script & TXT Upload (Trong thẻ card gọn gàng)
-        c_preset, c_upload = st.columns([1.1, 0.9])
-        with c_preset:
-            st.markdown("<span style='font-size: 11.5px; color: #0284c7; font-weight: 700;'>💧 Preset Kịch Bản Hot Triệu View:</span>", unsafe_allow_html=True)
-            st.selectbox(
-                "Preset:",
-                options=list(sample_options.keys()),
-                index=0,
-                key="sample_preset_choice",
-                on_change=apply_sample_preset,
-                label_visibility="collapsed",
+    # KHỐI 3: 2 CỘT CÔNG CỤ ĐỐI XỨNG
+    with st.container(border=True):
+        col_tools_left, col_tools_right = st.columns(2, gap="medium")
+        with col_tools_left:
+            st.html(
+                """
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <select id="caretSelectTag" style="width: 100%; background: #ffffff; color: #0f172a; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 6px 8px; font-size: 11.5px; outline: none; cursor: pointer;">
+                        <option value="[panicked]">🎭 [panicked] - chết chết chết!</option>
+                        <option value="[crying]">😭 [crying] hu hu (khóc)</option>
+                        <option value="[cười]">😄 [cười] - nụ cười thích thú</option>
+                        <option value="[laughing]">😆 [laughing] - hahaha (cười to)</option>
+                        <option value="[snickers]">😏 [snickers] - khì khì (cười đểu)</option>
+                        <option value="[sighs]">😮‍💨 [sighs] - haizzz (thở dài)</option>
+                        <option value="[screaming]">😱 [screaming] - áaaaa (kêu la)</option>
+                        <option value="[shouting]">🗣️ [shouting] - gôôôôô (hét lớn)</option>
+                        <option value="[whispering]">🤫 [whispering] - psst... (thì thầm)</option>
+                        <option value="[shocked]">😱 [shocked] - trời ơi! (sốc)</option>
+                        <option value="[confused]">🤨 [confused] - hả? (bối rối)</option>
+                        <option value="[thinking]">🤔 [thinking] - hmmm (suy nghĩ)</option>
+                        <option value="[gasps]">😮 [gasps] - hự (thở gấp)</option>
+                        <option value="[excited]">🤩 [excited] - wowww (hào hứng)</option>
+                        <option value="[relieved]">😌 [relieved] - phùuu (thở phào)</option>
+                        <option value="[angry]">😡 [angry] - tức quá!</option>
+                        <option value="[clears throat]">🗣️ [clears throat] - hèm hèm (hắng giọng)</option>
+                        <option value="[nghỉ 0.3s]">⏱️ [nghỉ 0.3s] - Ngắt 0.3s</option>
+                        <option value="[nghỉ 0.5s]">⏸️ [nghỉ 0.5s] - Ngắt 0.5s</option>
+                        <option value="[nghỉ 1s]">⏳ [nghỉ 1s] - Ngắt 1.0s</option>
+                        <option value="[nghỉ 2s]">🛑 [nghỉ 2s] - Ngắt 2.0s</option>
+                    </select>
+                    <button type="button" id="caretDropdownBtn" style="background: #0284c7; color: #ffffff; border: none; border-radius: 6px; padding: 7px 10px; font-size: 11.5px; font-weight: 700; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3);">
+                        ➕ Chèn tại vị trí con trỏ chuột
+                    </button>
+                </div>
+                """
             )
-        with c_upload:
-            st.markdown("<span style='font-size: 11.5px; color: #0284c7; font-weight: 700;'>📁 Tải Kịch Bản (TXT / SRT / DOCX):</span>", unsafe_allow_html=True)
+            st.html(
+                """
+                <div style="font-size: 11px; font-weight: 700; color: #0f172a; margin-top: 8px; margin-bottom: 4px;">
+                    Hiệu ứng nhanh âm (Acoustic Dry)
+                </div>
+                """
+            )
+            fx1, fx2, fx3 = st.columns(3)
+            current_fx = st.session_state.get("active_acoustic_fx", "Studio Dry")
+            with fx1:
+                st.button("🎙️ Studio", key="mob_fx_dry", on_click=set_acoustic_fx, args=("Studio Dry",), use_container_width=True, type="primary" if current_fx == "Studio Dry" else "secondary")
+            with fx2:
+                st.button("🏛️ Reverb", key="mob_fx_reverb", on_click=set_acoustic_fx, args=("Room Reverb",), use_container_width=True, type="primary" if current_fx == "Room Reverb" else "secondary")
+            with fx3:
+                st.button("🎧 Denoise", key="mob_fx_denoise", on_click=set_acoustic_fx, args=("AI Denoise",), use_container_width=True, type="primary" if current_fx == "AI Denoise" else "secondary")
+
+        with col_tools_right:
+            st.markdown("<div style='font-size: 11px; color: #0f172a; font-weight: 700; margin-bottom: 4px;'>📁 Tải Kịch Bản (TXT / SRT / DOCX):</div>", unsafe_allow_html=True)
             st.file_uploader(
                 "File kịch bản:",
                 type=["txt"],
-                key="txt_upload",
+                key="mob_txt_upload",
                 on_change=apply_txt_upload,
                 label_visibility="collapsed",
             )
 
-        # Nút Tạo Giọng Đọc AI Ngay (Đặt trực tiếp dưới kịch bản & file upload)
-        st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
-        btn_generate_tts = st.button(
-            "+ TẠO GIỌNG ĐỌC AI NGAY (RENDER AUDIO)   Ctrl + Enter",
-            type="primary",
-            use_container_width=True,
-        )
+    # NÚT CTA LỚN CHO MOBILE
+    st.markdown("<div style='margin-top: 6px;'></div>", unsafe_allow_html=True)
+    btn_gen = st.button(
+        "+ TẠO GIỌNG ĐỌC AI NGAY (RENDER AUDIO)   Ctrl + Enter",
+        type="primary",
+        use_container_width=True,
+        key="mob_btn_render_main",
+    )
+    return btn_gen
 
+if ui_mode == "desktop":
+    btn_generate_tts = render_desktop_workspace()
+else:
+    btn_generate_tts = render_mobile_workspace()
 
-# ------------------------------------------------------------------------------
-# CỘT 3 (BÊN PHẢI ~28%): THAO TÁC KỊCH BẢN, CHÈN THẺ CẢM XÚC TẠI CON TRỎ
-# ------------------------------------------------------------------------------
-with col_tags:
-    with st.container(border=True):
-        # Top 3 Utility Buttons
-        st.html(
-            """
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 12px;">
-                <button type="button" class="btn-copy-emotion-table" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #334155; padding: 5px 9px; font-size: 11px; font-weight: 600; cursor: pointer;">Kịch bản mẫu</button>
-                <button type="button" id="btn-action-clear" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #334155; padding: 5px 9px; font-size: 11px; font-weight: 600; cursor: pointer;">🔄 Làm mới</button>
-                <button type="button" class="btn-copy-emotion-table" style="background: #0284c7; border: none; border-radius: 6px; color: #ffffff; padding: 5px 11px; font-size: 11px; font-weight: 700; cursor: pointer; box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3);">📋 Tải bản mẫu / Copy !!</button>
-            </div>
-            """
-        )
+# Global Voice Info Resolution for Synthesis Pipeline
+voices_dict = VOICES_CATALOG.get("vi", {})
+voice_options = list(voices_dict.keys())
+selected_voice_label = st.session_state.get("selected_voice_label", voice_options[0])
+if selected_voice_label not in voice_options:
+    selected_voice_label = voice_options[0]
+    st.session_state["selected_voice_label"] = selected_voice_label
 
-        # Header Chèn thẻ
-        st.html(
-            """
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <span style="font-size: 11.5px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 4px;">
-                    <span style="color: #0284c7;">•</span> BẤM CHÈN THẺ CẢM XÚC TẠI CON TRỎ:
-                </span>
-                <span style="font-size: 10.5px; color: #64748b;">Chèn tại vị trí con trỏ chuột</span>
-            </div>
-            """
-        )
+selected_voice_id = voices_dict[selected_voice_label]
+clean_name = selected_voice_label.split(" (")[0].replace("🔥 ", "").strip()
 
-        # Emotion Tag Cloud Theo Danh Mục
-        st.html(
-            """
-            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
-                <!-- Group 1: Kịch bản cảm xúc -->
-                <div>
-                    <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 4px;">Kịch bản cảm xúc:</div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 5px;">
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[cười]">[cười]</button>
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[gào]">[gào]</button>
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[đỉnh kout]">[đỉnh kout]</button>
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[hét lớn]">[hét lớn]</button>
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[đau đớn]">[đau đớn]</button>
-                    </div>
-                </div>
-
-                <!-- Group 2: Tổn thương & xúc động -->
-                <div>
-                    <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 4px;">Tổn thương & xúc động:</div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 5px;">
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[khóc]">[khóc]</button>
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[uất ức]">[uất ức]</button>
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[hối hận]">[hối hận]</button>
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[nghẹn ngào]">[nghẹn ngào]</button>
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[thì thầm]">[thì thầm]</button>
-                    </div>
-                </div>
-
-                <!-- Group 3: Xem trực diện (nghe sướng) -->
-                <div>
-                    <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 4px;">Xem trực diện (nghe sướng):</div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 5px;">
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[hả?]">[hả?]</button>
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[thở dốc]">[thở dốc]</button>
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[thở dài]">[thở dài]</button>
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[tặc lưỡi]">[tặc lưỡi]</button>
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[nấc]">[nấc]</button>
-                    </div>
-                </div>
-
-                <!-- Group 4: Tăng nhịp ngắt nhanh -->
-                <div>
-                    <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 4px;">Tăng nhịp ngắt nhanh:</div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 5px;">
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[nghỉ 0.3s]">[Nghỉ 0.3]</button>
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[nghỉ 0.5s]">[Nghỉ 0.5]</button>
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[nghỉ 1s]">[Nghỉ 1.0]</button>
-                        <button type="button" class="m-chip neon-tag-chip" data-tag="[nghỉ 2s]">[Nghỉ 2.0]</button>
-                    </div>
-                </div>
-            </div>
-            """
-        )
-
-        # Dropdown 55+ Thẻ & Nút Solid Blue Chèn Tại Con Trỏ
-        st.html(
-            """
-            <div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #e2e8f0; padding-top: 10px;">
-                <select id="caretSelectTag" style="width: 100%; background: #ffffff; color: #0f172a; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 7px 10px; font-size: 12px; outline: none; cursor: pointer;">
-                    <option value="[crying]">🎭 [crying] hu hu (khóc)</option>
-                    <option value="[cười]">😄 [cười] - nụ cười thích thú</option>
-                    <option value="[laughing]">😆 [laughing] - hahaha (cười to)</option>
-                    <option value="[snickers]">😏 [snickers] - khì khì (cười đểu)</option>
-                    <option value="[chuckles]">🤣 [chuckles] - he he he</option>
-                    <option value="[sighs]">😮‍💨 [sighs] - haizzz (thở dài)</option>
-                    <option value="[screaming]">😱 [screaming] - áaaaa (kêu la)</option>
-                    <option value="[shouting]">🗣️ [shouting] - gôôôôô (hét lớn)</option>
-                    <option value="[whispering]">🤫 [whispering] - psst... (thì thầm)</option>
-                    <option value="[shocked]">😱 [shocked] - trời ơi! (sốc)</option>
-                    <option value="[confused]">🤨 [confused] - hả? (bối rối)</option>
-                    <option value="[thinking]">🤔 [thinking] - hmmm (suy nghĩ)</option>
-                    <option value="[gasps]">😮 [gasps] - hự (thở gấp)</option>
-                    <option value="[excited]">🤩 [excited] - wowww (hào hứng)</option>
-                    <option value="[relieved]">😌 [relieved] - phùuu (thở phào)</option>
-                    <option value="[angry]">😡 [angry] - tức quá!</option>
-                    <option value="[panicked]">🏃 [panicked] - chết chết chết!</option>
-                    <option value="[clears throat]">🗣️ [clears throat] - hèm hèm (hắng giọng)</option>
-                    <option value="[coughs]">😷 [coughs] - khụ khụ (ho)</option>
-                    <option value="[sneezes]">🤧 [sneezes] - ách xì</option>
-                    <option value="[nghỉ 0.3s]">⏱️ [nghỉ 0.3s] - Ngắt 0.3s</option>
-                    <option value="[nghỉ 0.5s]">⏸️ [nghỉ 0.5s] - Ngắt 0.5s</option>
-                    <option value="[nghỉ 1s]">⏳ [nghỉ 1s] - Ngắt 1.0s</option>
-                    <option value="[nghỉ 2s]">🛑 [nghỉ 2s] - Ngắt 2.0s</option>
-                </select>
-                <button type="button" id="caretDropdownBtn" style="background: #0284c7; color: #ffffff; border: none; border-radius: 6px; padding: 7px 14px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3);">
-                    ➕ Chèn tại vị trí con trỏ chuột
-                </button>
-            </div>
-            """
-        )
-
-
-
+current_speed = st.session_state.get("slider_speed_val", 0)
+speed_factor = 1.0 + (current_speed / 100.0)
+rate_str = f"{'+' if current_speed >= 0 else ''}{current_speed}%"
 
 
 # ==============================================================================
@@ -1685,163 +2084,243 @@ if active_audio_path and Path(active_audio_path).exists():
     should_autoplay = "true" if st.session_state.get("just_rendered_autoplay", False) else "false"
     st.session_state["just_rendered_autoplay"] = False
 
-    # 36 Waveform Bars
-    eq_bar_heights = [
-        6, 12, 18, 24, 28, 22, 14, 10, 16, 26,
-        32, 28, 20, 14, 18, 28, 24, 12, 16, 26,
-        30, 22, 14, 8, 14, 22, 28, 20, 12, 16,
-        24, 28, 18, 12, 8, 6
-    ]
-    eq_bars_html = "".join([
-        f'<span class="daw-eq-bar" data-idx="{i}" data-base-h="{h}" style="display:inline-block; width: 3px; height: {h}px; background: #cbd5e1; border-radius: 1.5px; margin: 0 1px; transition: background 0.08s ease, height 0.08s ease;"></span>'
-        for i, h in enumerate(eq_bar_heights)
-    ])
+    if ui_mode == "mobile":
+        # 20 Waveform Bars cho Dock Mobile Gọn gàng (Khớp 100% hình ảnh mobile người dùng)
+        eq_bar_heights_mob = [
+            5, 10, 16, 22, 26, 20, 14, 10, 16, 24,
+            26, 18, 12, 16, 22, 18, 12, 16, 10, 6
+        ]
+        eq_bars_html = "".join([
+            f'<span class="daw-eq-bar" data-idx="{i}" data-base-h="{h}" style="display:inline-block; width: 2px; height: {h}px; background: #cbd5e1; border-radius: 1px; margin: 0 0.5px; transition: background 0.08s ease, height 0.08s ease;"></span>'
+            for i, h in enumerate(eq_bar_heights_mob)
+        ])
 
-    # Fixed Bottom DAW Dock HTML (Porcelain White Light Theme)
-    st.html(
-        f"""
-        <div id="daw-dock-fixed-bar" class="daw-dock-fixed">
-            <audio id="daw-core-audio" src="{audio_uri}" preload="auto" data-autoplay="{should_autoplay}"></audio>
-            <div class="daw-dock-inner" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; max-width: 1480px; margin: 0 auto; width: 100%;">
-                <!-- Left: Track Title & Status Badge -->
-                <div class="daw-dock-left" style="display: flex; align-items: center; gap: 10px;">
-                    <div id="daw-disc" style="width: 38px; height: 38px; border-radius: 50%; overflow: hidden; border: 1.5px solid #0284c7; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 6px rgba(2, 132, 199, 0.25); flex-shrink: 0;">
-                        <img src="{track_avatar_b64}" style="width: 100%; height: 100%; object-fit: cover;" />
-                    </div>
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <span id="daw-track-title" style="font-weight: 800; color: #0f172a; font-size: 0.92rem; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{track_title}</span>
-                            <span id="daw-badge-status" style="background: #f0f9ff; border: 1px solid #7dd3fc; color: #0284c7; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px;">PLAYING</span>
-                        </div>
-                        <div id="daw-track-subtitle" style="font-size: 0.74rem; color: #64748b; font-weight: 600; margin-top: 1px;">{voice_display_info}</div>
-                    </div>
-                </div>
-
-                <!-- Center: Controls, Dynamic Timecode & Waveform Scrubbing -->
-                <div class="daw-dock-center" style="display: flex; align-items: center; gap: 10px; flex-grow: 1; justify-content: center;">
-                    <button type="button" id="daw-btn-prev" style="background: transparent; border: none; font-size: 15px; color: #0284c7; cursor: pointer; padding: 4px;" title="Lùi 5 giây">⏮️</button>
-                    <button type="button" id="daw-btn-play" style="width: 36px; height: 36px; border-radius: 50%; background: #0284c7; border: none; display: flex; align-items: center; justify-content: center; font-size: 15px; color: #ffffff; cursor: pointer; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4); transition: transform 0.1s ease;">
-                        <span id="daw-play-icon">▶</span>
-                    </button>
-                    <button type="button" id="daw-btn-next" style="background: transparent; border: none; font-size: 15px; color: #0284c7; cursor: pointer; padding: 4px;" title="Tua 5 giây">⏭️</button>
-                    <button type="button" id="daw-btn-loop" style="background: transparent; border: none; font-size: 15px; color: #64748b; cursor: pointer; padding: 4px;" title="Bật/Tắt Lặp lại">🔁</button>
-
-                    <!-- Real-time Timecode Display -->
-                    <span id="daw-timecode-display" style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 11.5px; color: #0f172a; font-weight: 700; margin-left: 2px; min-width: 95px;">00:00.8 / 00:10.5</span>
-
-                    <!-- Interactive Waveform with Loang Progress & Scrubbing -->
-                    <div id="daw-waveform-wrapper" style="display: flex; align-items: center; gap: 6px;">
-                        <span id="daw-time-start" style="font-size: 10.5px; color: #64748b; font-family: 'JetBrains Mono', Consolas, monospace; font-weight: 600;">00:00</span>
-                        <div id="daw-waveform-scrub" style="display: flex; align-items: center; justify-content: space-between; height: 32px; padding: 2px 6px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer; position: relative; width: 230px; user-select: none;" title="Bấm hoặc kéo chuột để tua âm thanh">
-                            <div id="daw-scrub-cursor" style="position: absolute; top: 0; bottom: 0; left: 0%; width: 2px; background: #0284c7; box-shadow: 0 0 5px #0284c7; z-index: 5; pointer-events: none; transition: left 0.05s linear;"></div>
-                            <div id="daw-eq-bars" style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100%; pointer-events: none;">
-                                {eq_bars_html}
+        # Mobile 2-Row Compact DAW Dock HTML (Khớp 100% Screenshot Mobile)
+        st.html(
+            f"""
+            <div id="daw-dock-fixed-bar" class="daw-dock-fixed daw-dock-mobile" style="padding: 6px 12px 8px 12px !important; box-shadow: 0 -3px 18px rgba(0, 0, 0, 0.08) !important; background: #ffffff !important; border-top: 1.5px solid #e2e8f0 !important;">
+                <audio id="daw-core-audio" src="{audio_uri}" preload="auto" data-autoplay="{should_autoplay}"></audio>
+                <div style="max-width: 540px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 6px;">
+                    <!-- Hàng 1: Avatar + Tên file / READY + Nút Play + Timecode 2 dòng + Waveform -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                        <!-- Avatar & Title / Status -->
+                        <div style="display: flex; align-items: center; gap: 7px; min-width: 0; flex-shrink: 1;">
+                            <div id="daw-disc" style="width: 34px; height: 34px; border-radius: 50%; overflow: hidden; border: 1.5px solid #0284c7; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(2, 132, 199, 0.25); flex-shrink: 0;">
+                                <img src="{track_avatar_b64}" style="width: 100%; height: 100%; object-fit: cover;" />
+                            </div>
+                            <div style="min-width: 0; flex-grow: 1;">
+                                <div id="daw-track-title" style="font-weight: 800; color: #0f172a; font-size: 11.5px; max-width: 115px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.2;">
+                                    {track_title}
+                                </div>
+                                <div id="daw-badge-status" style="font-size: 9.5px; font-weight: 700; color: #64748b; margin-top: 1px; line-height: 1.2; letter-spacing: 0.3px;">
+                                    READY
+                                </div>
                             </div>
                         </div>
-                        <span id="daw-time-end" style="font-size: 10.5px; color: #64748b; font-family: 'JetBrains Mono', Consolas, monospace; font-weight: 600;">00:18</span>
+
+                        <!-- Play Button, Stacked Timecode, Waveform -->
+                        <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                            <button type="button" id="daw-btn-play" style="width: 32px; height: 32px; border-radius: 50%; background: #0284c7; border: none; display: flex; align-items: center; justify-content: center; color: #ffffff; cursor: pointer; box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35); flex-shrink: 0; padding: 0;">
+                                <span id="daw-play-icon" style="font-size: 12px; margin-left: 2px;">▶</span>
+                            </button>
+
+                            <div id="daw-timecode-display" class="daw-mobile-timecode" style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 9.5px; color: #0f172a; font-weight: 700; line-height: 1.15; text-align: left; white-space: nowrap;">
+                                00:00.0 /<br>00:07.0
+                            </div>
+
+                            <div id="daw-waveform-wrapper" style="display: flex; align-items: center; gap: 4px;">
+                                <div id="daw-waveform-scrub" style="display: flex; align-items: center; justify-content: space-between; height: 26px; padding: 1px 4px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; position: relative; width: 85px; min-width: 75px; user-select: none;" title="Chạm để tua âm thanh">
+                                    <div id="daw-scrub-cursor" style="position: absolute; top: 0; bottom: 0; left: 0%; width: 2px; background: #0284c7; box-shadow: 0 0 4px #0284c7; z-index: 5; pointer-events: none; transition: left 0.05s linear;"></div>
+                                    <div id="daw-eq-bars" style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100%; pointer-events: none;">
+                                        {eq_bars_html}
+                                    </div>
+                                </div>
+                                <span id="daw-time-end" style="font-size: 9px; color: #64748b; font-family: 'JetBrains Mono', Consolas, monospace; font-weight: 600;">00:07</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hàng 2: Bộ 4 nút hành động gọn gàng -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 5px;">
+                        <button type="button" id="daw-btn-dl-srt" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #334155; font-size: 10.5px; font-weight: 700; padding: 5px 8px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;">
+                            ☑ Kèm SRT
+                        </button>
+                        <button type="button" id="daw-btn-dl-mp3" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #334155; font-size: 10.5px; font-weight: 700; padding: 5px 8px; cursor: pointer; white-space: nowrap;">
+                            MP3 (320k)
+                        </button>
+                        <button type="button" id="daw-btn-dl-wav" style="background: #0284c7; border: none; border-radius: 6px; color: #ffffff; font-size: 11px; font-weight: 800; padding: 5.5px 12px; cursor: pointer; white-space: nowrap; flex-grow: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 3px; box-shadow: 0 1px 4px rgba(2, 132, 199, 0.3);">
+                            ⬇ TẢI WAV MASTER (48kHz)
+                        </button>
+                        <button type="button" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #94a3b8; font-size: 12px; padding: 5px 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;" title="Cài đặt">
+                            ⚙️
+                        </button>
                     </div>
                 </div>
+            </div>
+            """
+        )
+    else:
+        # Desktop 36 Waveform Bars
+        eq_bar_heights = [
+            6, 12, 18, 24, 28, 22, 14, 10, 16, 26,
+            32, 28, 20, 14, 18, 28, 24, 12, 16, 26,
+            30, 22, 14, 8, 14, 22, 28, 20, 12, 16,
+            24, 28, 18, 12, 8, 6
+        ]
+        eq_bars_html = "".join([
+            f'<span class="daw-eq-bar" data-idx="{i}" data-base-h="{h}" style="display:inline-block; width: 3px; height: {h}px; background: #cbd5e1; border-radius: 1.5px; margin: 0 1px; transition: background 0.08s ease, height 0.08s ease;"></span>'
+            for i, h in enumerate(eq_bar_heights)
+        ])
 
-                <!-- Right: Action Buttons -->
-                <div class="daw-dock-right" style="display: flex; align-items: center; gap: 6px;">
-                    <button type="button" id="daw-btn-dl-srt" class="daw-action-btn" title="Tải file phụ đề SRT">
-                        ☑ Kèm SRT
-                    </button>
-                    <button type="button" id="daw-btn-dl-mp3" class="daw-action-btn" title="Tải file MP3 320k">
-                        MP3 (320k)
-                    </button>
-                    <button type="button" id="daw-btn-dl-wav" class="daw-action-btn-wav" title="Tải file Master WAV 48kHz">
-                        ⬇ TẢI WAV MASTER (48kHz)
-                    </button>
-                    <button type="button" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #64748b; font-size: 13px; padding: 5px 8px; cursor: pointer;" title="Cài đặt">
-                        ⚙️
-                    </button>
+        # Fixed Bottom DAW Dock HTML (Desktop Wide Porcelain White Light Theme)
+        st.html(
+            f"""
+            <div id="daw-dock-fixed-bar" class="daw-dock-fixed">
+                <audio id="daw-core-audio" src="{audio_uri}" preload="auto" data-autoplay="{should_autoplay}"></audio>
+                <div class="daw-dock-inner" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; max-width: 1480px; margin: 0 auto; width: 100%;">
+                    <!-- Left: Track Title & Status Badge -->
+                    <div class="daw-dock-left" style="display: flex; align-items: center; gap: 10px;">
+                        <div id="daw-disc" style="width: 38px; height: 38px; border-radius: 50%; overflow: hidden; border: 1.5px solid #0284c7; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 6px rgba(2, 132, 199, 0.25); flex-shrink: 0;">
+                            <img src="{track_avatar_b64}" style="width: 100%; height: 100%; object-fit: cover;" />
+                        </div>
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span id="daw-track-title" style="font-weight: 800; color: #0f172a; font-size: 0.92rem; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{track_title}</span>
+                                <span id="daw-badge-status" style="background: #f0f9ff; border: 1px solid #7dd3fc; color: #0284c7; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px;">PLAYING</span>
+                            </div>
+                            <div id="daw-track-subtitle" style="font-size: 0.74rem; color: #64748b; font-weight: 600; margin-top: 1px;">{voice_display_info}</div>
+                        </div>
+                    </div>
+
+                    <!-- Center: Controls, Dynamic Timecode & Waveform Scrubbing -->
+                    <div class="daw-dock-center" style="display: flex; align-items: center; gap: 10px; flex-grow: 1; justify-content: center;">
+                        <button type="button" id="daw-btn-prev" style="background: transparent; border: none; font-size: 15px; color: #0284c7; cursor: pointer; padding: 4px;" title="Lùi 5 giây">⏮️</button>
+                        <button type="button" id="daw-btn-play" style="width: 36px; height: 36px; border-radius: 50%; background: #0284c7; border: none; display: flex; align-items: center; justify-content: center; font-size: 15px; color: #ffffff; cursor: pointer; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4); transition: transform 0.1s ease;">
+                            <span id="daw-play-icon">▶</span>
+                        </button>
+                        <button type="button" id="daw-btn-next" style="background: transparent; border: none; font-size: 15px; color: #0284c7; cursor: pointer; padding: 4px;" title="Tua 5 giây">⏭️</button>
+                        <button type="button" id="daw-btn-loop" style="background: transparent; border: none; font-size: 15px; color: #64748b; cursor: pointer; padding: 4px;" title="Bật/Tắt Lặp lại">🔁</button>
+
+                        <!-- Real-time Timecode Display -->
+                        <span id="daw-timecode-display" style="font-family: 'JetBrains Mono', Consolas, monospace; font-size: 11.5px; color: #0f172a; font-weight: 700; margin-left: 2px; min-width: 95px;">00:00.8 / 00:10.5</span>
+
+                        <!-- Interactive Waveform with Loang Progress & Scrubbing -->
+                        <div id="daw-waveform-wrapper" style="display: flex; align-items: center; gap: 6px;">
+                            <span id="daw-time-start" style="font-size: 10.5px; color: #64748b; font-family: 'JetBrains Mono', Consolas, monospace; font-weight: 600;">00:00</span>
+                            <div id="daw-waveform-scrub" style="display: flex; align-items: center; justify-content: space-between; height: 32px; padding: 2px 6px; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer; position: relative; width: 230px; user-select: none;" title="Bấm hoặc kéo chuột để tua âm thanh">
+                                <div id="daw-scrub-cursor" style="position: absolute; top: 0; bottom: 0; left: 0%; width: 2px; background: #0284c7; box-shadow: 0 0 5px #0284c7; z-index: 5; pointer-events: none; transition: left 0.05s linear;"></div>
+                                <div id="daw-eq-bars" style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100%; pointer-events: none;">
+                                    {eq_bars_html}
+                                </div>
+                            </div>
+                            <span id="daw-time-end" style="font-size: 10.5px; color: #64748b; font-family: 'JetBrains Mono', Consolas, monospace; font-weight: 600;">00:18</span>
+                        </div>
+                    </div>
+
+                    <!-- Right: Action Buttons -->
+                    <div class="daw-dock-right" style="display: flex; align-items: center; gap: 6px;">
+                        <button type="button" id="daw-btn-dl-srt" class="daw-action-btn" title="Tải file phụ đề SRT">
+                            ☑ Kèm SRT
+                        </button>
+                        <button type="button" id="daw-btn-dl-mp3" class="daw-action-btn" title="Tải file MP3 320k">
+                            MP3 (320k)
+                        </button>
+                        <button type="button" id="daw-btn-dl-wav" class="daw-action-btn-wav" title="Tải file Master WAV 48kHz">
+                            ⬇ TẢI WAV MASTER (48kHz)
+                        </button>
+                        <button type="button" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #64748b; font-size: 13px; padding: 5px 8px; cursor: pointer;" title="Cài đặt">
+                            ⚙️
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-        """
-    )
+            """
+        )
 
     # JavaScript Engine for DAW Player
-    player_engine_js = f"""
+    player_engine_js_template = """
     <!DOCTYPE html>
     <html>
     <head><meta charset="utf-8"></head>
     <body>
     <script>
-    (function() {{
-        try {{
+    (function() {
+        try {
             var parentDoc = window.parent.document;
             var parentWin = window.parent;
 
-            var audioDataB64 = "{b64_audio}";
-            var srtDataB64 = "{srt_b64}";
-            var baseFilename = "{track_title}";
+            var audioDataB64 = "__AUDIO_B64__";
+            var srtDataB64 = "__SRT_B64__";
+            var baseFilename = "__BASE_FILENAME__";
 
-            parentWin.__vdtCurrentTrack = {{
+            parentWin.__vdtCurrentTrack = {
                 audioB64: audioDataB64,
                 srtB64: srtDataB64,
                 baseFilename: baseFilename
-            }};
+            };
 
             var isLooping = false;
             var animId = null;
             var isScrubbing = false;
 
-            function getLiveAudio() {{
+            function getLiveAudio() {
                 return parentDoc.getElementById('daw-core-audio');
-            }}
+            }
 
-            function formatTimeWithMs(sec) {{
+            function formatTimeWithMs(sec) {
                 if (!sec || isNaN(sec)) return "00:00.0";
                 var m = Math.floor(sec / 60);
                 var s = Math.floor(sec % 60);
                 var ms = Math.floor((sec % 1) * 10);
                 return (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s) + "." + ms;
-            }}
+            }
 
-            function formatTimeShort(sec) {{
+            function formatTimeShort(sec) {
                 if (!sec || isNaN(sec)) return "00:00";
                 var m = Math.floor(sec / 60);
                 var s = Math.floor(sec % 60);
                 return (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
-            }}
+            }
 
-            function updateLoangAndProgress(cur, dur) {{
+            function updateLoangAndProgress(cur, dur) {
                 var timecode = parentDoc.getElementById('daw-timecode-display');
                 var timeEnd = parentDoc.getElementById('daw-time-end');
                 var scrubCursor = parentDoc.getElementById('daw-scrub-cursor');
                 var eqBars = parentDoc.querySelectorAll('#daw-eq-bars .daw-eq-bar');
 
-                if (timecode) {{
-                    timecode.textContent = formatTimeWithMs(cur) + " / " + formatTimeWithMs(dur);
-                }}
-                if (timeEnd && dur > 0) {{
+                if (timecode) {
+                    if (timecode.classList.contains('daw-mobile-timecode')) {
+                        timecode.innerHTML = formatTimeWithMs(cur) + ' /<br>' + formatTimeWithMs(dur);
+                    } else {
+                        timecode.textContent = formatTimeWithMs(cur) + " / " + formatTimeWithMs(dur);
+                    }
+                }
+                if (timeEnd && dur > 0) {
                     timeEnd.textContent = formatTimeShort(dur);
-                }}
+                }
                 var pct = (dur > 0) ? Math.max(0, Math.min(1, cur / dur)) : 0;
-                if (scrubCursor) {{
+                if (scrubCursor) {
                     scrubCursor.style.left = (pct * 100) + "%";
-                }}
+                }
 
                 var numBars = eqBars.length;
                 var activeIdx = Math.floor(pct * numBars);
-                eqBars.forEach(function(bar, idx) {{
-                    if (idx <= activeIdx) {{
+                eqBars.forEach(function(bar, idx) {
+                    if (idx <= activeIdx) {
                         bar.classList.add('loang-active');
                         bar.style.background = "#0284c7";
                         bar.style.boxShadow = "0 0 5px rgba(2, 132, 199, 0.75)";
-                    }} else {{
+                    } else {
                         bar.classList.remove('loang-active');
                         bar.style.background = "#cbd5e1";
                         bar.style.boxShadow = "none";
-                    }}
-                }});
-            }}
+                    }
+                });
+            }
 
-            function animateWave() {{
+            function animateWave() {
                 var audio = getLiveAudio();
-                if (audio && !audio.paused && !audio.ended) {{
+                if (audio && !audio.paused && !audio.ended) {
                     var cur = audio.currentTime || 0;
                     var dur = audio.duration || 0;
                     var pct = dur > 0 ? (cur / dur) : 0;
@@ -1849,86 +2328,100 @@ if active_audio_path and Path(active_audio_path).exists():
                     var numBars = eqBars.length;
                     var activeIdx = Math.floor(pct * numBars);
 
-                    eqBars.forEach(function(bar, idx) {{
+                    eqBars.forEach(function(bar, idx) {
                         var baseH = parseInt(bar.getAttribute('data-base-h') || '14', 10);
-                        if (idx <= activeIdx) {{
+                        if (idx <= activeIdx) {
                             var factor = Math.sin((Date.now() / 110) + (idx * 0.45));
                             var bounce = Math.abs(factor) * 14 + (Math.random() * 4);
                             var finalH = Math.min(28, Math.max(5, Math.floor(baseH * 0.5 + bounce)));
                             bar.style.height = finalH + "px";
                             bar.style.background = "#0284c7";
                             bar.style.boxShadow = "0 0 5px rgba(2, 132, 199, 0.75)";
-                        }} else {{
+                        } else {
                             bar.style.height = baseH + "px";
                             bar.style.background = "#cbd5e1";
                             bar.style.boxShadow = "none";
-                        }}
-                    }});
+                        }
+                    });
 
                     updateLoangAndProgress(cur, dur);
                     animId = requestAnimationFrame(animateWave);
-                }}
-            }}
+                }
+            }
 
-            function doPlay() {{
+            function doPlay() {
                 var audio = getLiveAudio();
                 if (!audio || !audio.src || audio.src === '' || audio.src.endsWith('/')) return;
-                audio.play().then(function() {{
+                audio.play().then(function() {
                     var playIcon = parentDoc.getElementById('daw-play-icon');
                     var statusBadge = parentDoc.getElementById('daw-badge-status');
+                    var timecode = parentDoc.getElementById('daw-timecode-display');
+                    var isMob = timecode && timecode.classList.contains('daw-mobile-timecode');
+
                     if (playIcon) playIcon.textContent = "⏸";
-                    if (statusBadge) {{
+                    if (statusBadge) {
                         statusBadge.textContent = "PLAYING";
-                        statusBadge.style.background = "#f0f9ff";
-                        statusBadge.style.color = "#0284c7";
-                    }}
+                        if (!isMob) {
+                            statusBadge.style.background = "#f0f9ff";
+                            statusBadge.style.color = "#0284c7";
+                        } else {
+                            statusBadge.style.color = "#0284c7";
+                        }
+                    }
                     cancelAnimationFrame(animId);
                     animId = requestAnimationFrame(animateWave);
-                }}).catch(function(err) {{
+                }).catch(function(err) {
                     console.log("Audio play notice:", err);
-                }});
-            }}
+                });
+            }
 
-            function doPause() {{
+            function doPause() {
                 var audio = getLiveAudio();
                 if (audio) audio.pause();
                 var playIcon = parentDoc.getElementById('daw-play-icon');
                 var statusBadge = parentDoc.getElementById('daw-badge-status');
+                var timecode = parentDoc.getElementById('daw-timecode-display');
+                var isMob = timecode && timecode.classList.contains('daw-mobile-timecode');
+
                 if (playIcon) playIcon.textContent = "▶";
-                if (statusBadge) {{
+                if (statusBadge) {
                     statusBadge.textContent = "PAUSED";
-                    statusBadge.style.background = "#f1f5f9";
-                    statusBadge.style.color = "#475569";
-                }}
+                    if (!isMob) {
+                        statusBadge.style.background = "#f1f5f9";
+                        statusBadge.style.color = "#475569";
+                    } else {
+                        statusBadge.style.color = "#64748b";
+                    }
+                }
                 cancelAnimationFrame(animId);
                 var cur = audio ? (audio.currentTime || 0) : 0;
                 var dur = audio ? (audio.duration || 0) : 0;
                 updateLoangAndProgress(cur, dur);
                 var eqBars = parentDoc.querySelectorAll('#daw-eq-bars .daw-eq-bar');
-                eqBars.forEach(function(bar) {{
+                eqBars.forEach(function(bar) {
                     var baseH = bar.getAttribute('data-base-h') || '14';
                     bar.style.height = baseH + "px";
-                }});
-            }}
+                });
+            }
 
             parentWin.__vdtDoPlay = doPlay;
             parentWin.__vdtDoPause = doPause;
 
-            function triggerBlobDownload(b64Data, filename, mimeType) {{
-                try {{
+            function triggerBlobDownload(b64Data, filename, mimeType) {
+                try {
                     if (!b64Data || b64Data.length < 10) return;
                     var byteCharacters = atob(b64Data);
                     var byteArrays = [];
                     var sliceSize = 1024 * 4;
-                    for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {{
+                    for (var offset = 0; offset < byteCharacters.length; offset += sliceSize) {
                         var slice = byteCharacters.slice(offset, offset + sliceSize);
                         var byteNumbers = new Array(slice.length);
-                        for (var i = 0; i < slice.length; i++) {{
+                        for (var i = 0; i < slice.length; i++) {
                             byteNumbers[i] = slice.charCodeAt(i);
-                        }}
+                        }
                         byteArrays.push(new Uint8Array(byteNumbers));
-                    }}
-                    var blob = new (parentWin.Blob || Blob)(byteArrays, {{ type: mimeType }});
+                    }
+                    var blob = new (parentWin.Blob || Blob)(byteArrays, { type: mimeType });
                     var blobUrl = (parentWin.URL || window.URL).createObjectURL(blob);
                     var link = parentDoc.createElement('a');
                     link.style.display = 'none';
@@ -1936,85 +2429,85 @@ if active_audio_path and Path(active_audio_path).exists():
                     link.download = filename;
                     parentDoc.body.appendChild(link);
                     link.click();
-                    setTimeout(function() {{
+                    setTimeout(function() {
                         if (link.parentNode) link.parentNode.removeChild(link);
                         (parentWin.URL || window.URL).revokeObjectURL(blobUrl);
-                    }}, 3000);
-                }} catch(err) {{
+                    }, 3000);
+                } catch(err) {
                     console.error("Blob download failed:", err);
-                }}
-            }}
+                }
+            }
 
-            if (parentWin.__vdtDawClickHandler) {{
+            if (parentWin.__vdtDawClickHandler) {
                 parentDoc.removeEventListener('click', parentWin.__vdtDawClickHandler, true);
-            }}
+            }
 
-            parentWin.__vdtDawClickHandler = function(e) {{
+            parentWin.__vdtDawClickHandler = function(e) {
                 var audio = getLiveAudio();
-                var curTrack = parentWin.__vdtCurrentTrack || {{
+                var curTrack = parentWin.__vdtCurrentTrack || {
                     audioB64: audioDataB64,
                     srtB64: srtDataB64,
                     baseFilename: baseFilename
-                }};
+                };
 
-                if (e.target.closest('#daw-btn-play')) {{
+                if (e.target.closest('#daw-btn-play')) {
                     e.preventDefault();
-                    if (audio) {{
+                    if (audio) {
                         if (audio.paused) doPlay();
                         else doPause();
-                    }}
+                    }
                     return;
-                }}
+                }
 
-                if (e.target.closest('#daw-btn-prev')) {{
+                if (e.target.closest('#daw-btn-prev')) {
                     e.preventDefault();
-                    if (audio) {{
+                    if (audio) {
                         audio.currentTime = Math.max(0, audio.currentTime - 5);
                         updateLoangAndProgress(audio.currentTime, audio.duration || 0);
-                    }}
+                    }
                     return;
-                }}
+                }
 
-                if (e.target.closest('#daw-btn-next')) {{
+                if (e.target.closest('#daw-btn-next')) {
                     e.preventDefault();
-                    if (audio) {{
+                    if (audio) {
                         audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 5);
                         updateLoangAndProgress(audio.currentTime, audio.duration || 0);
-                    }}
+                    }
                     return;
-                }}
+                }
 
                 var loopBtn = e.target.closest('#daw-btn-loop');
-                if (loopBtn && audio) {{
+                if (loopBtn && audio) {
                     e.preventDefault();
                     isLooping = !isLooping;
                     audio.loop = isLooping;
                     loopBtn.style.color = isLooping ? "#0284c7" : "#64748b";
                     return;
-                }}
+                }
 
-                if (e.target.closest('#daw-btn-dl-srt')) {{
+                if (e.target.closest('#daw-btn-dl-srt')) {
                     e.preventDefault();
                     triggerBlobDownload(curTrack.srtB64, curTrack.baseFilename + ".srt", "text/plain;charset=utf-8");
                     return;
-                }}
+                }
 
-                if (e.target.closest('#daw-btn-dl-mp3')) {{
+                if (e.target.closest('#daw-btn-dl-mp3')) {
                     e.preventDefault();
                     triggerBlobDownload(curTrack.audioB64, curTrack.baseFilename + ".mp3", "audio/mp3");
                     return;
-                }}
+                }
 
-                if (e.target.closest('#daw-btn-dl-wav')) {{
+                if (e.target.closest('#daw-btn-dl-wav')) {
                     e.preventDefault();
                     triggerBlobDownload(curTrack.audioB64, curTrack.baseFilename + "_Master48kHz.wav", "audio/wav");
                     return;
-                }}
-            }};
+                }
+            };
 
             parentDoc.addEventListener('click', parentWin.__vdtDawClickHandler, true);
 
-            function handleScrub(e) {{
+            function handleScrub(e) {
                 var scrub = parentDoc.getElementById('daw-waveform-scrub');
                 var audio = getLiveAudio();
                 if (!scrub || !audio) return;
@@ -2022,72 +2515,110 @@ if active_audio_path and Path(active_audio_path).exists():
                 var clientX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
                 var clickX = clientX - rect.left;
                 var pct = Math.max(0, Math.min(1, clickX / rect.width));
-                if (audio.duration && !isNaN(audio.duration)) {{
+                if (audio.duration && !isNaN(audio.duration)) {
                     audio.currentTime = pct * audio.duration;
                     updateLoangAndProgress(audio.currentTime, audio.duration);
-                }}
-            }}
+                }
+            }
 
-            if (parentWin.__vdtScrubDownHandler) {{
+            if (parentWin.__vdtScrubDownHandler) {
                 parentDoc.removeEventListener('mousedown', parentWin.__vdtScrubDownHandler, true);
                 parentDoc.removeEventListener('mousemove', parentWin.__vdtScrubMoveHandler, true);
                 parentDoc.removeEventListener('mouseup', parentWin.__vdtScrubUpHandler, true);
-            }}
+            }
 
-            parentWin.__vdtScrubDownHandler = function(e) {{
-                if (e.target.closest('#daw-waveform-scrub')) {{
+            parentWin.__vdtScrubDownHandler = function(e) {
+                if (e.target.closest('#daw-waveform-scrub')) {
                     isScrubbing = true;
                     handleScrub(e);
-                }}
-            }};
-            parentWin.__vdtScrubMoveHandler = function(e) {{
+                }
+            };
+            parentWin.__vdtScrubMoveHandler = function(e) {
                 if (isScrubbing) handleScrub(e);
-            }};
-            parentWin.__vdtScrubUpHandler = function(e) {{
+            };
+            parentWin.__vdtScrubUpHandler = function(e) {
                 if (isScrubbing) isScrubbing = false;
-            }};
+            };
 
             parentDoc.addEventListener('mousedown', parentWin.__vdtScrubDownHandler, true);
             parentDoc.addEventListener('mousemove', parentWin.__vdtScrubMoveHandler, true);
             parentDoc.addEventListener('mouseup', parentWin.__vdtScrubUpHandler, true);
 
+            // Touch scrubbing for mobile phones
+            if (parentWin.__vdtScrubTouchStartHandler) {
+                parentDoc.removeEventListener('touchstart', parentWin.__vdtScrubTouchStartHandler, true);
+                parentDoc.removeEventListener('touchmove', parentWin.__vdtScrubTouchMoveHandler, true);
+                parentDoc.removeEventListener('touchend', parentWin.__vdtScrubTouchEndHandler, true);
+            }
+            parentWin.__vdtScrubTouchStartHandler = function(e) {
+                if (e.target.closest('#daw-waveform-scrub')) {
+                    isScrubbing = true;
+                    handleScrub(e);
+                }
+            };
+            parentWin.__vdtScrubTouchMoveHandler = function(e) {
+                if (isScrubbing) handleScrub(e);
+            };
+            parentWin.__vdtScrubTouchEndHandler = function(e) {
+                if (isScrubbing) isScrubbing = false;
+            };
+            parentDoc.addEventListener('touchstart', parentWin.__vdtScrubTouchStartHandler, { passive: true, capture: true });
+            parentDoc.addEventListener('touchmove', parentWin.__vdtScrubTouchMoveHandler, { passive: true, capture: true });
+            parentDoc.addEventListener('touchend', parentWin.__vdtScrubTouchEndHandler, { passive: true, capture: true });
+
             var liveAudio = getLiveAudio();
-            if (liveAudio) {{
+            if (liveAudio) {
                 liveAudio.pause();
                 liveAudio.load();
                 liveAudio.currentTime = 0;
                 updateLoangAndProgress(0, liveAudio.duration || 0);
 
-                liveAudio.onloadedmetadata = function() {{
+                liveAudio.onloadedmetadata = function() {
                     updateLoangAndProgress(liveAudio.currentTime, liveAudio.duration || 0);
-                }};
-                liveAudio.ontimeupdate = function() {{
-                    if (liveAudio.paused && !isScrubbing) {{
+                };
+                liveAudio.ontimeupdate = function() {
+                    if (liveAudio.paused && !isScrubbing) {
                         updateLoangAndProgress(liveAudio.currentTime, liveAudio.duration || 0);
-                    }}
-                }};
-                liveAudio.onended = function() {{
+                    }
+                };
+                liveAudio.onended = function() {
                     doPause();
                     liveAudio.currentTime = 0;
                     updateLoangAndProgress(0, liveAudio.duration || 0);
                     var statusBadge = parentDoc.getElementById('daw-badge-status');
-                    if (statusBadge) statusBadge.textContent = "READY";
-                }};
+                    var timecode = parentDoc.getElementById('daw-timecode-display');
+                    var isMob = timecode && timecode.classList.contains('daw-mobile-timecode');
+                    if (statusBadge) {
+                        statusBadge.textContent = "READY";
+                        if (!isMob) {
+                            statusBadge.style.background = "#f0f9ff";
+                            statusBadge.style.color = "#0284c7";
+                        } else {
+                            statusBadge.style.color = "#64748b";
+                        }
+                    }
+                };
 
-                if (liveAudio.getAttribute('data-autoplay') === 'true') {{
+                if (liveAudio.getAttribute('data-autoplay') === 'true') {
                     liveAudio.removeAttribute('data-autoplay');
                     setTimeout(doPlay, 350);
-                }}
-            }}
+                }
+            }
 
-        }} catch(err) {{
+        } catch(err) {
             console.error('DAW Player error:', err);
-        }}
-    }})();
+        }
+    })();
     </script>
     </body>
     </html>
     """
+    player_engine_js = (
+        player_engine_js_template
+        .replace("__AUDIO_B64__", b64_audio)
+        .replace("__SRT_B64__", srt_b64)
+        .replace("__BASE_FILENAME__", track_title)
+    )
     components.html(player_engine_js, height=0)
 
 
