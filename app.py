@@ -13,6 +13,8 @@ import re
 import time
 import urllib.parse
 import logging
+import io
+import shutil
 import streamlit as st
 import streamlit.components.v1 as components
 import edge_tts
@@ -27,7 +29,7 @@ _vieneu_mod = importlib.reload(_vieneu_mod)
 
 from config import DEFAULT_VOICES, LANGUAGE_NAMES, VOICES_CATALOG, DubbingConfig
 from video_dubber.pipeline import VideoDubberPipeline
-from video_dubber.vieneu_tts import generate_vieneu_speech, EMOTION_SOUND_MAP, apply_acoustic_fx
+from video_dubber.vieneu_tts import generate_vieneu_speech, EMOTION_SOUND_MAP, apply_acoustic_fx, apply_studio_mixing
 
 # 1. Page Configuration
 st.set_page_config(
@@ -421,6 +423,509 @@ def set_quick_tempo(val: int):
 
 def set_acoustic_fx(val: str):
     st.session_state["active_acoustic_fx"] = val
+
+
+MIXING_DEFAULTS = {
+    "mix_eq_chest": 1.0,
+    "mix_de_glare_toggle": True,
+    "mix_de_glare_val": 1.0,
+    "mix_warmth_comp": 1.0,
+    "mix_voice_boost": 1.0,
+    "mix_ai_denoise_toggle": True,
+    "mix_ai_denoise_val": 1.0,
+    "mix_clarity_toggle": True,
+    "mix_clarity_val": 1.0,
+    "mix_timbre": 1.0,
+    "mix_emotion_algo": 1.0,
+    "mix_loudness_thresh": -60.0,
+    "mix_fade": 0.11,
+    "mix_infer_duration": 3.40,
+    "mix_pitch": 0.0,
+}
+
+for _k, _v in MIXING_DEFAULTS.items():
+    if _k not in st.session_state:
+        st.session_state[_k] = _v
+
+
+def reset_mixing_defaults():
+    for _k, _v in MIXING_DEFAULTS.items():
+        st.session_state[_k] = _v
+    st.session_state["applied_mixing_cfg_str"] = None
+    st.session_state["show_mixing_dialog_open"] = True
+
+
+def open_mixing_dialog():
+    st.session_state["show_mixing_dialog_open"] = True
+
+
+@st.dialog("CẤU HÌNH & CẢI THIỆN GIỌNG ĐỌC", width="large")
+def show_mixing_modal(voice_name: str):
+    """
+    Modal popup giao diện Cấu hình & Cải thiện giọng đọc chuẩn Studio (Realtime DSP Preview & Master Export):
+    - Cột Trái: Cải thiện & Hiệu ứng EQ (EQ tăng lực, triệt chói, bộ nén ấm, nâng lực nói).
+    - Cột Phải: Thông số giọng mẫu tự nhiên (AI khử nhiễu, độ trong, âm sắc, cảm xúc, ngưỡng âm lượng, fade, thời gian suy luận, độ trầm bổng).
+    - Tự động remix realtime ngay khi kéo thanh trượt (Real-time live audition).
+    - Muốn xuất ra phải áp dụng rồi mới xuất ra được giọng đã mixing.
+    """
+    current_audio = st.session_state.get("script_generated_file")
+    raw_source = st.session_state.get("script_generated_raw_file")
+
+    # Xác định nguồn âm thanh thô nguyên bản (Virgin raw source)
+    if current_audio and Path(current_audio).exists():
+        p_cur = Path(current_audio)
+        if not raw_source or not Path(raw_source).exists():
+            backup_raw = p_cur.with_name(f"{p_cur.stem}_raw{p_cur.suffix}")
+            if not backup_raw.exists():
+                try:
+                    shutil.copyfile(str(p_cur), str(backup_raw))
+                except Exception as e_bk:
+                    logger.warning(f"Could not backup raw audio: {e_bk}")
+            st.session_state["script_generated_raw_file"] = str(backup_raw)
+            raw_source = str(backup_raw)
+    else:
+        try:
+            sample_file = get_or_generate_voice_preview(selected_voice_id, "vi", voice_name)
+            raw_source = str(sample_file) if sample_file and sample_file.exists() else None
+        except Exception:
+            raw_source = None
+
+    # Header matching template
+    st.markdown(
+        f"""
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div style="font-size: 16.5px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.3px;">
+                CẤU HÌNH & CẢI THIỆN GIỌNG ĐỌC: <span style="color: #0284c7;">{voice_name}</span>
+            </div>
+            <div style="background: #ffedd5; border: 1px solid #fdba74; color: #c2410c; border-radius: 20px; padding: 4px 12px; font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #ea580c;"></span>
+                Cấu hình đề xuất cho giọng {voice_name} (tự nhiên)
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Đọc cấu hình hiện tại từ session_state
+    cfg = {
+        "mix_eq_chest": st.session_state.get("mix_eq_chest", 1.0),
+        "mix_de_glare_toggle": st.session_state.get("mix_de_glare_toggle", True),
+        "mix_de_glare_val": st.session_state.get("mix_de_glare_val", 1.0),
+        "mix_warmth_comp": st.session_state.get("mix_warmth_comp", 1.0),
+        "mix_voice_boost": st.session_state.get("mix_voice_boost", 1.0),
+        "mix_ai_denoise_toggle": st.session_state.get("mix_ai_denoise_toggle", True),
+        "mix_ai_denoise_val": st.session_state.get("mix_ai_denoise_val", 1.0),
+        "mix_clarity_toggle": st.session_state.get("mix_clarity_toggle", True),
+        "mix_clarity_val": st.session_state.get("mix_clarity_val", 1.0),
+        "mix_timbre": st.session_state.get("mix_timbre", 1.0),
+        "mix_emotion_algo": st.session_state.get("mix_emotion_algo", 1.0),
+        "mix_loudness_thresh": st.session_state.get("mix_loudness_thresh", -60.0),
+        "mix_fade": st.session_state.get("mix_fade", 0.11),
+        "mix_infer_duration": st.session_state.get("mix_infer_duration", 3.40),
+        "mix_pitch": st.session_state.get("mix_pitch", 0.0),
+    }
+
+    # XỬ LÝ PHỐI TRỘN REALTIME TRỰC TIẾP (DSP 48kHz In-Memory)
+    wav_bytes = None
+    mp3_bytes = None
+    mixed_sound_obj = None
+
+    if raw_source and Path(raw_source).exists():
+        try:
+            from video_dubber.vieneu_tts import apply_studio_mixing
+            from pydub import AudioSegment
+            mixed_res = apply_studio_mixing(sound_or_path=raw_source, voice_name=voice_name, config=cfg)
+            if isinstance(mixed_res, AudioSegment):
+                mixed_sound_obj = mixed_res
+                w_io = io.BytesIO()
+                mixed_res.export(w_io, format="wav")
+                wav_bytes = w_io.getvalue()
+
+                m_io = io.BytesIO()
+                mixed_res.export(m_io, format="mp3", bitrate="320k")
+                mp3_bytes = m_io.getvalue()
+        except Exception as e_mix_rt:
+            logger.warning(f"Note on realtime mixing: {e_mix_rt}")
+
+    # KHỐI PLAYER REALTIME PREVIEW NGAY ĐẦU MODAL
+    with st.container(border=True):
+        p_c1, p_c2 = st.columns([3, 1])
+        with p_c1:
+            st.markdown(
+                """
+                <div style="font-size: 12px; font-weight: 800; color: #0284c7; display: flex; align-items: center; gap: 6px;">
+                    <span>⚡</span> PREVIEW REALTIME (48kHz Studio Master)
+                    <span style="font-size: 10px; font-weight: 500; color: #64748b;">• Kéo thanh trượt để nghe âm thanh thay đổi trực tiếp</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with p_c2:
+            auto_audition = st.checkbox(
+                "⚡ Tự động phát khi chỉnh",
+                value=st.session_state.get("mix_live_autoplay", True),
+                key="mix_live_autoplay",
+                help="Bật để tự động phát lại ngay khi bạn điều chỉnh thanh trượt hoặc công tắc",
+            )
+
+        if wav_bytes:
+            import hashlib
+            audio_hash = hashlib.md5(wav_bytes).hexdigest()[:8]
+
+            # Badge hiển thị trực quan các mức tăng giảm dB thực tế
+            eq_db = (cfg['mix_eq_chest'] - 1.0) * 4.5 + 1.2
+            vb_db = (cfg['mix_voice_boost'] - 1.0) * 4.5 + 1.0
+            dg_db = -3.5 * cfg['mix_de_glare_val'] if cfg['mix_de_glare_toggle'] else 0.0
+            pitch_st = cfg['mix_pitch']
+
+            st.markdown(
+                f"""
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; font-size: 10.5px;">
+                    <span style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; border-radius: 4px; padding: 2px 6px; font-weight: 700;">Đầm giọng: {eq_db:+.1f}dB</span>
+                    <span style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; border-radius: 4px; padding: 2px 6px; font-weight: 700;">Lực nói: {vb_db:+.1f}dB</span>
+                    <span style="background: #fdf2f8; border: 1px solid #fbcfe8; color: #9d174d; border-radius: 4px; padding: 2px 6px; font-weight: 700;">Triệt chói: {dg_db:.1f}dB</span>
+                    <span style="background: #fefce8; border: 1px solid #fef08a; color: #854d0e; border-radius: 4px; padding: 2px 6px; font-weight: 700;">Pitch: {pitch_st:+.1f}st</span>
+                    <span style="background: #f8fafc; border: 1px solid #cbd5e1; color: #475569; border-radius: 4px; padding: 2px 6px; font-weight: 700;">True Peak: -1.0 dBFS</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            st.audio(wav_bytes, format="audio/wav", autoplay=auto_audition)
+        else:
+            st.info("ℹ️ Sẵn sàng phối trộn. Âm thanh xem trước sẽ xuất hiện tại đây.")
+
+    col_l, col_r = st.columns([1, 1], gap="large")
+
+    # ==========================================================================
+    # CỘT TRÁI: CẢI THIỆN & HIỆU ỨNG EQ
+    # ==========================================================================
+    with col_l:
+        st.markdown(
+            """
+            <div style="font-size: 14px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">
+                Cải thiện & Hiệu ứng EQ
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # 1. Cấu hình EQ Tăng Lực & Đầm Giọng
+        with st.container(border=True):
+            st.markdown(
+                f"""
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                    <span style="font-size: 12px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 6px;">
+                        <span>🎚️</span> Cấu hình EQ Tăng Lực & Đầm Giọng
+                    </span>
+                    <span style="font-size: 12px; font-weight: 800; color: #0284c7;">{st.session_state.get('mix_eq_chest', 1.0):.2f}</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.slider("EQ Chest", min_value=0.0, max_value=2.0, value=float(st.session_state.get("mix_eq_chest", 1.0)), step=0.05, key="mix_eq_chest", label_visibility="collapsed")
+
+        # 2. Triệt Tiêu Chói Gắt
+        with st.container(border=True):
+            c_dg1, c_dg2 = st.columns([3, 1])
+            with c_dg1:
+                st.markdown(
+                    """
+                    <div style="font-size: 12px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 6px;">
+                        <span>📉</span> Triệt Tiêu Chói Gắt
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            with c_dg2:
+                st.toggle("De-glare toggle", value=st.session_state.get("mix_de_glare_toggle", True), key="mix_de_glare_toggle", label_visibility="collapsed")
+            
+            st.markdown(
+                f"""
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: -6px; margin-bottom: 2px;">
+                    <span style="font-size: 10.5px; color: #64748b;">Mức triệt tiêu</span>
+                    <span style="font-size: 11.5px; font-weight: 700; color: #0284c7;">Tĩnh {st.session_state.get('mix_de_glare_val', 1.0):.2f}</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.slider("De-glare Val", min_value=0.0, max_value=2.0, value=float(st.session_state.get("mix_de_glare_val", 1.0)), step=0.05, key="mix_de_glare_val", label_visibility="collapsed")
+
+        # 3. Bộ Nén Ấm Studio (Warmth Compressor)
+        with st.container(border=True):
+            st.markdown(
+                f"""
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                    <span style="font-size: 12px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 6px;">
+                        <span>🎛️</span> Bộ Nén Ấm Studio (Warmth Compressor)
+                    </span>
+                    <span style="font-size: 11.5px; font-weight: 700; color: #0284c7;">Ấm áp {st.session_state.get('mix_warmth_comp', 1.0):.2f}</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.slider("Warmth Comp", min_value=0.0, max_value=2.0, value=float(st.session_state.get("mix_warmth_comp", 1.0)), step=0.05, key="mix_warmth_comp", label_visibility="collapsed")
+
+        # 4. Nâng Lực Nói (Voice Boost)
+        with st.container(border=True):
+            st.markdown(
+                f"""
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                    <span style="font-size: 12px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 6px;">
+                        <span>🎙️</span> Nâng Lực Nói (Voice Boost)
+                    </span>
+                    <span style="font-size: 11.5px; font-weight: 700; color: #0284c7;">nâng {st.session_state.get('mix_voice_boost', 1.0):.2f}</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.slider("Voice Boost", min_value=0.0, max_value=2.0, value=float(st.session_state.get("mix_voice_boost", 1.0)), step=0.05, key="mix_voice_boost", label_visibility="collapsed")
+
+    # ==========================================================================
+    # CỘT PHẢI: THÔNG SỐ GIỌNG MẪU TỰ NHIÊN
+    # ==========================================================================
+    with col_r:
+        st.markdown(
+            """
+            <div style="font-size: 14px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">
+                Thông số giọng mẫu tự nhiên
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        with st.container(border=True):
+            # 1. AI Khử Nhiễu
+            c_dn1, c_dn2 = st.columns([3, 1])
+            with c_dn1:
+                st.markdown(
+                    """
+                    <div style="font-size: 12px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 6px; margin-top: 2px;">
+                        <span>🔇</span> AI Khử Nhiễu <small style="color: #64748b; font-weight: 400;">(AI Noise Reduction)</small>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            with c_dn2:
+                st.toggle("Denoise toggle", value=st.session_state.get("mix_ai_denoise_toggle", True), key="mix_ai_denoise_toggle", label_visibility="collapsed")
+            c_s1, c_v1 = st.columns([4, 1])
+            with c_s1:
+                st.slider("AI Denoise Val", min_value=0.0, max_value=2.0, value=float(st.session_state.get("mix_ai_denoise_val", 1.0)), step=0.05, key="mix_ai_denoise_val", label_visibility="collapsed")
+            with c_v1:
+                st.markdown(f"<div style='font-size: 12px; font-weight: 800; color: #0284c7; padding-top: 8px; text-align: right;'>{st.session_state.get('mix_ai_denoise_val', 1.0):.2f}</div>", unsafe_allow_html=True)
+
+            # 2. Độ Trong Giọng Nói
+            c_cl1, c_cl2 = st.columns([3, 1])
+            with c_cl1:
+                st.markdown(
+                    """
+                    <div style="font-size: 12px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 6px; margin-top: 2px;">
+                        <span>✨</span> Độ Trong Giọng Nói <small style="color: #64748b; font-weight: 400;">(nhân thanh thuần tịnh độ)</small>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            with c_cl2:
+                st.toggle("Clarity toggle", value=st.session_state.get("mix_clarity_toggle", True), key="mix_clarity_toggle", label_visibility="collapsed")
+            c_s2, c_v2 = st.columns([4, 1])
+            with c_s2:
+                st.slider("Clarity Val", min_value=0.0, max_value=2.0, value=float(st.session_state.get("mix_clarity_val", 1.0)), step=0.05, key="mix_clarity_val", label_visibility="collapsed")
+            with c_v2:
+                st.markdown(f"<div style='font-size: 12px; font-weight: 800; color: #0284c7; padding-top: 8px; text-align: right;'>{st.session_state.get('mix_clarity_val', 1.0):.2f}</div>", unsafe_allow_html=True)
+
+            # 3. Đặc Trưng Âm Sắc
+            st.markdown(
+                """
+                <div style="font-size: 12px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 6px; margin-top: 2px;">
+                    <span>🎨</span> Đặc Trưng Âm Sắc <small style="color: #64748b; font-weight: 400;">(Timbre Features)</small>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            c_s3, c_v3 = st.columns([4, 1])
+            with c_s3:
+                st.slider("Timbre", min_value=0.0, max_value=2.0, value=float(st.session_state.get("mix_timbre", 1.0)), step=0.05, key="mix_timbre", label_visibility="collapsed")
+            with c_v3:
+                st.markdown(f"<div style='font-size: 12px; font-weight: 800; color: #0284c7; padding-top: 8px; text-align: right;'>{st.session_state.get('mix_timbre', 1.0):.2f}</div>", unsafe_allow_html=True)
+
+            # 4. Thuật Toán Cảm Xúc
+            st.markdown(
+                """
+                <div style="font-size: 12px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 6px; margin-top: 2px;">
+                    <span>😊</span> Thuật Toán Cảm Xúc <small style="color: #64748b; font-weight: 400;">(Emotion Algorithm)</small>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            c_s4, c_v4 = st.columns([4, 1])
+            with c_s4:
+                st.slider("Emotion Algo", min_value=0.0, max_value=2.0, value=float(st.session_state.get("mix_emotion_algo", 1.0)), step=0.05, key="mix_emotion_algo", label_visibility="collapsed")
+            with c_v4:
+                st.markdown(f"<div style='font-size: 12px; font-weight: 800; color: #0284c7; padding-top: 8px; text-align: right;'>{st.session_state.get('mix_emotion_algo', 1.0):.2f}</div>", unsafe_allow_html=True)
+
+            # 5. Ngưỡng Âm Lượng
+            st.markdown(
+                """
+                <div style="font-size: 12px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 6px; margin-top: 2px;">
+                    <span>🔊</span> Ngưỡng Âm Lượng <small style="color: #64748b; font-weight: 400;">(Loudness Threshold)</small>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            c_s5, c_v5 = st.columns([4, 1])
+            with c_s5:
+                st.slider("Loudness Thresh", min_value=-80.0, max_value=0.0, value=float(st.session_state.get("mix_loudness_thresh", -60.0)), step=1.0, key="mix_loudness_thresh", label_visibility="collapsed")
+            with c_v5:
+                st.markdown(f"<div style='font-size: 12px; font-weight: 800; color: #0284c7; padding-top: 8px; text-align: right;'>{int(st.session_state.get('mix_loudness_thresh', -60))}</div>", unsafe_allow_html=True)
+
+            # 6. Fade In / Fade Out
+            st.markdown(
+                """
+                <div style="font-size: 12px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 6px; margin-top: 2px;">
+                    <span>📐</span> Fade In / Fade Out <small style="color: #64748b; font-weight: 400;">(nhạt nhập nhạt xuất)</small>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            c_s6, c_v6 = st.columns([4, 1])
+            with c_s6:
+                st.slider("Fade In Out", min_value=0.0, max_value=1.0, value=float(st.session_state.get("mix_fade", 0.11)), step=0.01, key="mix_fade", label_visibility="collapsed")
+            with c_v6:
+                st.markdown(f"<div style='font-size: 12px; font-weight: 800; color: #0284c7; padding-top: 8px; text-align: right;'>{st.session_state.get('mix_fade', 0.11):.2f}</div>", unsafe_allow_html=True)
+
+            # 7. Thời Gian Suy Luận
+            st.markdown(
+                """
+                <div style="font-size: 12px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 6px; margin-top: 2px;">
+                    <span>⏱️</span> Thời Gian Suy Luận <small style="color: #64748b; font-weight: 400;">(Inference Duration)</small>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            c_s7, c_v7 = st.columns([4, 1])
+            with c_s7:
+                st.slider("Inference Duration", min_value=1.0, max_value=10.0, value=float(st.session_state.get("mix_infer_duration", 3.40)), step=0.1, key="mix_infer_duration", label_visibility="collapsed")
+            with c_v7:
+                st.markdown(f"<div style='font-size: 12px; font-weight: 800; color: #0284c7; padding-top: 8px; text-align: right;'>{st.session_state.get('mix_infer_duration', 3.40):.2f}</div>", unsafe_allow_html=True)
+
+            # 8. Độ Trầm / Bổng
+            st.markdown(
+                """
+                <div style="font-size: 12px; font-weight: 700; color: #1e293b; display: inline-flex; align-items: center; gap: 6px; margin-top: 2px;">
+                    <span>📶</span> Độ Trầm / Bổng <small style="color: #64748b; font-weight: 400;">(Voice Pitch/Thickness)</small>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            c_s8, c_v8 = st.columns([4, 1])
+            with c_s8:
+                st.slider("Pitch Mix", min_value=-12.0, max_value=12.0, value=float(st.session_state.get("mix_pitch", 0.0)), step=0.5, key="mix_pitch", label_visibility="collapsed")
+            with c_v8:
+                st.markdown(f"<div style='font-size: 12px; font-weight: 800; color: #0284c7; padding-top: 8px; text-align: right;'>{st.session_state.get('mix_pitch', 0.0):.1f}</div>", unsafe_allow_html=True)
+
+    st.markdown("<hr style='margin: 14px 0 10px 0; border: none; border-top: 1px solid #e2e8f0;' />", unsafe_allow_html=True)
+
+    # KIỂM TRA TRẠNG THÁI ÁP DỤNG TRƯỚC KHI XUẤT
+    current_cfg_str = str(sorted(cfg.items()))
+    applied_cfg_str = st.session_state.get("applied_mixing_cfg_str")
+    is_applied = (current_cfg_str == applied_cfg_str)
+
+    if is_applied:
+        st.markdown(
+            """
+            <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; padding: 7px 12px; color: #166534; font-size: 11.5px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                <span>✅</span> ĐÃ ÁP DỤNG MIXING VÀO BẢN MASTER! Giọng đọc đã sẵn sàng xuất file chất lượng cao chuẩn Studio.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            """
+            <div style="background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 8px; padding: 7px 12px; color: #92400e; font-size: 11.5px; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                <span>⚠️</span> Bạn đang nghe thử bản phối Realtime. Vui lòng bấm <b>ÁP DỤNG MIXING VÀO BẢN MASTER</b> trước khi xuất file để ghi nhận chất âm này.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    # ACTION BUTTONS
+    c_btn1, c_btn2, c_btn3 = st.columns([2.5, 1.2, 0.7], gap="small")
+
+    with c_btn1:
+        if st.button("💾 ÁP DỤNG MIXING VÀO BẢN MASTER NÀY", key="modal_apply_mix", type="primary", use_container_width=True):
+            if current_audio and Path(current_audio).exists() and mixed_sound_obj is not None:
+                try:
+                    p_out = Path(current_audio)
+                    fmt = "mp3" if p_out.suffix.lower() == ".mp3" else "wav"
+                    if fmt == "mp3":
+                        mixed_sound_obj.export(str(p_out), format="mp3", bitrate="320k")
+                    else:
+                        mixed_sound_obj.export(str(p_out), format=fmt)
+
+                    # Lưu file WAV 48kHz tương ứng
+                    alt_wav = p_out.with_suffix(".wav")
+                    if alt_wav != p_out and wav_bytes:
+                        alt_wav.write_bytes(wav_bytes)
+
+                    st.session_state["applied_mixing_cfg_str"] = current_cfg_str
+                    st.session_state["mixing_applied_for_export"] = True
+                    st.session_state["just_rendered_autoplay"] = True
+                    st.toast("🎉 Đã áp dụng Mixing vào bản Master thành công! Đã sẵn sàng xuất file.", icon="🎛️")
+                    st.rerun()
+                except Exception as e_mix:
+                    st.error(f"❌ Lỗi khi lưu bản Master Mixing: {e_mix}")
+            else:
+                st.session_state["applied_mixing_cfg_str"] = current_cfg_str
+                st.session_state["mixing_applied_for_export"] = True
+                st.toast("✅ Đã lưu cấu hình Mixing! Khi bấm 'Tạo Giọng Đọc AI Ngay' sẽ tự động áp dụng chất âm này.", icon="💾")
+                st.rerun()
+
+    with c_btn2:
+        st.button(
+            "🔄 Khôi Phục Mặc Định",
+            key="modal_reset_mix",
+            on_click=reset_mixing_defaults,
+            use_container_width=True,
+            help="Đưa toàn bộ 12 thông số mixing về giá trị chuẩn của giọng",
+        )
+
+    with c_btn3:
+        if st.button("✕ Đóng", key="modal_close_mix", use_container_width=True):
+            st.session_state["show_mixing_dialog_open"] = False
+            st.rerun()
+
+    # BỘ NÚT XUẤT AUDIO ĐÃ MIXING TRỰC TIẾP TỪ MODAL
+    st.markdown("<div style='margin-top: 6px;'></div>", unsafe_allow_html=True)
+    c_dl1, c_dl2 = st.columns(2, gap="small")
+    with c_dl1:
+        if wav_bytes:
+            st.download_button(
+                label="⬇️ TẢI XUẤT WAV MASTER (ĐÃ MIXING 48kHz)",
+                data=wav_bytes,
+                file_name=f"{voice_name}_Master48kHz_Mixed.wav",
+                mime="audio/wav",
+                type="primary" if is_applied else "secondary",
+                use_container_width=True,
+                help="Tải file WAV Master 48kHz Lossless đã qua toàn bộ bộ lọc Mixing Studio",
+            )
+        else:
+            st.button("⬇️ Tải Xuất WAV Master (Chưa có audio)", disabled=True, use_container_width=True)
+
+    with c_dl2:
+        if mp3_bytes:
+            st.download_button(
+                label="⬇️ TẢI XUẤT MP3 320k (ĐÃ MIXING)",
+                data=mp3_bytes,
+                file_name=f"{voice_name}_Mixed_320k.mp3",
+                mime="audio/mp3",
+                use_container_width=True,
+                help="Tải file MP3 320kbps Lossy Studio đã qua toàn bộ bộ lọc Mixing Studio",
+            )
+        else:
+            st.button("⬇️ Tải Xuất MP3 320k (Chưa có audio)", disabled=True, use_container_width=True)
+
+
 
 
 # UI Mode System: Desktop Studio (3 Cột) vs Mobile Studio (Gọn gàng)
@@ -1216,6 +1721,7 @@ def render_desktop_workspace():
 
             # Trích xuất thông tin giọng
             clean_name = selected_voice_label.split(" (")[0].replace("🔥 ", "").strip()
+
             if " (" in selected_voice_label:
                 raw_desc = selected_voice_label.split(" (")[1].rstrip(")")
             else:
@@ -1438,6 +1944,15 @@ def render_desktop_workspace():
                     use_container_width=True,
                     type="primary" if current_fx == "AI Denoise" else "secondary",
                 )
+
+            # Nút Mở Modal Mixing Âm Thanh Studio (Khi chưa tạo và khi đã tạo)
+            if st.button(
+                "🎛️ Bảng Điều Khiển Mixing Âm Thanh Studio",
+                key="btn_open_mixing_desk",
+                use_container_width=True,
+                help="Mở modal tinh chỉnh EQ, khử nhiễu, nâng lực nói, triệt chói gắt chuẩn Studio",
+            ):
+                show_mixing_modal(clean_name)
 
 
     # ------------------------------------------------------------------------------
@@ -1912,6 +2427,14 @@ def render_mobile_workspace():
             with fx3:
                 st.button("🎧 Denoise", key="mob_fx_denoise", on_click=set_acoustic_fx, args=("AI Denoise",), use_container_width=True, type="primary" if current_fx == "AI Denoise" else "secondary")
 
+            if st.button(
+                "🎛️ Bảng Điều Khiển Mixing Âm Thanh Studio",
+                key="btn_open_mixing_mob",
+                use_container_width=True,
+                help="Mở modal tinh chỉnh EQ, khử nhiễu, nâng lực nói, triệt chói gắt chuẩn Studio",
+            ):
+                show_mixing_modal(clean_name)
+
         with col_tools_right:
             st.markdown("<div style='font-size: 11px; color: #0f172a; font-weight: 700; margin-bottom: 4px;'>📁 Tải Kịch Bản (TXT / SRT / DOCX):</div>", unsafe_allow_html=True)
             st.file_uploader(
@@ -1947,6 +2470,13 @@ if selected_voice_label not in voice_options:
 
 selected_voice_id = voices_dict[selected_voice_label]
 clean_name = selected_voice_label.split(" (")[0].replace("🔥 ", "").strip()
+
+# Kiểm tra trigger mở Modal Mixing Âm Thanh Studio (Đồng bộ cả Desktop & Mobile)
+if st.session_state.get("show_mixing_dialog_open", False):
+    st.session_state["show_mixing_dialog_open"] = False
+    active_voice = st.session_state.get("script_generated_voice_name") or clean_name
+    show_mixing_modal(active_voice)
+
 
 current_speed = st.session_state.get("slider_speed_val", 0)
 speed_factor = 1.0 + (current_speed / 100.0)
@@ -2057,6 +2587,41 @@ if btn_generate_tts:
                 time.sleep(0.02)
 
             # Giai đoạn 6: Hoàn tất
+            
+            # Tự động phối trộn và tinh chỉnh theo cấu hình Mixing đã lưu
+            try:
+                # Lưu bản sao nguyên bản (Raw unmixed backup) để hỗ trợ Mixing Realtime
+                raw_backup_path = out_file.with_name(f"{out_file.stem}_raw{out_file.suffix}")
+                try:
+                    shutil.copyfile(str(out_file), str(raw_backup_path))
+                    st.session_state["script_generated_raw_file"] = str(raw_backup_path)
+                except Exception as e_cp:
+                    logger.warning(f"Could not backup raw audio: {e_cp}")
+
+                mix_cfg = {
+                    "mix_eq_chest": st.session_state.get("mix_eq_chest", 1.0),
+                    "mix_de_glare_toggle": st.session_state.get("mix_de_glare_toggle", True),
+                    "mix_de_glare_val": st.session_state.get("mix_de_glare_val", 1.0),
+                    "mix_warmth_comp": st.session_state.get("mix_warmth_comp", 1.0),
+                    "mix_voice_boost": st.session_state.get("mix_voice_boost", 1.0),
+                    "mix_ai_denoise_toggle": st.session_state.get("mix_ai_denoise_toggle", True),
+                    "mix_ai_denoise_val": st.session_state.get("mix_ai_denoise_val", 1.0),
+                    "mix_clarity_toggle": st.session_state.get("mix_clarity_toggle", True),
+                    "mix_clarity_val": st.session_state.get("mix_clarity_val", 1.0),
+                    "mix_timbre": st.session_state.get("mix_timbre", 1.0),
+                    "mix_emotion_algo": st.session_state.get("mix_emotion_algo", 1.0),
+                    "mix_loudness_thresh": st.session_state.get("mix_loudness_thresh", -60.0),
+                    "mix_fade": st.session_state.get("mix_fade", 0.11),
+                    "mix_infer_duration": st.session_state.get("mix_infer_duration", 3.40),
+                    "mix_pitch": st.session_state.get("mix_pitch", 0.0),
+                }
+                from video_dubber.vieneu_tts import apply_studio_mixing
+                apply_studio_mixing(sound_or_path=out_file, voice_name=clean_name, config=mix_cfg, output_path=out_file)
+                st.session_state["applied_mixing_cfg_str"] = str(sorted(mix_cfg.items()))
+                st.session_state["mixing_applied_for_export"] = True
+            except Exception as e_mix_gen:
+                logger.warning(f"Note on initial mixing apply: {e_mix_gen}")
+
             progress_slot.progress(100, text="✅ Hoàn tất kết xuất 100%! Đang khởi tạo DAW Master Player...")
             time.sleep(0.35)
             progress_slot.empty()
@@ -2079,6 +2644,24 @@ if btn_generate_tts:
 active_audio_path = st.session_state.get("script_generated_file")
 
 if active_audio_path and Path(active_audio_path).exists():
+
+    with st.container():
+        c_mix_p1, c_mix_p2 = st.columns([3, 1])
+        with c_mix_p1:
+            st.button(
+                "🎛️ Bảng Điều Khiển Mixing Âm Thanh Studio (Chỉnh Trực Tiếp Bản Audio Này)",
+                key="btn_open_mixing_post_render",
+                on_click=open_mixing_dialog,
+                use_container_width=True,
+                help="Phối trộn lại âm thanh trực tiếp và nghe thử chất âm mới ngay lập tức",
+            )
+        with c_mix_p2:
+            st.button(
+                "⚙️ Tinh Chỉnh EQ",
+                key="btn_open_mixing_post_render_gear",
+                on_click=open_mixing_dialog,
+                use_container_width=True,
+            )
     raw_bytes = Path(active_audio_path).read_bytes()
     b64_audio = base64.b64encode(raw_bytes).decode("utf-8")
     audio_uri = f"data:audio/mp3;base64,{b64_audio}"
@@ -2089,7 +2672,8 @@ if active_audio_path and Path(active_audio_path).exists():
         parts = track_title.rsplit("_", 2)
         gen_voice_name = parts[0] if len(parts) >= 3 else clean_name
     track_avatar_b64 = get_voice_avatar_base64(gen_voice_name, gen_voice_name)
-    voice_display_info = f"{gen_voice_name} • 48kHz / 24-Bit Lossless"
+    is_mix_applied = st.session_state.get("mixing_applied_for_export", False)
+    voice_display_info = f"{gen_voice_name} • 48kHz / 24-Bit Lossless {'🎛️ (Đã Mixing)' if is_mix_applied else ''}"
 
     # Tạo phụ đề SRT
     srt_b64 = ""
@@ -2182,7 +2766,7 @@ if active_audio_path and Path(active_audio_path).exists():
                         <button type="button" id="daw-btn-dl-wav" style="background: #0284c7; border: none; border-radius: 6px; color: #ffffff; font-size: 11px; font-weight: 800; padding: 5.5px 12px; cursor: pointer; white-space: nowrap; flex-grow: 1; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 3px; box-shadow: 0 1px 4px rgba(2, 132, 199, 0.3);">
                             ⬇ TẢI WAV MASTER (48kHz)
                         </button>
-                        <button type="button" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #94a3b8; font-size: 12px; padding: 5px 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;" title="Cài đặt">
+                        <button type="button" id="daw-btn-settings" class="daw-btn-gear-settings" style="background: #ffffff; border: 1.5px solid #0284c7; border-radius: 6px; color: #0284c7; font-size: 12px; padding: 5px 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;" title="Cấu hình Mixing âm thanh">
                             ⚙️
                         </button>
                     </div>
@@ -2259,7 +2843,7 @@ if active_audio_path and Path(active_audio_path).exists():
                         <button type="button" id="daw-btn-dl-wav" class="daw-action-btn-wav" title="Tải file Master WAV 48kHz">
                             ⬇ TẢI WAV MASTER (48kHz)
                         </button>
-                        <button type="button" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #64748b; font-size: 13px; padding: 5px 8px; cursor: pointer;" title="Cài đặt">
+                        <button type="button" id="daw-btn-settings" class="daw-btn-gear-settings" style="background: #ffffff; border: 1.5px solid #0284c7; border-radius: 6px; color: #0284c7; font-size: 13px; padding: 5px 8px; cursor: pointer;" title="Cấu hình Mixing âm thanh">
                             ⚙️
                         </button>
                     </div>
@@ -2526,6 +3110,23 @@ if active_audio_path and Path(active_audio_path).exists():
                 if (e.target.closest('#daw-btn-dl-mp3')) {
                     e.preventDefault();
                     triggerBlobDownload(curTrack.audioB64, curTrack.baseFilename + ".mp3", "audio/mp3");
+                    return;
+                }
+
+                if (e.target.closest('#daw-btn-settings') || e.target.closest('.daw-btn-gear-settings')) {
+                    e.preventDefault();
+                    var allBtns = parentDoc.querySelectorAll('button');
+                    var targetBtn = null;
+                    for (var i = 0; i < allBtns.length; i++) {
+                        var txt = allBtns[i].innerText || "";
+                        if (txt.indexOf("Tinh Chỉnh EQ") !== -1 || txt.indexOf("Mixing Âm Thanh Studio") !== -1) {
+                            targetBtn = allBtns[i];
+                            break;
+                        }
+                    }
+                    if (targetBtn) {
+                        targetBtn.click();
+                    }
                     return;
                 }
 
